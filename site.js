@@ -1,195 +1,406 @@
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+(() => {
+  const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const root = document.documentElement;
+  const demo = document.querySelector(".demo-sticky");
+  const frame = document.getElementById("demo-capture-frame");
+  const storyImages = [document.getElementById("demo-capture"), document.getElementById("demo-capture-next")];
+  const caption = document.getElementById("demo-caption-text");
+  const fullShotLink = document.getElementById("full-shot-link");
+  const storySteps = [...document.querySelectorAll("[data-story-step]")];
+  const stepButtons = [...document.querySelectorAll("[data-demo-step]")];
+  const playButton = document.getElementById("play-demo");
+  const story = [
+    {
+      src: "WebsiteAssets/documentpunten.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer: documentpunten links en de fictieve voorbeeld-pdf rechts.",
+      caption: "Documentpunten naast de originele voorbeeld-pdf.",
+      href: "WebsiteAssets/documentpunten.jpg"
+    },
+    {
+      src: "WebsiteAssets/bronpassage.jpg",
+      fallbackSrc: "WebsiteAssets/documentpunten.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met de gevonden bronpassage uit het fictieve raadsvoorstel.",
+      caption: "De gevonden bronpassage in context; echte appweergave.",
+      href: "WebsiteAssets/bronpassage.jpg",
+      fallbackAlt: "Echte appweergave met documentpunten en de fictieve voorbeeld-pdf; de aparte bronpassage-opname wordt niet geladen.",
+      fallbackCaption: "Echte appweergave met het document en de gekoppelde punten.",
+      fallbackHref: "WebsiteAssets/documentpunten.jpg"
+    },
+    {
+      src: "WebsiteAssets/selectie-notities.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met Mijn selectie en een voorbeeldnotitie bij een fictief raadsvoorstel.",
+      caption: "Mijn selectie en voorbeeldnotitie in de echte app.",
+      href: "WebsiteAssets/selectie-notities.jpg"
+    },
+    {
+      src: "WebsiteAssets/lokaal-zoeken.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief raadsvoorstel.",
+      caption: "Zoekresultaten in de echte app.",
+      href: "WebsiteAssets/lokaal-zoeken.jpg"
+    }
+  ];
 
-const workflowContent = {
-  pdf: {
-    kicker: "STAP 01 · PDF INLEZEN",
-    heading: "Begin bij het originele stuk.",
-    copy: "Open een pdf met doorzoekbare tekst. CommissieWijzer leest tekst, leesvolgorde en tabellen in. Na import start de analyse automatisch met de provider die je hebt ingesteld.",
-    foot: "Je document blijft zichtbaar tijdens het lezen."
-  },
-  mode: {
-    kicker: "STAP 02 · ANALYSEMETHODE",
-    heading: "Kies de invalshoek.",
-    copy: "Gebruik een neutrale samenvatting of vergelijk met een partijprogramma dat je zelf toevoegt. De keuze bepaalt welke analyse start; programmavergelijking is optioneel.",
-    foot: "Jouw instellingen bepalen welke AI-provider wordt gebruikt."
-  },
-  source: {
-    kicker: "STAP 03 · BRON CONTROLEREN",
-    heading: "Volg een punt terug naar de passage.",
-    copy: "Punten verwijzen naar bronpassages en fysieke pagina’s. Open de passage in de pdf, lees de omliggende tekst en vergelijk uitleg, voorwaarden en bedragen met het oorspronkelijke stuk.",
-    foot: "Een bronverwijzing helpt controleren; ze bewijst geen interpretatie."
-  },
-  keep: {
-    kicker: "STAP 04 · BEWAREN EN EXPORTEREN",
-    heading: "Bewaar wat jij wilt meenemen.",
-    copy: "Voeg eigen notities of passages toe, zoek lokaal en bewaar je werkdocument met pdf, resultaten en leespositie. Exporteer daarna een samenvatting of je selectie als pdf.",
-    foot: "Werkdocumenten gebruiken het compatibele .spdfwork-formaat."
+  let selectedStep = 0;
+  let activeStoryImage = 0;
+  let storyRequest = 0;
+  let storyFadeTimer = 0;
+  let playbackTimer = 0;
+  let demoVisible = false;
+  let syncPending = false;
+
+  function setPlaybackButton() {
+    if (!playButton) return;
+    const reduced = motionPreference.matches;
+    const playing = Boolean(playbackTimer);
+    playButton.disabled = reduced;
+    playButton.setAttribute("aria-pressed", String(playing));
+    playButton.setAttribute("aria-label", reduced
+      ? "Automatisch afspelen uitgeschakeld door de bewegingsvoorkeur"
+      : playing ? "Pauzeer appbeelden" : "Speel appbeelden automatisch af");
+    const label = playButton.querySelector(".play-label");
+    const icon = playButton.querySelector("span:first-child");
+    if (label) label.textContent = reduced ? "Animatie uit" : playing ? "Pauzeer" : "Speel stappen";
+    if (icon) icon.textContent = playing ? "Ⅱ" : "▶";
   }
-};
 
-const workflowButtons = [...document.querySelectorAll("[data-step]")];
-const workflowDetail = document.getElementById("workflow-detail");
-if (workflowButtons.length && workflowDetail) {
-  const kicker = document.getElementById("workflow-kicker");
-  const heading = document.getElementById("workflow-heading");
-  const copy = document.getElementById("workflow-copy");
-  const foot = document.getElementById("workflow-foot");
-  let changeTimer;
+  function stopPlayback() {
+    if (playbackTimer) window.clearInterval(playbackTimer);
+    playbackTimer = 0;
+    setPlaybackButton();
+  }
 
-  function selectWorkflow(button) {
-    const item = workflowContent[button.dataset.step];
-    if (!item) return;
-    workflowButtons.forEach(candidate => {
-      const active = candidate === button;
-      candidate.classList.toggle("is-active", active);
-      candidate.setAttribute("aria-pressed", String(active));
+  function setStoryCapture(item, step, isFallback = false) {
+    const token = ++storyRequest;
+    if (storyFadeTimer) window.clearTimeout(storyFadeTimer);
+    const active = storyImages[activeStoryImage];
+    const incomingIndex = 1 - activeStoryImage;
+    const incoming = storyImages[incomingIndex];
+    active.classList.add("is-active");
+    incoming.classList.remove("is-active");
+    incoming.setAttribute("aria-hidden", "true");
+    incoming.alt = "";
+    frame.dataset.step = String(step);
+    frame.classList.remove("is-fallback", "is-source");
+
+    incoming.onload = () => {
+      if (token !== storyRequest) return;
+      incoming.onerror = null;
+      incoming.alt = item.alt;
+      incoming.removeAttribute("aria-hidden");
+      active.setAttribute("aria-hidden", "true");
+      if (motionPreference.matches) {
+        active.classList.remove("is-active");
+        incoming.classList.add("is-active");
+        activeStoryImage = incomingIndex;
+      } else {
+        window.requestAnimationFrame(() => {
+          if (token !== storyRequest) return;
+          incoming.classList.add("is-active");
+          active.classList.remove("is-active");
+          activeStoryImage = incomingIndex;
+          storyFadeTimer = window.setTimeout(() => {
+            if (token === storyRequest) active.classList.remove("is-active");
+          }, 900);
+        });
+      }
+      frame.classList.toggle("is-fallback", isFallback);
+      frame.classList.toggle("is-source", step === 1 && !isFallback);
+      caption.textContent = item.caption;
+      fullShotLink.href = item.href;
+    };
+    incoming.onerror = () => {
+      if (token !== storyRequest) return;
+      incoming.onload = null;
+      incoming.onerror = null;
+      if (item.fallbackSrc) {
+        setStoryCapture({
+          src: item.fallbackSrc,
+          alt: item.fallbackAlt,
+          caption: item.fallbackCaption,
+          href: item.fallbackHref
+        }, step, true);
+      }
+    };
+    incoming.src = item.src;
+  }
+
+  function setStep(step, source = "manual") {
+    if (!Number.isInteger(step) || step < 0 || step >= story.length) return;
+    if (source === "scroll" && step === selectedStep) return;
+    if (source === "manual") stopPlayback();
+    selectedStep = step;
+    setStoryCapture(story[step], step);
+    stepButtons.forEach((button, index) => {
+      const active = index === step;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
     });
-    window.clearTimeout(changeTimer);
-    if (!reducedMotion.matches) workflowDetail.classList.add("is-changing");
-    changeTimer = window.setTimeout(() => {
-      kicker.textContent = item.kicker;
-      heading.textContent = item.heading;
-      copy.textContent = item.copy;
-      foot.textContent = item.foot;
-      workflowDetail.classList.remove("is-changing");
-    }, reducedMotion.matches ? 0 : 110);
+    storySteps.forEach((element, index) => element.classList.toggle("is-current", index === step));
+  }
+  stepButtons.forEach(button => button.addEventListener("click", () => setStep(Number(button.dataset.demoStep))));
+
+  function elementIsVisible(element) {
+    const rect = element.getBoundingClientRect();
+    return rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
+  }
+  function startPlayback() {
+    if (motionPreference.matches || !demo || !elementIsVisible(demo) || playbackTimer) return;
+    playbackTimer = window.setInterval(() => setStep((selectedStep + 1) % story.length, "playback"), 4200);
+    setPlaybackButton();
+  }
+  playButton?.addEventListener("click", () => playbackTimer ? stopPlayback() : startPlayback());
+
+  if (demo && "IntersectionObserver" in window) {
+    const demoObserver = new IntersectionObserver(([entry]) => {
+      demoVisible = entry.isIntersecting && entry.intersectionRatio > .22;
+      if (!demoVisible) stopPlayback();
+    }, { threshold: [0, .22, .5] });
+    demoObserver.observe(demo);
+  } else if (demo) {
+    demoVisible = elementIsVisible(demo);
   }
 
-  workflowButtons.forEach(button => button.addEventListener("click", () => selectWorkflow(button)));
-}
-
-const sourceContent = {
-  purpose: {
-    label: "DOEL EN VOORSTEL",
-    text: "Het college stelt voor de hoofdingang van de openbare bibliotheek in Voorbeeldstad toegankelijker te maken. Het plan omvat een automatische toegangsdeur, een voelbare en contrasterende looproute naar de balie, en duidelijke routeborden. Dit is een voorstel ter bespreking; er is nog geen krediet toegekend en er is geen opdracht verstrekt."
-  },
-  costs: {
-    label: "VOORGESTELDE UITGAVEN",
-    text: "Automatische deur en bediening: € 12.000. Voelbare looproute en contrastmarkering: € 6.500. Routeborden en plaatsing: € 3.500. Totaal aangevraagd: € 22.000 inclusief btw. Dit zijn ramingen, geen offertes."
-  },
-  decision: {
-    label: "GEVRAAGD BESLUIT EN VERANTWOORDELIJKHEID",
-    text: "De raad wordt gevraagd op 19 november 2026 te besluiten of maximaal € 22.000 beschikbaar wordt gesteld. Een positief besluit is nog geen opdracht aan een leverancier. Na goedkeuring is het college verantwoordelijk voor inkoop en uitvoering."
-  },
-  terms: {
-    label: "TERMIJN, RISICO’S EN VOORWAARDEN",
-    text: "Bij goedkeuring levert het college uiterlijk 15 januari 2027 een uitvoerings- en onderhoudsplan aan de raad. De raming kan afwijken van de offertes. De ingang en vluchtroute moeten tijdens werkzaamheden bruikbaar blijven. Als de offertes samen boven het aangevraagde bedrag uitkomen, vraagt het college eerst een nieuw raadsbesluit aan."
-  }
-};
-
-const sourceTabs = [...document.querySelectorAll('[role="tab"][data-source]')];
-const sourcePanel = document.getElementById("source-panel");
-if (sourceTabs.length && sourcePanel) {
-  const label = document.getElementById("source-label");
-  const text = document.getElementById("source-text");
-  let sourceTimer;
-
-  function selectSource(tab, moveFocus = false) {
-    const item = sourceContent[tab.dataset.source];
-    if (!item) return;
-    sourceTabs.forEach(candidate => {
-      const active = candidate === tab;
-      candidate.setAttribute("aria-selected", String(active));
-      candidate.tabIndex = active ? 0 : -1;
+  function syncFromScroll() {
+    if (!demoVisible || syncPending || window.innerWidth <= 700 || motionPreference.matches) return;
+    syncPending = true;
+    window.requestAnimationFrame(() => {
+      syncPending = false;
+      let nearest = -1;
+      let nearestDistance = Infinity;
+      const anchor = window.innerHeight * .5;
+      storySteps.forEach((element, index) => {
+        const rect = element.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
+        const center = rect.top + Math.min(rect.height, window.innerHeight) / 2;
+        const distance = Math.abs(center - anchor);
+        if (distance < nearestDistance) {
+          nearest = index;
+          nearestDistance = distance;
+        }
+      });
+      if (nearest >= 0) setStep(nearest, "scroll");
     });
-    sourcePanel.setAttribute("aria-labelledby", tab.id);
-    window.clearTimeout(sourceTimer);
-    if (!reducedMotion.matches) sourcePanel.classList.add("is-changing");
-    sourceTimer = window.setTimeout(() => {
-      label.textContent = item.label;
-      text.textContent = item.text;
-      sourcePanel.classList.remove("is-changing");
-    }, reducedMotion.matches ? 0 : 100);
-    if (moveFocus) tab.focus();
+  }
+  window.addEventListener("scroll", syncFromScroll, { passive: true });
+  window.addEventListener("resize", syncFromScroll, { passive: true });
+  window.addEventListener("wheel", stopPlayback, { passive: true });
+  document.addEventListener("pointerdown", event => {
+    if (playbackTimer && !playButton?.contains(event.target)) stopPlayback();
+  }, { passive: true });
+  document.addEventListener("keydown", event => {
+    const playbackActivation = playButton?.contains(event.target) && [" ", "Enter"].includes(event.key);
+    if (!playbackActivation && ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) stopPlayback();
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stopPlayback(); });
+  motionPreference.addEventListener?.("change", () => {
+    stopPlayback();
+    setPlaybackButton();
+  });
+  setPlaybackButton();
+
+  const sourceCapture = document.getElementById("source-capture");
+  const sourceLink = document.getElementById("source-full-shot-link");
+  if (sourceCapture && sourceLink) {
+    sourceCapture.onerror = () => {
+      sourceCapture.onerror = null;
+      sourceCapture.src = "WebsiteAssets/documentpunten.jpg";
+      sourceCapture.width = 2560;
+      sourceCapture.height = 1600;
+      sourceCapture.alt = "Echte schermafbeelding van CommissieWijzer met documentpunten en de fictieve voorbeeld-pdf; de aparte bronpassage-opname wordt niet geladen.";
+      sourceLink.href = "WebsiteAssets/documentpunten.jpg";
+    };
   }
 
-  sourceTabs.forEach((tab, index) => {
-    tab.addEventListener("click", () => selectSource(tab));
+  const featureData = {
+    search: {
+      kicker: "LEZEN · LOKAAL",
+      title: "Zoek in de tekst die jij hebt geopend.",
+      copy: "Zoeken doorzoekt lokaal de pdf-tekst en beschikbare analyse, resultaten en notities. Resultaten verwijzen terug naar de relevante pagina.",
+      href: "WebsiteAssets/lokaal-zoeken.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief document.",
+      caption: "Echte appweergave · lokaal zoeken in een fictief document.",
+      link: "support.html#scan",
+      linkLabel: "Meer over pdf-inlezen"
+    },
+    notes: {
+      kicker: "VOORBEREIDEN · EIGEN NOTITIES",
+      title: "Zet je eigen vragen bij het stuk.",
+      copy: "Selecteer aandachtspunten en voeg je eigen notities toe. Bewaar de voorbereiding met het document op je Mac.",
+      href: "WebsiteAssets/selectie-notities.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met Mijn selectie en een voorbeeldnotitie bij een fictief raadsvoorstel.",
+      caption: "Echte appweergave · selectie en notitie bij fictieve inhoud.",
+      link: "support.html#werk",
+      linkLabel: "Meer over werkdocumenten"
+    },
+    program: {
+      kicker: "OPTIONEEL · EIGEN KADER",
+      title: "Vergelijk alleen als jij dat wilt.",
+      copy: "Een neutrale samenvatting gebruikt geen partijprogramma. Voor vergelijking kies je zelf een programma. Dat is een analyse-instelling, geen aanbeveling of politieke aansluiting.",
+      href: "WebsiteAssets/documentpunten.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast een fictief raadsvoorstel.",
+      caption: "Echte appweergave · de webpagina voert geen programmavergelijking uit.",
+      link: "privacy.html#chatgpt",
+      linkLabel: "Bekijk de privacyuitleg"
+    },
+    export: {
+      kicker: "BEWAREN · PDF-EXPORT",
+      title: "Neem je selectie mee.",
+      copy: "Bewaar het werkdocument op je Mac of exporteer een samenvatting of selectie als pdf. Controleer de inhoud voordat je die deelt.",
+      href: "WebsiteAssets/exporteren.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met het exportscherm en de geselecteerde onderdelen Mijn selectie en Bronnenbijlage.",
+      caption: "Echte appweergave · gekozen onderdelen voor pdf-export.",
+      width: 1240,
+      height: 1320,
+      contain: true,
+      link: "support.html#werk",
+      linkLabel: "Meer over bewaren en exporteren"
+    }
+  };
+  const featureTabs = [...document.querySelectorAll("[data-feature]")];
+  const featureFigure = document.querySelector(".feature-capture");
+  const featureImages = [document.getElementById("feature-capture"), document.getElementById("feature-capture-next")];
+  const featureLink = document.getElementById("feature-full-shot-link");
+  let activeFeatureImage = 0;
+  let featureRequest = 0;
+  let featureFadeTimer = 0;
+
+  function updateFeatureText(tab, details) {
+    document.getElementById("feature-panel").setAttribute("aria-labelledby", tab.id);
+    document.getElementById("feature-kicker").textContent = details.kicker;
+    document.getElementById("feature-title").textContent = details.title;
+    document.getElementById("feature-copy").textContent = details.copy;
+    document.getElementById("feature-caption").textContent = details.caption;
+    const link = document.getElementById("feature-link");
+    link.href = details.link;
+    link.innerHTML = `${details.linkLabel} <span aria-hidden="true">↗</span>`;
+  }
+
+  function selectFeature(tab, focus = false) {
+    const details = featureData[tab.dataset.feature];
+    if (!details) return;
+    featureTabs.forEach(candidate => {
+      const selected = candidate === tab;
+      candidate.setAttribute("aria-selected", String(selected));
+      candidate.tabIndex = selected ? 0 : -1;
+    });
+    if (featureFadeTimer) window.clearTimeout(featureFadeTimer);
+    const token = ++featureRequest;
+    const active = featureImages[activeFeatureImage];
+    const incomingIndex = 1 - activeFeatureImage;
+    const incoming = featureImages[incomingIndex];
+    active.classList.add("is-active");
+    incoming.classList.remove("is-active");
+    incoming.setAttribute("aria-hidden", "true");
+    incoming.alt = "";
+    incoming.onload = () => {
+      if (token !== featureRequest) return;
+      incoming.onerror = null;
+      incoming.alt = details.alt;
+      incoming.removeAttribute("aria-hidden");
+      active.setAttribute("aria-hidden", "true");
+      if (motionPreference.matches) {
+        active.classList.remove("is-active");
+        incoming.classList.add("is-active");
+        activeFeatureImage = incomingIndex;
+      } else {
+        window.requestAnimationFrame(() => {
+          if (token !== featureRequest) return;
+          incoming.classList.add("is-active");
+          active.classList.remove("is-active");
+          activeFeatureImage = incomingIndex;
+          featureFadeTimer = window.setTimeout(() => {
+            if (token === featureRequest) active.classList.remove("is-active");
+          }, 900);
+        });
+      }
+      featureFigure.classList.toggle("is-portrait", Boolean(details.contain));
+      featureLink.href = details.href;
+      updateFeatureText(tab, details);
+    };
+    incoming.onerror = () => {
+      if (token !== featureRequest) return;
+      incoming.onerror = null;
+      incoming.onload = null;
+      if (details.href !== "WebsiteAssets/documentpunten.jpg") {
+        const fallback = {
+          ...details,
+          href: "WebsiteAssets/documentpunten.jpg",
+          alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast het fictieve raadsvoorstel.",
+          caption: "Echte appweergave · documentpunten naast het fictieve raadsvoorstel.",
+          width: 2560,
+          height: 1600,
+          contain: false
+        };
+        selectFeatureImageFallback(fallback);
+      }
+    };
+    incoming.src = details.href;
+    incoming.width = details.width || 2560;
+    incoming.height = details.height || 1600;
+    if (focus) tab.focus();
+  }
+
+  function selectFeatureImageFallback(details) {
+    const token = ++featureRequest;
+    const incomingIndex = 1 - activeFeatureImage;
+    const incoming = featureImages[incomingIndex];
+    const active = featureImages[activeFeatureImage];
+    incoming.onerror = null;
+    incoming.onload = () => {
+      if (token !== featureRequest) return;
+      incoming.alt = details.alt;
+      incoming.removeAttribute("aria-hidden");
+      active.setAttribute("aria-hidden", "true");
+      if (motionPreference.matches) {
+        incoming.classList.add("is-active");
+        active.classList.remove("is-active");
+        activeFeatureImage = incomingIndex;
+      } else {
+        window.requestAnimationFrame(() => {
+          if (token !== featureRequest) return;
+          incoming.classList.add("is-active");
+          active.classList.remove("is-active");
+          activeFeatureImage = incomingIndex;
+          featureFadeTimer = window.setTimeout(() => {
+            if (token === featureRequest) active.classList.remove("is-active");
+          }, 900);
+        });
+      }
+      featureFigure.classList.toggle("is-portrait", Boolean(details.contain));
+      featureLink.href = "WebsiteAssets/documentpunten.jpg";
+      updateFeatureText(featureTabs.find(candidate => candidate.getAttribute("aria-selected") === "true"), details);
+    };
+    incoming.onerror = () => { incoming.onerror = null; };
+    incoming.src = "WebsiteAssets/documentpunten.jpg";
+    incoming.width = 2560;
+    incoming.height = 1600;
+  }
+
+  featureTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => selectFeature(tab));
     tab.addEventListener("keydown", event => {
-      let nextIndex;
-      if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % sourceTabs.length;
-      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + sourceTabs.length) % sourceTabs.length;
-      else if (event.key === "Home") nextIndex = 0;
-      else if (event.key === "End") nextIndex = sourceTabs.length - 1;
+      let next;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % featureTabs.length;
+      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + featureTabs.length) % featureTabs.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = featureTabs.length - 1;
       else return;
       event.preventDefault();
-      selectSource(sourceTabs[nextIndex], true);
+      selectFeature(featureTabs[next], true);
     });
   });
-}
 
-const searchInput = document.getElementById("source-search");
-const searchStatus = document.getElementById("search-status");
-const sourceResults = [...document.querySelectorAll(".source-result")];
-const noResults = document.getElementById("no-results");
-if (searchInput && searchStatus && sourceResults.length && noResults) {
-  function restoreText(element) {
-    if (element.dataset.originalText !== undefined) element.textContent = element.dataset.originalText;
+  root.classList.add("js");
+  const revealItems = [...document.querySelectorAll(".reveal")];
+  if ("IntersectionObserver" in window && !motionPreference.matches) {
+    const revealObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+        revealObserver.unobserve(entry.target);
+      }
+    }), { threshold: .08, rootMargin: "0px 0px -24px 0px" });
+    revealItems.forEach(item => revealObserver.observe(item));
+  } else {
+    revealItems.forEach(item => item.classList.add("is-visible"));
   }
-
-  function addHighlights(element, query) {
-    if (element.dataset.originalText === undefined) element.dataset.originalText = element.textContent;
-    const original = element.dataset.originalText;
-    const lower = original.toLocaleLowerCase("nl-NL");
-    const needle = query.toLocaleLowerCase("nl-NL");
-    if (!needle) {
-      element.textContent = original;
-      return;
-    }
-    const fragment = document.createDocumentFragment();
-    let cursor = 0;
-    let match = lower.indexOf(needle, cursor);
-    while (match !== -1) {
-      fragment.append(document.createTextNode(original.slice(cursor, match)));
-      const mark = document.createElement("mark");
-      mark.textContent = original.slice(match, match + query.length);
-      fragment.append(mark);
-      cursor = match + query.length;
-      match = lower.indexOf(needle, cursor);
-    }
-    fragment.append(document.createTextNode(original.slice(cursor)));
-    element.replaceChildren(fragment);
-  }
-
-  function updateSearch() {
-    const query = searchInput.value.trim();
-    let count = 0;
-    sourceResults.forEach(result => {
-      const searchable = result.textContent.toLocaleLowerCase("nl-NL");
-      const matches = !query || searchable.includes(query.toLocaleLowerCase("nl-NL"));
-      result.hidden = !matches;
-      result.querySelectorAll("span, p").forEach(element => {
-        if (matches && query) addHighlights(element, query);
-        else restoreText(element);
-      });
-      if (matches) count += 1;
-    });
-    noResults.hidden = count !== 0;
-    if (!query) searchStatus.textContent = "Zoeken gebeurt alleen in de vaste fictieve tekst op deze pagina.";
-    else searchStatus.textContent = count === 1
-      ? "Eén bronfragment gevonden in de fictieve voorbeeldtekst."
-      : `${count} bronfragmenten gevonden in de fictieve voorbeeldtekst.`;
-  }
-  searchInput.addEventListener("input", updateSearch);
-}
-
-document.documentElement.classList.add("js");
-const revealItems = [...document.querySelectorAll(".reveal")];
-if ("IntersectionObserver" in window && !reducedMotion.matches) {
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("is-visible");
-      observer.unobserve(entry.target);
-    });
-  }, { threshold: .12, rootMargin: "0px 0px -28px 0px" });
-  revealItems.forEach(item => observer.observe(item));
-} else {
-  revealItems.forEach(item => item.classList.add("is-visible"));
-}
-
-reducedMotion.addEventListener?.("change", event => {
-  if (!event.matches) return;
-  revealItems.forEach(item => item.classList.add("is-visible"));
-  document.querySelectorAll(".is-changing").forEach(item => item.classList.remove("is-changing"));
-});
+})();

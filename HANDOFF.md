@@ -33,6 +33,14 @@ De website werd gepubliceerd met commit `3a99ffc4a337d4a4a002763ae38cccedc59bb06
 - De optionele woordenlijst kan Wikipedia raadplegen. Voor AI-uitleg kan de geselecteerde provider de term, beperkte documentcontext en gevonden brontekst ontvangen.
 - De app heeft geen account, telemetrie of tracking. ChatGPT-diagnostiek bevat geen documenttekst, prompts, antwoordtekst of volledige serverresponses.
 
+## Donkere productwebsite
+
+De website is opnieuw opgebouwd als een productverhaal met grote typografie, uitsluitend donkere oppervlakken en blauwe accenten uit het CW-icoon. De vierstapspresentatie gebruikt uitsluitend echte native appbeelden: documentpunten naast de pdf, de passageweergave, eigen selectie met notitie en lokaal zoeken. Het functieoverzicht toont dezelfde echte appbeelden en de echte inhoudskeuze voor pdf-export. Het raadsvoorstel en de voorbeeldnotitie zijn volledig fictief. De website verwerkt geen documenten en voert geen AI-analyse uit. Er wordt geen appbediening nagebouwd.
+
+De website gebruikt geen externe lettertypen of scripts. Zachte overgangen tussen twee beeldlagen, handmatige bediening, toetsenbordfocus, een mobiele opbouw en een statische weergave bij verminderde beweging zijn onderdeel van het ontwerp. Support- en privacy-inhoud blijven beschikbaar op hun bestaande URL's. Appcode, app-icoon en ingediende Apple-build blijven ongewijzigd.
+
+Verificatie van deze websitewijziging: JavaScript-syntax, lokale links en ankers, unieke IDs, ARIA-doelen en privacytekst gecontroleerd. De 58 bestaande Swift-tests en de normale previewbuild inclusief bundelaudit zijn opnieuw geslaagd. De vier beeldstappen, automatisch afspelen en pauzeren, het echte exportbeeld, de FAQ en de donkere opmaak zijn in Safari gecontroleerd. De mobiele weergave is gecontroleerd bij 390 × 844 pixels. De appbeelden blijven onbewerkt en behouden hun eigen verhoudingen. Herkomst en afmetingen staan in `WebsiteAssets/README.md`. Publicatie loopt via de bestaande GitHub Pages-configuratie.
+
 ## Documentatie
 
 - [README](README.md)
