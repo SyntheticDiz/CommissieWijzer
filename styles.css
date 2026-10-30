@@ -72,9 +72,11 @@ p { color: var(--ink-soft); }
 .intro-features-copy { max-width: 860px; margin: 0 auto 32px; text-align: center; }
 .intro-features-copy h2 { margin-bottom: 18px; font-size: clamp(2rem, 4.5vw, 3.35rem); line-height: 1.06; }
 .intro-features-copy > p:last-child { margin: 0; color: #b2bbc6; font-size: .91rem; line-height: 1.8; }
-.feature-lists { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: clamp(24px, 5vw, 64px); max-width: 1120px; margin-inline: auto; }
-.feature-list { margin: 0; padding-left: 1.25rem; color: #aeb8c3; }
-.feature-list li { padding-left: 5px; margin-bottom: 13px; font-size: .9rem; line-height: 1.65; }
+.feature-lists { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); grid-template-rows: repeat(3, auto); column-gap: clamp(24px, 5vw, 64px); row-gap: 13px; max-width: 1120px; margin-inline: auto; }
+.feature-list { display: grid; grid-row: 1 / span 3; grid-template-rows: subgrid; margin: 0; padding-left: 1.25rem; color: #aeb8c3; }
+.feature-list:first-child { grid-column: 1; }
+.feature-list:last-child { grid-column: 2; }
+.feature-list li { padding-left: 5px; margin: 0; font-size: .9rem; line-height: 1.65; }
 .feature-list li::marker { color: var(--blue-strong); font-size: .85em; }
 .feature-list strong { color: #e5ebf2; font-weight: 650; }
 .intro-features-note { max-width: 850px; margin: 17px auto 0; color: var(--muted); font-size: .73rem; text-align: center; }
@@ -422,7 +424,10 @@ html.js .reveal.is-visible { opacity: 1; transform: translateY(0); }
   .intro-features { padding-bottom: 80px; }
   .intro-features-copy { margin-bottom: 25px; text-align: left; }
   .intro-features-copy > p:last-child { font-size: .85rem; line-height: 1.72; }
-  .feature-lists { grid-template-columns: 1fr; gap: 0; }
+  .feature-lists { grid-template-columns: 1fr; grid-template-rows: none; gap: 0; }
+  .feature-list { display: block; grid-column: auto; grid-row: auto; }
+  .feature-list:first-child, .feature-list:last-child { grid-column: auto; }
+  .feature-list li { margin-bottom: 13px; }
   .intro-features-note { text-align: left; }
   .demo-section { padding-block: 80px 83px; }
   .section-heading { margin-bottom: 35px; }
