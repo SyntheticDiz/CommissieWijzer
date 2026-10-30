@@ -10,7 +10,7 @@ The interface is in Dutch. The app requires macOS 14 or later. Apple Intelligenc
 
 ## Suggested review path
 
-1. Open a PDF with selectable text using **Pdf toevoegen…**. A fully fictional sample is available at https://syntheticdiz.github.io/CommissieWijzer/AppStore/Sample.pdf. The prepared screenshots show a fictional municipal proposal and reviewer note; they contain no personal information.
+1. Open the attached fictional sample PDF with selectable text using **Pdf toevoegen…**. The three accepted screenshots show a fictional municipal proposal and reviewer note; they contain no personal information.
 2. Inspect the overview and findings beside the PDF. Open a finding’s cited source passage and compare it with the surrounding text.
 3. Try local search, add a note or selected passage, and optionally select a programme for comparison.
 4. Export a summary or selected findings. Save and reopen a `.spdfwork` work document. Reopening saved work does not start a new AI request.
@@ -29,4 +29,4 @@ The optional online glossary can query Dutch Wikipedia. If the user requests an 
 
 ## Release status
 
-Build 1.0.1 (2) was delivered through Transporter on 30 October 2026 at 21:00 and processed for internal testing. It has not been submitted for Apple review.
+Build 1.0.1 (2) was submitted to App Store Connect on 30 October 2026 at 21:41 (Europe/Amsterdam). Its current status is **Waiting for Review** with one item submitted. There is no review decision yet. The privacy questionnaire is published, the age rating is 4+, and release is set to manual after approval.

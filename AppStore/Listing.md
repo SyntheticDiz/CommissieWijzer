@@ -1,6 +1,6 @@
 # App Store-vermelding — CommissieWijzer
 
-Concept voor macOS 1.0.1. App Store Connect-vermelding is nog niet ingediend. De App Store-versie is in voorbereiding.
+App Store-vermelding voor macOS 1.0.1 (build 2).
 
 ## Naam
 
@@ -38,6 +38,7 @@ raadsstukken,commissiestukken,gemeenteraad,pdf,bronpassages,notities,zoeken,voor
 
 - **Categorie:** Productiviteit
 - **Prijs:** Gratis
+- **Leeftijdsclassificatie:** 4+
 - **Marketing-URL:** <https://syntheticdiz.github.io/CommissieWijzer>
 - **Ondersteunings-URL:** <https://syntheticdiz.github.io/CommissieWijzer/support.html>
 - **Privacybeleid-URL:** <https://syntheticdiz.github.io/CommissieWijzer/privacy.html>
@@ -45,4 +46,4 @@ raadsstukken,commissiestukken,gemeenteraad,pdf,bronpassages,notities,zoeken,voor
 
 ## Release-status
 
-Versie 1.0.1, build 2. Deze tekst is een concept voor App Store Connect. Controleer de definitieve distributiebundel, metadata-limieten, privacyvragen en links opnieuw voor inzending. Er is nog geen build ingediend of app vrijgegeven.
+Versie 1.0.1, build 2 is ingediend en staat op **Waiting for Review**. De app is ingesteld voor openbare, gratis beschikbaarheid in 175 storefronts, met handmatige vrijgave na goedkeuring. Drie screenshots zijn geaccepteerd en de fictieve voorbeeld-pdf is bij de inzending gevoegd. De privacyvragenlijst met vier gegevenscategorieën is gepubliceerd na expliciete gebruikersgoedkeuring. Er is nog geen Apple-reviewbesluit.

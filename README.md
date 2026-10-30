@@ -51,13 +51,13 @@ Maak een universele App Store-build en ondertekend installatiepakket:
 bash build-app.sh store
 ```
 
-De `store`-modus vereist een Mac App Distribution-identiteit, een Mac Installer Distribution-identiteit, een App Store-provisioningprofiel en een Apple Developer Team ID. Geef die via de lokale instellingen in `AppStore/Submission.local.json` of de door het script ondersteunde omgevingsvariabelen. Bewaar deze lokale account- en ondertekeningsgegevens buiten versiebeheer. De modus maakt `dist/store/CommissieWijzer.app` en `dist/CommissieWijzer-1.0.0.pkg`; het uploaden, App Store Connect invullen en inzenden blijven afzonderlijke stappen.
+De `store`-modus vereist een Mac App Distribution-identiteit, een Mac Installer Distribution-identiteit, een App Store-provisioningprofiel en een Apple Developer Team ID. Geef die via de lokale instellingen in `AppStore/Submission.local.json` of de door het script ondersteunde omgevingsvariabelen. Bewaar deze lokale account- en ondertekeningsgegevens buiten versiebeheer. De modus maakt `dist/store/CommissieWijzer.app` en `dist/CommissieWijzer-1.0.1.pkg`.
 
 ## App Store
 
-De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). Versie 1.0.1, build 2 is ondertekend, via Transporter afgeleverd en door Apple verwerkt; de App Store-vragenlijst en inzending zijn nog niet afgerond. De App Store-versie is in voorbereiding.
+De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). Versie 1.0.1, build 2 is ingediend en staat op **Waiting for Review**. De app is ingesteld voor openbare beschikbaarheid als gratis download in 175 storefronts, met handmatige vrijgave na goedkeuring.
 
-- Website: <https://syntheticdiz.github.io/CommissieWijzer>
+- Website: <https://syntheticdiz.github.io/CommissieWijzer/>
 - Ondersteuning: <https://syntheticdiz.github.io/CommissieWijzer/support.html>
 - Privacy: <https://syntheticdiz.github.io/CommissieWijzer/privacy.html>
 - Broncode en issues: <https://github.com/SyntheticDiz/CommissieWijzer>

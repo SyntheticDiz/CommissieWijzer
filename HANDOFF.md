@@ -1,42 +1,41 @@
 # CommissieWijzer — ontwikkel- en releasestatus
 
-Bijgewerkt op 30 oktober 2026. Dit bestand beschrijft de huidige fork en de status van de Mac App Store-release.
+Bijgewerkt op 30 oktober 2026. Dit bestand beschrijft de definitieve status van de Mac App Store-inzending.
 
 ## Product
 
-CommissieWijzer is een zelfstandige macOS-app voor het lezen en voorbereiden van raads- en commissiestukken. De app behoudt de bestaande lees- en analysewerking, met een eigen productnaam, icoon, bundle-ID, voorkeuren en opslag. Werkdocumenten blijven compatibel met de extensie `.spdfwork`.
+CommissieWijzer is een zelfstandige macOS-app voor het lezen en voorbereiden van raads- en commissiestukken. De app behoudt de bestaande lees- en analysewerking, met een eigen naam, icoon, bundle-ID, voorkeuren en opslag. Werkdocumenten gebruiken de compatibele extensie `.spdfwork`.
 
-De app ondersteunt bronpassages, lokale zoekopdrachten, notities, geselecteerde passages, optionele vergelijking met een door de gebruiker gekozen programma en pdf-export. De belangrijkste commissie-indelingen zijn SOD, LO en BES.
+De app biedt bronpassages, lokale zoekopdrachten, notities, geselecteerde passages, optionele vergelijking met een door de gebruiker gekozen programma en pdf-export. Apple Intelligence is lokaal beschikbaar op geschikte systemen met macOS 26 of later. ChatGPT is optioneel, online en verloopt via OpenAI OAuth. De app heeft geen API-sleutelprovider of eigen backend.
 
-Minimale versie: macOS 14. Apple Intelligence vereist macOS 26 of later en geschikte Apple-hardware. ChatGPT is optioneel, verloopt via OpenAI OAuth en gebruikt het ChatGPT-account van de gebruiker. De app heeft geen API-sleutelprovider.
+## Definitieve App Store-status
+
+- App: **6829018818**, versie **1.0.1**, build **2**.
+- Inzending `dba69734-ed1f-43e4-9eec-2520c6a988e0` is op 30 oktober 2026 om 21:41 (Europe/Amsterdam) ingediend. App Store Connect toont **Waiting for Review** en **1 Item Submitted**. De inzending staat in de wachtrij; er is nog geen goedkeurings- of afwijzingsbesluit.
+- Het universele pakket is ondertekend, strict geverifieerd en door de release-audit gekomen. De 58 Swift-tests slaagden zonder fouten. De normale previewherbouw en storebuild zijn strict geverifieerd en door de audit gekomen.
+- De privacyvragenlijst met vier gegevenscategorieën is na expliciete gebruikersgoedkeuring gepubliceerd. De encryptievraag is als uitsluitend gebruik van Apple’s besturingssysteembeveiliging beantwoord.
+- Drie screenshots van 2560 × 1600 zijn door App Store Connect geaccepteerd. De fictieve, doorzoekbare voorbeeld-pdf is bij de inzending gevoegd.
+- Leeftijdsclassificatie: **4+**. Prijs: **gratis**. Beschikbaarheid: **175 storefronts**. De release is openbaar ingesteld met **handmatige vrijgave**; automatische vrijgave staat uit.
+
+## Productie en controle
+
+Een lokale Apple Intelligence-analyse van het fictieve voorbeeld werkte. In die analyse beschreef het overzicht een voorgesteld besluit alsof het al was genomen. Controleer gegenereerde samenvattingen daarom aan de hand van de geciteerde bronpassage en de volledige pdf. De bestaande appfunctionaliteit is behouden.
+
+De GitHub Pages-site is live op <https://syntheticdiz.github.io/CommissieWijzer/>. De acht gepubliceerde resources zijn gecontroleerd op HTTP 200 en komen byte voor byte overeen met de gepubliceerde bestanden.
+
+De website werd gepubliceerd met commit `3a99ffc4a337d4a4a002763ae38cccedc59bb068`. De lokale `main`-branch volgt `origin/main`. De eerder geïmporteerde geschiedenis is lokaal bewaard onder `local-import-history`.
 
 ## Privacyfeiten
 
 - Pdf’s, werkdocumenten, analysecache, voorkeuren, notities en technische diagnostiek worden lokaal opgeslagen.
 - Apple Intelligence-verwerking vindt lokaal plaats op geschikte systemen.
-- Bij ChatGPT worden de voor de gekozen taak benodigde documentfragmenten en, waar van toepassing, het gekozen programma rechtstreeks met OpenAI gedeeld. OAuth levert een e-mailadres en stabiele accountidentifier op; een vaste, willekeurige hostidentifier wordt voor de OAuth-aanvraag gebruikt. Tokens en accountgegevens staan in de macOS-sleutelhanger. De app leest geen ChatGPT-gesprekken.
+- Wanneer de gebruiker ChatGPT kiest, worden de voor de taak benodigde documentfragmenten en zo nodig het gekozen programma rechtstreeks met OpenAI gedeeld. OAuth levert een e-mailadres en stabiele accountidentifier op; een vaste, willekeurige hostidentifier wordt voor de OAuth-aanvraag gebruikt. Tokens en accountgegevens staan in de macOS-sleutelhanger. De app leest geen ChatGPT-gesprekken.
 - De optionele woordenlijst kan Wikipedia raadplegen. Voor AI-uitleg kan de geselecteerde provider de term, beperkte documentcontext en gevonden brontekst ontvangen.
-- De app heeft geen eigen backend, account, telemetrie of tracking. ChatGPT-diagnostiek bevat geen documenttekst, prompts, antwoordtekst of volledige serverresponses.
+- De app heeft geen account, telemetrie of tracking. ChatGPT-diagnostiek bevat geen documenttekst, prompts, antwoordtekst of volledige serverresponses.
 
-## Release en verificatie
+## Documentatie
 
-- Versie: **1.0.1**; build: **2**.
-- Het universele Mac App Store-pakket is ondertekend, strict geverifieerd en door de release-audit gekomen.
-- Het pakket is op 30 oktober om 21:00 via Transporter afgeleverd en verwerkt. App Store Connect toont het als gereed voor interne tests.
-- De build is **nog niet ingediend voor Apple-review**.
-- Er zijn drie gecontroleerde screenshots van 2560 × 1600 pixels. Ze tonen een fictief voorbeeld en bevatten geen persoonsgegevens.
-- Een lokale Apple Intelligence-analyse op het fictieve voorbeeld werkte. De samenvatting beschreef in die run een voorgesteld besluit alsof het al was genomen. Controleer de samenvatting daarom aan de hand van de bronpassage in de pdf. De bestaande functionaliteit is behouden.
-
-## Nog te doen voor inzending
-
-- Rond de App Store Connect-privacyvragen en productgegevens af op basis van de definitieve build.
-- Publiceer en controleer de privacy- en ondersteuningspagina’s. De nieuwe GitHub Pages-site is nog in publicatievoorbereiding en is niet live.
-- Dien de build pas na die controles in voor Apple-review.
-
-## Bronnen en projectdocumentatie
-
-- Broncode staat online op `main`, commit `4133e029776b8d16ce9716b37e7cf15baf774152`.
-- Nieuwe website in voorbereiding: <https://syntheticdiz.github.io/CommissieWijzer/> — nog niet live.
+- [README](README.md)
 - [App Store-metadata](AppStore/Metadata.nl-NL.json)
 - [Listingtekst](AppStore/Listing.md)
 - [Review notes](AppStore/ReviewNotes.md)
