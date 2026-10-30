@@ -2,36 +2,31 @@
 
 ## Purpose
 
-CommissieWijzer is a macOS reading and preparation tool for Dutch municipal council and committee papers. It helps a reviewer read a PDF beside summaries, findings, notes, local search results, and source passages. Committee views include SOD, LO, and BES. Programme comparison is optional and uses a programme selected by the user.
+CommissieWijzer is a macOS reading and preparation tool for Dutch municipal council and committee papers. It displays a PDF with summaries, findings, notes, local search, and cited source passages. Committee views include SOD, LO, and BES. Programme comparison is optional and uses a programme selected by the user.
 
-The app has no political-party affiliation and does not endorse a party or political position. It is a general document-reading tool. AI-generated analysis is not a statement of fact; reviewers should check conclusions and quotations against the original PDF.
+The app has no political-party affiliation and does not endorse a party or position. AI-generated analysis is guidance for review, not a statement of fact. Check conclusions against the original PDF.
 
-The interface is in Dutch. The app requires macOS 14 or later. Apple Intelligence requires a compatible Mac and macOS 26 or later. No Apple or ChatGPT login is required for opening a searchable PDF, local search, notes, saving work, or PDF export.
+The interface is in Dutch. The app requires macOS 14 or later. Apple Intelligence requires compatible hardware and macOS 26 or later. Opening a searchable PDF, local search, notes, saving work, and PDF export do not require an AI account.
 
-## Basic review path
+## Suggested review path
 
-1. Open a PDF with searchable text using **Pdf toevoegen…**. A fully fictional selectable-text council proposal is available as AppStore/Sample.pdf and can be supplied for review. Any non-confidential PDF with a searchable text layer can be used.
-2. Review the document overview and available findings next to the source PDF. Open a finding’s source passage to inspect it in context.
-3. Try local search, add a note or selected passage, and optionally select your own programme for programme comparison.
-4. Export a summary or selected findings to PDF. Save the work as a `.spdfwork` work document and reopen it. Reopening saved work does not start a new AI request.
+1. Open a PDF with selectable text using **Pdf toevoegen…**. A fully fictional sample is available at https://syntheticdiz.github.io/CommissieWijzer/AppStore/Sample.pdf. The prepared screenshots show a fictional municipal proposal and reviewer note; they contain no personal information.
+2. Inspect the overview and findings beside the PDF. Open a finding’s cited source passage and compare it with the surrounding text.
+3. Try local search, add a note or selected passage, and optionally select a programme for comparison.
+4. Export a summary or selected findings. Save and reopen a `.spdfwork` work document. Reopening saved work does not start a new AI request.
 
-Image-only scans may need a searchable text layer before import. Check table values and extracted text in the source PDF.
+Image-only scans may need a searchable text layer. Check table values and extracted text against the PDF.
 
-## AI provider choices
+## Analysis and source checking
 
-Apple Intelligence is available only on compatible hardware with macOS 26 or later and with the required Apple system features available. No cloud fallback occurs when Apple Intelligence is unavailable.
+A local Apple Intelligence analysis of the fictional sample completed during release checks. In that example, the overview described a proposed decision as though it had already been adopted. Reviewers should verify the summary against the cited passage and the full PDF. Source quotations remain available for that check; the app does not claim that every generated summary is error-free.
 
-ChatGPT is an optional online provider. There is no API-key provider in this fork. A reviewer who chooses ChatGPT must sign in using their own eligible ChatGPT account; no review account or credentials are provided. The account’s model access and usage limits apply. No ChatGPT sign-in is needed to review the local reading workflow.
+Apple Intelligence runs locally when available. There is no cloud fallback when it is unavailable.
 
-When ChatGPT is selected, the app sends task document passages and, for programme comparison, the user-selected programme directly to OpenAI. OAuth account details are stored locally in the macOS Keychain; the app does not read ChatGPT conversations. The optional online glossary can query Dutch Wikipedia and can send the selected term, document context, and retrieved source text to the selected AI provider for explanation.
+ChatGPT is an optional online provider. No review account or credentials are supplied. If a reviewer signs in with their own eligible account and chooses ChatGPT, the app sends the document passages needed for the requested task directly to OpenAI. A user-selected programme may also be sent for comparison. The app does not read ChatGPT conversations and does not silently switch providers.
 
-## Files and privacy
+The optional online glossary can query Dutch Wikipedia. If the user requests an AI explanation, the selected provider may receive the term, limited document context, and retrieved source text.
 
-PDFs, saved work, notes, local caches, preferences, and bounded technical diagnostics are stored on the Mac. The app has no CommissieWijzer backend, account, analytics, telemetry, or tracking. Its privacy policy describes the optional OpenAI and Wikipedia requests:
+## Release status
 
-- Privacy policy: https://commissiewijzer.adeptbeech13.chatgpt.site/privacy.html
-- Support: https://commissiewijzer.adeptbeech13.chatgpt.site/support.html
-- Marketing: https://commissiewijzer.adeptbeech13.chatgpt.site
-- Public source: https://github.com/SyntheticDiz/CommissieWijzer
-
-App Store submission is pending. No build has been submitted for Apple review.
+Build 1.0.1 (2) was delivered through Transporter on 30 October 2026 at 21:00 and processed for internal testing. It has not been submitted for Apple review.

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <link rel="canonical" href="https://syntheticdiz.github.io/CommissieWijzer/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171c24">
+  <meta name="description" content="Lees raads- en commissiestukken met CommissieWijzer: brongebonden AI-aandachtspunten, lokale zoekfunctie, notities en PDF-export op de Mac.">
+  <title>CommissieWijzer — Raadsstukken met de bron in beeld</title>
+  <link rel="icon" type="image/png" href="Assets/CommissieWijzer.png">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Ga naar inhoud</a>
+  <header class="site-header wrap">
+    <a class="brand" href="index.html" aria-label="CommissieWijzer startpagina"><img src="Assets/CommissieWijzer.png" width="38" height="38" alt=""><span>CommissieWijzer</span></a>
+    <nav class="site-nav" aria-label="Hoofdnavigatie">
+      <a href="#werkwijze">Werkwijze</a><a href="#mogelijkheden">Mogelijkheden</a><a href="support.html">Ondersteuning</a><a href="privacy.html">Privacy</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Mac-app voor raads- en commissiestukken</p>
+        <h1 id="hero-title">Lees het hele stuk.<br><span>Houd de bron dichtbij.</span></h1>
+        <p class="hero-lede">CommissieWijzer helpt je lange raadsstukken voorbereiden. Volg een aandachtspunt terug naar de passage, zoek lokaal in het document en bewaar je eigen notities naast de pdf.</p>
+        <div class="hero-actions"><a class="button button-primary" href="#werkwijze">Bekijk de werkwijze <span aria-hidden="true">↓</span></a><a class="button button-secondary" href="support.html">Ondersteuning</a></div>
+        <p class="release-note"><span aria-hidden="true">◷</span> App Store-versie in voorbereiding · Nog geen download beschikbaar</p>
+        <p class="opensource-note">Gratis en open source onder de MIT-licentie. <a href="https://github.com/SyntheticDiz/CommissieWijzer">Bekijk de broncode op GitHub <span aria-hidden="true">↗</span></a></p>
+      </div>
+      <div class="hero-art reveal" aria-label="App-symbool van CommissieWijzer met de initialen CW" role="img">
+        <div class="orbit orbit-one" aria-hidden="true"></div><div class="orbit orbit-two" aria-hidden="true"></div>
+        <img class="hero-icon" src="Assets/CommissieWijzer.png" width="160" height="160" alt="">
+        <div class="art-note"><span class="note-mark" aria-hidden="true"></span><span>Van document<br>naar voorbereiding</span></div>
+        <span class="art-index" aria-hidden="true">CW / 01</span>
+      </div>
+    </section>
+
+    <section class="trust-band" aria-label="Kern van de werkwijze">
+      <div class="wrap trust-inner"><div><span>01</span><p>Pdf blijft leidend</p></div><div><span>02</span><p>Zoeken en bewaren op je Mac</p></div><div><span>03</span><p>Zelf AI-provider kiezen</p></div></div>
+    </section>
+
+    <section class="app-figure-section" aria-label="Schermafbeelding van de app">
+      <div class="wrap">
+        <figure class="app-figure reveal">
+          <div class="app-figure-frame"><img src="WebsiteAssets/werkruimte.jpg" width="2560" height="1600" loading="lazy" decoding="async" alt="CommissieWijzer met Mijn selectie links en een fictief raadsvoorstel rechts."></div>
+          <figcaption>Echte appweergave met een fictief raadsvoorstel en een voorbeeldnotitie.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section workflow-section" id="werkwijze" aria-labelledby="workflow-title">
+      <div class="wrap">
+        <div class="section-heading reveal"><p class="eyebrow">Een controleerbare werkwijze</p><h2 id="workflow-title">Van pagina’s naar<br><span>een goed voorbereide bespreking.</span></h2><p>Analyse en oorspronkelijke tekst staan naast elkaar. Je kiest waar je begint, wat je bewaart en wat je exporteert.</p></div>
+        <div class="workflow-layout reveal">
+          <div class="workflow-steps" role="group" aria-label="Stappen in de werkruimte">
+            <button class="workflow-step is-active" type="button" aria-pressed="true" data-step="pdf"><span class="step-number">01</span><span><b>Open een pdf</b><small>Lees tekst, volgorde en tabellen in</small></span><span class="step-arrow" aria-hidden="true">↗</span></button>
+            <button class="workflow-step" type="button" aria-pressed="false" data-step="mode"><span class="step-number">02</span><span><b>Kies de analysemethode</b><small>Neutrale samenvatting of eigen programma</small></span><span class="step-arrow" aria-hidden="true">↗</span></button>
+            <button class="workflow-step" type="button" aria-pressed="false" data-step="source"><span class="step-number">03</span><span><b>Controleer de bron</b><small>Open passage en pagina in de pdf</small></span><span class="step-arrow" aria-hidden="true">↗</span></button>
+            <button class="workflow-step" type="button" aria-pressed="false" data-step="keep"><span class="step-number">04</span><span><b>Bewaar en deel</b><small>Notities, werkdocument en export</small></span><span class="step-arrow" aria-hidden="true">↗</span></button>
+          </div>
+          <div class="workflow-detail" id="workflow-detail" aria-live="polite">
+            <span class="detail-kicker" id="workflow-kicker">STAP 01 · PDF INLEZEN</span>
+            <h3 id="workflow-heading">Begin bij het originele stuk.</h3>
+            <p id="workflow-copy">Open een pdf met doorzoekbare tekst. CommissieWijzer leest tekst, leesvolgorde en tabellen in. Na import start de analyse automatisch met de provider die je hebt ingesteld.</p>
+            <div class="workflow-foot"><span class="mini-doc" aria-hidden="true">PDF</span><span id="workflow-foot">Je document blijft zichtbaar tijdens het lezen.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section example-section" id="voorbeeld" aria-labelledby="example-title">
+      <div class="wrap">
+        <div class="section-heading reveal"><p class="eyebrow">Een bronvoorbeeld</p><h2 id="example-title">Zo blijft het verschil zichtbaar<br><span>tussen voorstel en besluit.</span></h2><p>Dit fictieve raadsvoorstel laat zien hoe je broninformatie kunt terugvinden. De fragmenten komen uit het meegeleverde voorbeeldbestand; dit is geen AI-analyse.</p></div>
+        <div class="example-shell reveal">
+          <div class="example-topbar"><div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div><span class="example-window-title">Voorbeeldstad · Raadsvoorstel</span><span class="example-window-tag">ILLUSTRATIEVE WEERGAVE</span></div>
+          <div class="example-toolbar"><span class="toolbar-label"><span class="toolbar-dot"></span> FICTIEF BRONDOCUMENT</span><a class="toolbar-download" href="AppStore/Sample.pdf" download>Download de voorbeeld-pdf <span aria-hidden="true">↓</span></a></div>
+          <div class="example-body">
+            <aside class="example-sidebar">
+              <div class="source-stamp"><span class="stamp-icon" aria-hidden="true">PDF</span><div><b>Toegankelijke bibliotheek</b><small>Voorbeeldstad · Commissie SOD</small></div></div>
+              <div class="fiction-note"><strong>Fictief voorbeeld</strong><span>Geen echt raadsvoorstel<br>Geen AI-uitkomst</span></div>
+              <p class="sidebar-label">BRONONDERDELEN</p>
+              <div class="source-tabs" role="tablist" aria-label="Bronfragmenten uit het fictieve voorstel">
+                <button type="button" role="tab" id="tab-purpose" aria-selected="true" aria-controls="source-panel" tabindex="0" data-source="purpose"><span>01</span> Doel en voorstel</button>
+                <button type="button" role="tab" id="tab-costs" aria-selected="false" aria-controls="source-panel" tabindex="-1" data-source="costs"><span>02</span> Voorgestelde uitgaven</button>
+                <button type="button" role="tab" id="tab-decision" aria-selected="false" aria-controls="source-panel" tabindex="-1" data-source="decision"><span>03</span> Gevraagd besluit</button>
+                <button type="button" role="tab" id="tab-terms" aria-selected="false" aria-controls="source-panel" tabindex="-1" data-source="terms"><span>04</span> Termijn en voorwaarden</button>
+              </div>
+              <p class="fiction-warning">Voorbeeldtekst is volledig fictief. Verifieer altijd in het raadsstuk dat je zelf hebt.</p>
+            </aside>
+            <div class="example-reader">
+              <div class="reader-head"><div><span class="reader-eyebrow">VOORBEELDSTAD · COMMISSIE SOD</span><h3>Toegankelijke bibliotheek</h3></div><span class="page-count">CONCEPT<br>30 OKT 2026</span></div>
+              <div class="reader-divider"></div>
+              <div class="reader-toolbar"><span><span class="source-link-mark" aria-hidden="true"></span> Bronfragmenten · pagina 1</span><span>Alle bedragen zijn ramingen</span></div>
+              <section class="source-panel" id="source-panel" role="tabpanel" aria-labelledby="tab-purpose" tabindex="0">
+                <p class="source-panel-label" id="source-label">DOEL EN VOORSTEL</p>
+                <p class="source-panel-text" id="source-text">Het college stelt voor de hoofdingang van de openbare bibliotheek in Voorbeeldstad toegankelijker te maken. Dit is een voorstel ter bespreking; er is nog geen krediet toegekend en er is geen opdracht verstrekt.</p>
+              </section>
+              <div class="reader-note"><span aria-hidden="true">↳</span><span>Broninformatie uit het fictieve document. Geen gegenereerde AI-uitkomst.</span></div>
+            </div>
+          </div>
+          <div class="example-search">
+            <div class="search-intro"><div><span class="reader-eyebrow">LOKAAL ZOEKDEMO</span><h3>Zoek in de voorbeeldtekst</h3></div><span class="fiction-pill">Fictieve bron</span></div>
+            <label class="search-control" for="source-search"><span class="search-icon" aria-hidden="true">⌕</span><input id="source-search" type="search" autocomplete="off" placeholder="Bijvoorbeeld: budget, college, offerte"><span class="search-key">Lokale demo</span></label>
+            <p class="search-status" id="search-status" role="status" aria-live="polite">Zoeken gebeurt alleen in de vaste fictieve tekst op deze pagina.</p>
+            <div class="source-results" id="source-results">
+              <article class="source-result" data-search="Het college stelt voor de hoofdingang van de openbare bibliotheek in Voorbeeldstad toegankelijker te maken. Dit is een voorstel ter bespreking; er is nog geen krediet toegekend en er is geen opdracht verstrekt."><span>DOEL EN VOORSTEL</span><p>Het college stelt voor de hoofdingang van de openbare bibliotheek in Voorbeeldstad toegankelijker te maken. Dit is een voorstel ter bespreking; er is nog geen krediet toegekend en er is geen opdracht verstrekt.</p></article>
+              <article class="source-result" data-search="Automatische deur en bediening 12000 euro. Voelbare looproute en contrastmarkering 6500 euro. Routeborden en plaatsing 3500 euro. Totaal aangevraagd 22000 euro inclusief btw. Dit zijn ramingen, geen offertes."><span>VOORGESTELDE UITGAVEN</span><p>Automatische deur en bediening: € 12.000 · Voelbare looproute en contrastmarkering: € 6.500 · Routeborden en plaatsing: € 3.500. Totaal aangevraagd: € 22.000 inclusief btw. Dit zijn ramingen, geen offertes.</p></article>
+              <article class="source-result" data-search="De raad wordt gevraagd op 19 november 2026 te besluiten of maximaal 22000 euro beschikbaar wordt gesteld. Een positief besluit is nog geen opdracht aan een leverancier. Na goedkeuring is het college verantwoordelijk voor inkoop en uitvoering."><span>GEVRAAGD BESLUIT</span><p>De raad wordt gevraagd op 19 november 2026 te besluiten of maximaal € 22.000 beschikbaar wordt gesteld. Een positief besluit is nog geen opdracht aan een leverancier. Na goedkeuring is het college verantwoordelijk voor inkoop en uitvoering.</p></article>
+              <article class="source-result" data-search="Bij goedkeuring levert het college uiterlijk 15 januari 2027 een uitvoerings- en onderhoudsplan aan de raad. De raming kan afwijken van de offertes. De ingang en vluchtroute moeten tijdens werkzaamheden bruikbaar blijven. Als de offertes samen boven het aangevraagde bedrag uitkomen, vraagt het college eerst een nieuw raadsbesluit aan."><span>TERMIJN EN VOORWAARDEN</span><p>Bij goedkeuring levert het college uiterlijk 15 januari 2027 een uitvoerings- en onderhoudsplan aan de raad. De raming kan afwijken van de offertes. De ingang en vluchtroute moeten tijdens werkzaamheden bruikbaar blijven. Als de offertes samen boven het aangevraagde bedrag uitkomen, vraagt het college eerst een nieuw raadsbesluit aan.</p></article>
+            </div>
+            <p class="no-results" id="no-results" hidden>Geen overeenkomst in de voorbeeldtekst. Pas je zoekterm aan.</p>
+          </div>
+        </div>
+        <p class="example-caption reveal"><span aria-hidden="true">i</span> De illustratieve werkruimte gebruikt alleen het fictieve document en de letterlijke bronfragmenten hierboven. Er wordt op deze website geen pdf geüpload of AI-analyse uitgevoerd.</p>
+      </div>
+    </section>
+
+    <section class="section feature-section" id="mogelijkheden" aria-labelledby="features-title">
+      <div class="wrap">
+        <div class="section-heading reveal"><p class="eyebrow">In de werkruimte</p><h2 id="features-title">Van de eerste lezing<br><span>tot je eigen export.</span></h2><p>Werk met de onderdelen die je nodig hebt. De oorspronkelijke pdf en je eigen oordeel blijven centraal staan.</p></div>
+        <div class="feature-groups">
+          <article class="feature-group reveal"><div class="group-heading"><span class="group-icon" aria-hidden="true">01</span><div><p class="eyebrow">LEZEN</p><h3>Een doorzoekbaar stuk</h3></div></div><p>Open een pdf met leesbare tekst. De app verwerkt tekst, leesvolgorde en tabellen. De bron blijft naast de analyse zichtbaar, zodat een gevonden punt terug te volgen is naar de pagina.</p><ul><li>Lokale zoekfunctie in document en beschikbare analyse</li><li>Filters op onderwerp en fysieke pagina</li><li>Tabellen en bronpassages naast de pdf</li></ul></article>
+          <article class="feature-group reveal"><div class="group-heading"><span class="group-icon" aria-hidden="true">02</span><div><p class="eyebrow">VOORBEREIDEN</p><h3>Raad en commissies</h3></div></div><p>Gebruik een neutrale samenvatting of kies een eigen partijprogramma voor vergelijking. De app bevat indelingen voor raad en commissies SOD, LO en BES; de beschikbare onderwerpen hangen af van het document en de analyse.</p><ul><li>Open volledige bronpassages vanuit punten</li><li>Bewaar notities, sterren en eigen passages</li><li>Zoek ook in je notities en opgeslagen resultaten</li></ul></article>
+          <article class="feature-group reveal"><div class="group-heading"><span class="group-icon" aria-hidden="true">03</span><div><p class="eyebrow">BEWAREN EN DELEN</p><h3>Jouw voorbereiding</h3></div></div><p>Sla een werkdocument op je Mac op met de pdf, beschikbare resultaten, notities, selectie en leespositie. Het bestaande formaat <code>.spdfwork</code> blijft compatibel. Opnieuw openen start geen automatische analyse.</p><ul><li>Maak een PDF-samenvatting of exporteer je selectie</li><li>Kies de scope en controleer de inhoud voor opslaan</li><li>Bewaar werk lokaal op een locatie die jij kiest</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section provider-section" id="ai" aria-labelledby="provider-title">
+      <div class="wrap">
+        <div class="section-heading reveal"><p class="eyebrow">AI-keuze</p><h2 id="provider-title">Lokaal waar het kan.<br><span>Online als jij dat kiest.</span></h2><p>Na het importeren begint de analyse automatisch met de provider die in Instellingen staat. Je kunt het lezen, lokaal zoeken en eerder opgeslagen werk ook gebruiken als AI niet beschikbaar is.</p></div>
+        <div class="provider-grid">
+          <article class="provider-card provider-local reveal"><div class="provider-meta"><span class="provider-symbol" aria-hidden="true">⌘</span><span class="provider-tag">LOKAAL</span></div><h3>Apple Intelligence</h3><p>Verwerkt de AI-analyse lokaal op geschikte Macs waarop Apple Intelligence beschikbaar is.</p><ul><li>macOS 26 of later</li><li>Compatibele Mac en beschikbaar model</li><li>Geen CommissieWijzer-server</li></ul></article>
+          <article class="provider-card reveal"><div class="provider-meta"><span class="provider-symbol provider-symbol-online" aria-hidden="true">↗</span><span class="provider-tag">OPTIONEEL · ONLINE</span></div><h3>ChatGPT</h3><p>Meld je aan met je ChatGPT-account. Er is geen API-sleutelinstelling in CommissieWijzer.</p><ul><li>Documentfragmenten voor de analyse gaan naar OpenAI</li><li>Gekozen programma gaat mee bij vergelijking</li><li>Modeltoegang en gebruikslimieten volgen je account</li></ul></article>
+        </div>
+        <p class="provider-disclosure reveal">CommissieWijzer zelf vereist macOS 14 of later. Bekijk de <a href="privacy.html">privacyuitleg</a> voor de gegevens per provider. AI-uitkomsten kunnen onjuist zijn: controleer belangrijke conclusies en citaten altijd in de oorspronkelijke pdf.</p>
+      </div>
+    </section>
+
+    <section class="section final-section">
+      <div class="wrap final-panel reveal"><div><p class="eyebrow">Gratis · Open source · Mac</p><h2>Voorbereiden begint<br><span>bij de bron.</span></h2><p>Bekijk de projectbron, lees hoe je een punt controleert of download het fictieve voorbeeld.</p></div><div class="final-actions"><a class="button button-primary" href="support.html">Lees de ondersteuning <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="AppStore/Sample.pdf" download>Download fictief voorbeeld-pdf <span aria-hidden="true">↓</span></a><a class="text-link" href="https://github.com/SyntheticDiz/CommissieWijzer">Broncode op GitHub <span aria-hidden="true">↗</span></a><p class="release-note">App Store-versie in voorbereiding · Geen download beschikbaar</p></div></div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap"><a class="brand" href="index.html"><img src="Assets/CommissieWijzer.png" width="32" height="32" alt=""><span>CommissieWijzer</span></a><p>Lees zorgvuldig. Houd de bron dichtbij.</p><nav aria-label="Voettekst"><a href="support.html">Ondersteuning</a><a href="privacy.html">Privacy</a><a href="https://github.com/SyntheticDiz/CommissieWijzer">GitHub <span aria-hidden="true">↗</span></a></nav><small>© 2026 CommissieWijzer · App Store-versie in voorbereiding</small></footer>
+</body>
+</html>

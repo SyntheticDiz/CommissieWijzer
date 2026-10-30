@@ -55,11 +55,11 @@ De `store`-modus vereist een Mac App Distribution-identiteit, een Mac Installer 
 
 ## App Store
 
-De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). Versie 1.0.0, build 1 is voorbereid; de definitieve release, App Store-vragenlijst en inzending zijn nog niet afgerond. De App Store-versie is in voorbereiding.
+De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). Versie 1.0.1, build 2 is ondertekend, via Transporter afgeleverd en door Apple verwerkt; de App Store-vragenlijst en inzending zijn nog niet afgerond. De App Store-versie is in voorbereiding.
 
-- Website: <https://commissiewijzer.adeptbeech13.chatgpt.site>
-- Ondersteuning: <https://commissiewijzer.adeptbeech13.chatgpt.site/support.html>
-- Privacy: <https://commissiewijzer.adeptbeech13.chatgpt.site/privacy.html>
+- Website: <https://syntheticdiz.github.io/CommissieWijzer>
+- Ondersteuning: <https://syntheticdiz.github.io/CommissieWijzer/support.html>
+- Privacy: <https://syntheticdiz.github.io/CommissieWijzer/privacy.html>
 - Broncode en issues: <https://github.com/SyntheticDiz/CommissieWijzer>
 
 ## Licentie

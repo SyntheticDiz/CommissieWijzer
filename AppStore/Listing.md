@@ -38,9 +38,9 @@ raadsstukken,commissiestukken,gemeenteraad,pdf,bronpassages,notities,zoeken,voor
 
 - **Categorie:** Productiviteit
 - **Prijs:** Gratis
-- **Marketing-URL:** <https://commissiewijzer.adeptbeech13.chatgpt.site>
-- **Ondersteunings-URL:** <https://commissiewijzer.adeptbeech13.chatgpt.site/support.html>
-- **Privacybeleid-URL:** <https://commissiewijzer.adeptbeech13.chatgpt.site/privacy.html>
+- **Marketing-URL:** <https://syntheticdiz.github.io/CommissieWijzer>
+- **Ondersteunings-URL:** <https://syntheticdiz.github.io/CommissieWijzer/support.html>
+- **Privacybeleid-URL:** <https://syntheticdiz.github.io/CommissieWijzer/privacy.html>
 - **Broncode:** <https://github.com/SyntheticDiz/CommissieWijzer>
 
 ## Release-status
