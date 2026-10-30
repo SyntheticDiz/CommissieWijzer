@@ -69,7 +69,7 @@
     setPlaybackButton();
   }
 
-  function setStoryCapture(item, step, isFallback = false) {
+  function setStoryCapture(item, step) {
     const token = ++storyRequest;
     if (storyFadeTimer) window.clearTimeout(storyFadeTimer);
     const active = storyImages[activeStoryImage];
@@ -80,7 +80,6 @@
     incoming.setAttribute("aria-hidden", "true");
     incoming.alt = "";
     frame.dataset.step = String(step);
-    frame.classList.remove("is-fallback", "is-source");
 
     incoming.onload = () => {
       if (token !== storyRequest) return;
@@ -100,11 +99,9 @@
           activeStoryImage = incomingIndex;
           storyFadeTimer = window.setTimeout(() => {
             if (token === storyRequest) active.classList.remove("is-active");
-          }, 900);
+          }, 1200);
         });
       }
-      frame.classList.toggle("is-fallback", isFallback);
-      frame.classList.toggle("is-source", step === 1 && !isFallback);
       caption.textContent = item.caption;
       fullShotLink.href = item.href;
     };
@@ -118,7 +115,7 @@
           alt: item.fallbackAlt,
           caption: item.fallbackCaption,
           href: item.fallbackHref
-        }, step, true);
+        }, step);
       }
     };
     incoming.src = item.src;
@@ -205,7 +202,7 @@
       sourceCapture.onerror = null;
       sourceCapture.src = "WebsiteAssets/documentpunten.jpg";
       sourceCapture.width = 2560;
-      sourceCapture.height = 1600;
+      sourceCapture.height = 1680;
       sourceCapture.alt = "Echte schermafbeelding van CommissieWijzer met documentpunten en de fictieve voorbeeld-pdf; de aparte bronpassage-opname wordt niet geladen.";
       sourceLink.href = "WebsiteAssets/documentpunten.jpg";
     };
@@ -249,15 +246,13 @@
       href: "WebsiteAssets/exporteren.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met het exportscherm en de geselecteerde onderdelen Mijn selectie en Bronnenbijlage.",
       caption: "Echte appweergave · gekozen onderdelen voor pdf-export.",
-      width: 1240,
-      height: 1320,
-      contain: true,
+      width: 2560,
+      height: 1680,
       link: "support.html#werk",
       linkLabel: "Meer over bewaren en exporteren"
     }
   };
   const featureTabs = [...document.querySelectorAll("[data-feature]")];
-  const featureFigure = document.querySelector(".feature-capture");
   const featureImages = [document.getElementById("feature-capture"), document.getElementById("feature-capture-next")];
   const featureLink = document.getElementById("feature-full-shot-link");
   let activeFeatureImage = 0;
@@ -310,10 +305,9 @@
           activeFeatureImage = incomingIndex;
           featureFadeTimer = window.setTimeout(() => {
             if (token === featureRequest) active.classList.remove("is-active");
-          }, 900);
+          }, 1200);
         });
       }
-      featureFigure.classList.toggle("is-portrait", Boolean(details.contain));
       featureLink.href = details.href;
       updateFeatureText(tab, details);
     };
@@ -328,15 +322,14 @@
           alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast het fictieve raadsvoorstel.",
           caption: "Echte appweergave · documentpunten naast het fictieve raadsvoorstel.",
           width: 2560,
-          height: 1600,
-          contain: false
+          height: 1680
         };
         selectFeatureImageFallback(fallback);
       }
     };
     incoming.src = details.href;
     incoming.width = details.width || 2560;
-    incoming.height = details.height || 1600;
+    incoming.height = details.height || 1680;
     if (focus) tab.focus();
   }
 
@@ -363,17 +356,16 @@
           activeFeatureImage = incomingIndex;
           featureFadeTimer = window.setTimeout(() => {
             if (token === featureRequest) active.classList.remove("is-active");
-          }, 900);
+          }, 1200);
         });
       }
-      featureFigure.classList.toggle("is-portrait", Boolean(details.contain));
       featureLink.href = "WebsiteAssets/documentpunten.jpg";
       updateFeatureText(featureTabs.find(candidate => candidate.getAttribute("aria-selected") === "true"), details);
     };
     incoming.onerror = () => { incoming.onerror = null; };
     incoming.src = "WebsiteAssets/documentpunten.jpg";
     incoming.width = 2560;
-    incoming.height = 1600;
+    incoming.height = 1680;
   }
 
   featureTabs.forEach((tab, index) => {
