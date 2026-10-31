@@ -1,6 +1,6 @@
 # Privacybeleid — CommissieWijzer
 
-Laatst bijgewerkt: 31 oktober 2026. Dit document beschrijft de huidige Mac- en iPad-implementatie. De App Privacy-vragenlijst voor de Mac-versie is gepubliceerd. De iPad-versie is nog niet bij Apple ingediend en moet afzonderlijk worden beoordeeld.
+Laatst bijgewerkt: 31 oktober 2026. Dit document beschrijft de huidige Mac- en iPad-implementatie. De App Privacy-vragenlijst voor de Mac-versie is gepubliceerd. De iPad-versie 1.0.1 (3) is afzonderlijk ingediend en staat op Waiting for Review.
 
 ## In het kort
 
@@ -43,7 +43,7 @@ De app bewaart lokale gegevens totdat jij ze verwijdert of de bijbehorende appbe
 
 ## App Privacy-vragenlijst
 
-Deze vier gegevenscategorieën staan in de gepubliceerde App Privacy-vragenlijst voor de Mac-versie. De iPad-versie is nog niet ingediend en kan door Apple afzonderlijk worden beoordeeld.
+Deze vier gegevenscategorieën staan in de gepubliceerde App Privacy-vragenlijst voor de Mac-versie. De iPad-versie is afzonderlijk ingediend en wacht op beoordeling door Apple.
 
 | Gegevenstype | Voorbeeld in deze app | Doel | Tracking |
 | --- | --- | --- | --- |

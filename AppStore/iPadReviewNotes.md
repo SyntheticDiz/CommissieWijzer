@@ -1,6 +1,6 @@
-# App Review notes — iPadOS 1.0.1 (4)
+# App Review notes — iPadOS 1.0.1 (3)
 
-CommissieWijzer — iPadOS 1.0.1 (4)
+CommissieWijzer — iPadOS 1.0.1 (3)
 
 This is the native iPad version of CommissieWijzer under the existing app record and bundle identifier. It uses the same reading, analysis, search, notes, source checking, programme comparison, chat, PDF export and portable workdocument workflows as the Mac app, with touch controls and the same dark UI. iPadOS 26+ is required; local Apple Intelligence needs supported hardware and an available system model. Image-based chart explanation additionally requires iPadOS 27 and an available model.
 
