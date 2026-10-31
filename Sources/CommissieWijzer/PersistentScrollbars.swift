@@ -1,7 +1,12 @@
 import SwiftUI
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 /// Native scrolling and accessibility, with capsule-shaped track and thumb.
+#if canImport(AppKit)
 final class RoundedScroller: NSScroller {
     override class var isCompatibleWithOverlayScrollers: Bool { false }
 
@@ -27,9 +32,11 @@ final class RoundedScroller: NSScroller {
         capsule(knob, inset: 3).fill()
     }
 }
+#endif
 
 /// Keep a native, accessible scrollbar visible without changing macOS preferences.
 enum PersistentScrollbars {
+    #if canImport(AppKit)
     static func apply(to scrollView: NSScrollView) {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = false
@@ -39,8 +46,17 @@ enum PersistentScrollbars {
         }
         scrollView.verticalScroller?.controlSize = .small
     }
+    #elseif canImport(UIKit)
+    /// UIKit owns the scrollbar thumb and presents it while scrolling. Keep the
+    /// native vertical indicator enabled and preserve the system touch target.
+    static func apply(to scrollView: UIScrollView) {
+        scrollView.showsVerticalScrollIndicator = true
+        scrollView.indicatorStyle = .default
+    }
+    #endif
 }
 
+#if canImport(AppKit)
 struct PersistentScrollbarsAttachment: NSViewRepresentable {
     final class Attachment: NSView {
         override func viewDidMoveToWindow() {
@@ -56,3 +72,22 @@ struct PersistentScrollbarsAttachment: NSViewRepresentable {
         DispatchQueue.main.async { view.install() }
     }
 }
+#elseif canImport(UIKit)
+struct PersistentScrollbarsAttachment: UIViewRepresentable {
+    final class Attachment: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.install() }
+        }
+        func install() {
+            var ancestor = superview
+            while let view = ancestor {
+                if let scroll = view as? UIScrollView { PersistentScrollbars.apply(to: scroll); return }
+                ancestor = view.superview
+            }
+        }
+    }
+    func makeUIView(context: Context) -> Attachment { Attachment() }
+    func updateUIView(_ view: Attachment, context: Context) { DispatchQueue.main.async { view.install() } }
+}
+#endif

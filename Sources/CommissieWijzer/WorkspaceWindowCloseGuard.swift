@@ -1,5 +1,6 @@
-import AppKit
 import SwiftUI
+#if os(macOS)
+import AppKit
 
 @MainActor final class WorkspaceWindowCloseBridge: NSObject, ObservableObject, NSWindowDelegate {
     weak var workspace: SimpleWorkspace?
@@ -64,3 +65,4 @@ struct WorkspaceWindowCloseGuard: NSViewRepresentable {
         DispatchQueue.main.async { bridge.install(on: view) }
     }
 }
+#endif

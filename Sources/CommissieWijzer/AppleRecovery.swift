@@ -16,7 +16,7 @@ enum AppleFailure: Error, LocalizedError, Equatable {
     static func classify(_ error: Error) -> AppleFailure {
         if let error = error as? AppleFailure { return error }
         if error is DecodingError { return .invalid }
-        if #available(macOS 27.0, *), let error = error as? LanguageModelError {
+        if #available(macOS 27.0, iOS 27.0, *), let error = error as? LanguageModelError {
             switch error {
             case .contextSizeExceeded: return .context
             case .guardrailViolation, .refusal: return .refusal
@@ -25,8 +25,8 @@ enum AppleFailure: Error, LocalizedError, Equatable {
             default: return .other(error.localizedDescription)
             }
         }
-        if #available(macOS 27.0, *), error is SystemLanguageModel.Error { return .unavailable }
-        if #available(macOS 26.0, *), let error = error as? LanguageModelSession.GenerationError {
+        if #available(macOS 27.0, iOS 27.0, *), error is SystemLanguageModel.Error { return .unavailable }
+        if #available(macOS 26.0, iOS 26.0, *), let error = error as? LanguageModelSession.GenerationError {
             switch error {
             case .exceededContextWindowSize: return .context
             case .guardrailViolation, .refusal: return .refusal

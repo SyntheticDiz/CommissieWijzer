@@ -95,6 +95,7 @@ final class RecentWorkspaceDocuments: ObservableObject {
     func resolve(_ entry: Entry) throws -> URL {
         if let bookmarkData = entry.bookmarkData {
             var isStale = false
+#if os(macOS)
             if let resolved = try? URL(resolvingBookmarkData: bookmarkData,
                                        options: .withSecurityScope,
                                        relativeTo: nil,
@@ -103,6 +104,7 @@ final class RecentWorkspaceDocuments: ObservableObject {
                FileManager.default.fileExists(atPath: resolved.path) {
                 return resolved
             }
+#endif
         }
         let fallback = URL(fileURLWithPath: entry.path)
         guard FileManager.default.fileExists(atPath: fallback.path) else {
@@ -148,9 +150,13 @@ final class RecentWorkspaceDocuments: ObservableObject {
         let canonicalURL = Self.canonicalURL(url)
         let canonicalPath = Self.canonicalPath(canonicalURL)
         let previous = entries.first { Self.canonicalPath(URL(fileURLWithPath: $0.path)) == canonicalPath }
+#if os(macOS)
         let bookmark = (try? canonicalURL.bookmarkData(options: .withSecurityScope,
                                                         includingResourceValuesForKeys: nil,
                                                         relativeTo: nil)) ?? previous?.bookmarkData
+#else
+        let bookmark: Data? = nil
+#endif
         return Entry(path: canonicalURL.path, displayName: canonicalURL.lastPathComponent,
                      lastUsed: Date(), bookmarkData: bookmark)
     }

@@ -1,5 +1,10 @@
 import SwiftUI
 import PDFKit
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct PassageTarget: Equatable {
     let id: String
@@ -38,6 +43,7 @@ enum PDFPassageLocator {
         selectionReleaseTask?.cancel()
         // PDFKit publishes intermediate selections while dragging. Do not put an
         // action under the pointer until the left button has actually been released.
+        #if canImport(AppKit)
         if NSEvent.pressedMouseButtons & 1 != 0 {
             selectedText = nil; selectionAnchor = nil
             selectionReleaseTask = Task { @MainActor [weak self] in
@@ -49,6 +55,9 @@ enum PDFPassageLocator {
                 self?.updateSelection()
             }
         } else { updateSelection() }
+        #elseif canImport(UIKit)
+        updateSelection()
+        #endif
     }
     func updateSelection() {
         guard let view, let document = view.document, let selected = view.currentSelection,
@@ -57,8 +66,15 @@ enum PDFPassageLocator {
         }
         let pages = selected.pages.map { document.index(for: $0) + 1 }.filter { $0 > 0 && $0 <= document.pageCount }
         selectedText = SelectedPDFText(text: text, pages: pages, sources: Self.pageSources(for: selected, in: document, pages: pages))
+        #if canImport(AppKit)
         let mouse = view.convert(view.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
         selectionAnchor = CGPoint(x: mouse.x, y: view.isFlipped ? mouse.y : view.bounds.height - mouse.y)
+        #elseif canImport(UIKit)
+        if let page = view.currentPage, let selection = view.currentSelection {
+            let bounds = selection.bounds(for: page)
+            selectionAnchor = view.convert(CGPoint(x: bounds.midX, y: bounds.midY), from: page)
+        } else { selectionAnchor = nil }
+        #endif
     }
     /// Keeps the complete PDFKit selection as `text`; these are separate literal
     /// per-page excerpts only for source navigation and page-level attribution.
@@ -119,8 +135,15 @@ enum PDFPassageLocator {
             if let page = document.page(at: target.page - 1) { view.go(to: page) }
             return
         }
-        let animate = emphasize && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        selection.color = NSColor.systemYellow.withAlphaComponent(animate ? 0.65 : 0.32)
+        #if canImport(AppKit)
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let highlightColor = NSColor.systemYellow
+        #else
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        let highlightColor = UIColor.systemYellow
+        #endif
+        let animate = emphasize && !reduceMotion
+        selection.color = highlightColor.withAlphaComponent(animate ? 0.65 : 0.32)
         view.highlightedSelections = [selection]
         view.go(to: selection)
         update()
@@ -130,8 +153,12 @@ enum PDFPassageLocator {
                 for frame in 1...12 {
                     do { try await Task.sleep(nanoseconds: 20_000_000) } catch { return }
                     guard !Task.isCancelled, let view, view.document === document, self?.active == target else { return }
+                    #if canImport(AppKit)
                     let remaining = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 1 - CGFloat(frame) / 12
-                    selection.color = NSColor.systemYellow.withAlphaComponent(0.32 + 0.33 * remaining * remaining)
+                    #else
+                    let remaining = UIAccessibility.isReduceMotionEnabled ? 0 : 1 - CGFloat(frame) / 12
+                    #endif
+                    selection.color = highlightColor.withAlphaComponent(0.32 + 0.33 * remaining * remaining)
                     view.highlightedSelections = [selection]
                     if remaining == 0 { return }
                 }
@@ -160,22 +187,69 @@ struct PDFControlsBar: View {
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @ObservedObject var controls: PDFControls
     var body: some View {
+        #if os(iOS)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                previousPageButton
+                pageNumber
+                nextPageButton
+                Divider().frame(height: 20)
+                zoomOutButton
+                fitButton
+                zoomInButton
+            }.fixedSize(horizontal: true, vertical: false)
+            VStack(spacing: 6) {
+                HStack(spacing: 12) { previousPageButton; pageNumber; nextPageButton }
+                HStack(spacing: 12) { zoomOutButton; fitButton; zoomInButton }
+            }
+        }
+        .buttonStyle(FocusToolbarActionStyle()).padding(.horizontal, 10).padding(.vertical, 8).modifier(GlassSurface())
+        #else
         HStack(spacing: 12) {
-            Button(UIStrings.text("Vorige pagina"), systemImage: "chevron.left") { controls.move(-1) }
-                .disabled(controls.page <= 1).labelStyle(.iconOnly).help(UIStrings.text("Vorige pagina"))
-            Text("\(controls.page) / \(controls.count)").monospacedDigit().frame(minWidth: 55)
-            Button(UIStrings.text("Volgende pagina"), systemImage: "chevron.right") { controls.move(1) }
-                .disabled(controls.page >= controls.count).labelStyle(.iconOnly).help(UIStrings.text("Volgende pagina"))
+            previousPageButton
+            pageNumber
+            nextPageButton
             Divider().frame(height: 20)
-            Button(UIStrings.text("Uitzoomen"), systemImage: "minus.magnifyingglass") { controls.zoom(1 / 1.2) }
-                .labelStyle(.iconOnly).help(UIStrings.text("Uitzoomen"))
-            Button(UIStrings.text("Passend"), systemImage: "arrow.up.left.and.arrow.down.right") { controls.fit() }.help(UIStrings.text("Pagina passend maken"))
-            Button(UIStrings.text("Inzoomen"), systemImage: "plus.magnifyingglass") { controls.zoom(1.2) }
-                .labelStyle(.iconOnly).help(UIStrings.text("Inzoomen"))
+            zoomOutButton
+            fitButton
+            zoomInButton
         }.buttonStyle(FocusToolbarActionStyle()).padding(.horizontal, 18).padding(.vertical, 13).modifier(GlassSurface())
+        #endif
+    }
+
+    private var previousPageButton: some View {
+        Button(UIStrings.text("Vorige pagina"), systemImage: "chevron.left") { controls.move(-1) }
+            .disabled(controls.page <= 1).labelStyle(.iconOnly).help(UIStrings.text("Vorige pagina"))
+            .platformTouchTarget()
+    }
+    private var pageNumber: some View {
+        Text("\(controls.page) / \(controls.count)").monospacedDigit()
+            .frame(minWidth: 55).fixedSize(horizontal: true, vertical: false)
+    }
+    private var nextPageButton: some View {
+        Button(UIStrings.text("Volgende pagina"), systemImage: "chevron.right") { controls.move(1) }
+            .disabled(controls.page >= controls.count).labelStyle(.iconOnly).help(UIStrings.text("Volgende pagina"))
+            .platformTouchTarget()
+    }
+    private var zoomOutButton: some View {
+        Button(UIStrings.text("Uitzoomen"), systemImage: "minus.magnifyingglass") { controls.zoom(1 / 1.2) }
+            .labelStyle(.iconOnly).help(UIStrings.text("Uitzoomen")).platformTouchTarget()
+    }
+    private var fitButton: some View {
+        Button(UIStrings.text("Passend"), systemImage: "arrow.up.left.and.arrow.down.right") { controls.fit() }
+            #if os(iOS)
+            .labelStyle(.iconOnly)
+            #endif
+            .accessibilityLabel(UIStrings.text("Passend"))
+            .help(UIStrings.text("Pagina passend maken")).platformTouchTarget()
+    }
+    private var zoomInButton: some View {
+        Button(UIStrings.text("Inzoomen"), systemImage: "plus.magnifyingglass") { controls.zoom(1.2) }
+            .labelStyle(.iconOnly).help(UIStrings.text("Inzoomen")).platformTouchTarget()
     }
 }
 
+#if canImport(AppKit)
 final class CardPDFView: PDFView {
     override func layout() {
         super.layout()
@@ -240,3 +314,50 @@ struct PDFPreview: NSViewRepresentable {
         }
     }
 }
+#elseif canImport(UIKit)
+struct PDFPreview: UIViewRepresentable {
+    let data: Data
+    let page: Int
+    let navigationID: UUID
+    var controls: PDFControls
+    final class Coordinator {
+        var data: Data?
+        var page: Int?
+        var navigationID: UUID?
+        var observers: [NSObjectProtocol] = []
+        deinit { observers.forEach(NotificationCenter.default.removeObserver) }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.backgroundColor = UIColor(AppTheme.surface)
+        view.usePageViewController(false, withViewOptions: nil)
+        controls.view = view
+        for name in [Notification.Name.PDFViewPageChanged, .PDFViewScaleChanged] {
+            context.coordinator.observers.append(NotificationCenter.default.addObserver(forName: name, object: view, queue: .main) { [weak controls] _ in Task { @MainActor in controls?.update() } })
+        }
+        context.coordinator.observers.append(NotificationCenter.default.addObserver(forName: .PDFViewSelectionChanged, object: view, queue: .main) { [weak controls] _ in Task { @MainActor in controls?.selectionChanged() } })
+        return view
+    }
+    func updateUIView(_ view: PDFView, context: Context) {
+        let documentChanged = context.coordinator.data != data
+        if documentChanged {
+            view.document = PDFDocument(data: data); view.autoScales = true
+            context.coordinator.data = data; context.coordinator.page = nil
+        }
+        if context.coordinator.page != page || context.coordinator.navigationID != navigationID, let target = view.document?.page(at: page - 1) {
+            view.go(to: target); context.coordinator.page = page; context.coordinator.navigationID = navigationID
+        }
+        let expectedDocument = view.document
+        Task { @MainActor [weak view, weak controls] in
+            guard let view, let controls, controls.view === view,
+                  view.document === expectedDocument else { return }
+            if documentChanged { controls.selectedText = nil; controls.selectionAnchor = nil }
+            controls.update()
+            if controls.pinned != nil && view.highlightedSelections == nil { controls.applyHighlight() }
+        }
+    }
+}
+#endif

@@ -189,7 +189,7 @@ struct InsightCard: View {
             Text(UIStrings.text("Mijn controle en notitie")).font(.headline)
             Toggle(UIStrings.text("Door mij gecontroleerd aan de bron"), isOn: Binding(get: { annotation.isChecked(point) }, set: { checked in
                 var updated = annotation; updated.checkedSignature = checked ? PointAnnotation.signature(point) : nil; annotationChanged(updated)
-            })).toggleStyle(.checkbox)
+            })).platformCheckboxStyle()
             TextField(UIStrings.text("Eigen notitie"), text: Binding(get: { annotation.note }, set: { text in
                 var updated = annotation; updated.note = text; annotationChanged(updated)
             }), axis: .vertical).textFieldStyle(FocusInputFieldStyle()).lineLimit(2...6)

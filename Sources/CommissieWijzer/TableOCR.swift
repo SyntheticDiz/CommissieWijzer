@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 import Foundation
 import PDFKit
 import Vision
@@ -34,9 +38,14 @@ enum TableOCR {
         guard !imageRegions.isEmpty else { return [] }
 
         let scale = CGFloat(maximumRenderDimension) / max(pageBounds.width, pageBounds.height)
-        let targetSize = NSSize(width: max(1, (pageBounds.width * scale).rounded()),
+        let targetSize = CGSize(width: max(1, (pageBounds.width * scale).rounded()),
                                 height: max(1, (pageBounds.height * scale).rounded()))
-        guard let rendered = page.thumbnail(of: targetSize, for: .cropBox).cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        #if canImport(AppKit)
+        let rendered = page.thumbnail(of: targetSize, for: .cropBox).cgImage(forProposedRect: nil, context: nil, hints: nil)
+        #elseif canImport(UIKit)
+        let rendered = page.thumbnail(of: targetSize, for: .cropBox).cgImage
+        #endif
+        guard let rendered else {
             return []
         }
 

@@ -4,22 +4,25 @@ import FoundationModels
 /// Uses only Apple's on-device model. Never routes to Private Cloud Compute.
 enum AppleAIService {
     static let modelID = "spdf-apple-on-device"
+    static let sendableResponse: AIService.Request = { body in
+        try await response(body: body)
+    }
 
     static func unavailability() -> String? {
-        guard #available(macOS 26.0, *) else { return "Apple Intelligence vereist macOS 26 of nieuwer. AI-analyse is op deze macOS-versie niet beschikbaar." }
+        guard #available(macOS 26.0, iOS 26.0, *) else { return "Apple Intelligence vereist macOS 26 of nieuwer. AI-analyse is op deze macOS-versie niet beschikbaar." }
         switch SystemLanguageModel.default.availability {
         case .available:
             return SystemLanguageModel.default.supportsLocale(Locale(identifier: "nl")) ? nil : "Het geïnstalleerde Apple-model ondersteunt Nederlands nog niet. Werk macOS en de modellen bij."
-        case .unavailable(.deviceNotEligible): return "Deze Mac ondersteunt Apple Intelligence niet."
+        case .unavailable(.deviceNotEligible): return "Dit apparaat ondersteunt Apple Intelligence niet."
         case .unavailable(.appleIntelligenceNotEnabled): return "Schakel Apple Intelligence in via de systeeminstellingen."
-        case .unavailable(.modelNotReady): return "Het Apple-model is nog niet klaar. Laat macOS de modellen downloaden en controleer opnieuw."
+        case .unavailable(.modelNotReady): return "Het Apple-model is nog niet klaar. Laat het systeem de modellen downloaden en controleer opnieuw."
         case .unavailable: return "Apple Intelligence is momenteel niet beschikbaar."
         }
     }
 
     static func response(body: [String: Any]) async throws -> String {
         if let reason = unavailability() { throw AppError(message: reason) }
-        guard #available(macOS 26.0, *) else { throw AppError(message: "Apple Intelligence vereist macOS 26.") }
+        guard #available(macOS 26.0, iOS 26.0, *) else { throw AppError(message: "Apple Intelligence vereist macOS 26.") }
         try Task.checkCancellation()
         let instructions = body["instructions"] as? String ?? ""
         let input = body["input"] as? String ?? ""
@@ -48,7 +51,7 @@ enum AppleAIService {
 
     /// Committee enums depend on the selected purpose. Constrain both fields to
     /// those IDs in the actual local schema; unassigned is never a secondary tag.
-    @available(macOS 26.0, *)
+    @available(macOS 26.0, iOS 26.0, *)
     private static func generateCommittee(format: [String: Any]?, assessment: Bool, instructions: String, input: String, limit: Int) async throws -> String {
         guard let schemaJSON = format?["schema"] as? [String: Any],
               let properties = schemaJSON["properties"] as? [String: Any],
@@ -74,7 +77,7 @@ enum AppleAIService {
         do {
             let schema = try GenerationSchema(root: .init(name: assessment ? "CommitteeAssessment" : "CommitteeCategorization", properties: fields), dependencies: [])
             let model = SystemLanguageModel.default
-            if #available(macOS 26.4, *) {
+            if #available(macOS 26.4, iOS 26.4, *) {
                 let total = try await model.tokenCount(for: Instructions(instructions)) + model.tokenCount(for: Prompt(input)) + model.tokenCount(for: schema)
                 guard total + limit + 256 <= 4096 else { throw AppleFailure.context }
             } else {
@@ -91,10 +94,10 @@ enum AppleAIService {
         }
     }
 
-    @available(macOS 26.0, *)
+    @available(macOS 26.0, iOS 26.0, *)
     private static func generate<T: Generable & Encodable>(_ type: T.Type, instructions: String, input: String, limit: Int) async throws -> String {
         do {
-            if #available(macOS 26.4, *) {
+            if #available(macOS 26.4, iOS 26.4, *) {
                 let model = SystemLanguageModel.default
                 let instructionTokens = try await model.tokenCount(for: Instructions(instructions))
                 let inputTokens = try await model.tokenCount(for: Prompt(input))
@@ -117,13 +120,13 @@ enum AppleAIService {
 
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleInsights: Codable {
     @Guide(description: "Maximaal drie aandachtspunten; leeg als er geen zijn.", .maximumCount(3))
     var insights: [AppleInsight]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleInsight: Codable {
     var title: String
@@ -134,13 +137,13 @@ private struct AppleInsight: Codable {
     var quote: String
     var page: Int
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleQuestions: Codable {
     @Guide(description: "Maximaal vijf verschillende vragen; bij aanvullen alleen het gevraagde ontbrekende aantal.", .maximumCount(5))
     var questions: [AppleQuestion]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleQuestion: Codable {
     var question: String
@@ -148,13 +151,13 @@ private struct AppleQuestion: Codable {
     var quote: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleProgramMatches: Codable {
     @Guide(description: "Maximaal twee onderbouwde verbanden; leeg bij geen verband.", .maximumCount(2))
     var matches: [AppleProgramMatch]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleProgramMatch: Codable {
     var title: String
@@ -166,7 +169,7 @@ private struct AppleProgramMatch: Codable {
     var programPage: Int
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable
 private struct AppleDigest: Codable {
     @Guide(description: "Maximaal twee korte neutrale zinnen, uitsluitend expliciete bronfeiten. Behoud voorstel of verzoek als voorstel of verzoek.")
@@ -175,25 +178,25 @@ private struct AppleDigest: Codable {
     var bullets: [String]
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleChatAnswer: Codable {
     @Guide(description: "Brongebonden antwoord in het Nederlands; benoem ontbrekende informatie, maximaal 180 woorden.")
     var answer: String
     @Guide(description: "Maximaal drie letterlijke broncitaten.", .maximumCount(3))
     var citations: [AppleChatCitation]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleChatCitation: Codable {
     var sourceID: String
     var quote: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleNeutralOutline: Codable {
     @Guide(description: "Maximaal drie neutrale samenvattingspunten, elk met broncitaat.", .maximumCount(3))
     var points: [AppleNeutralPoint]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleNeutralPoint: Codable {
     var title: String
     var summary: String
@@ -201,12 +204,12 @@ private struct AppleDigest: Codable {
     var quote: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleEvidence: Codable {
     @Guide(description: "Maximaal twee punten. Leeg indien geen concreet onderbouwd punt.", .maximumCount(2))
     var points: [AppleEvidencePoint]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleEvidencePoint: Codable {
     var title: String
     @Guide(description: "Eén korte Nederlandse zin met alleen expliciete documentfeiten.")
@@ -219,12 +222,12 @@ private struct AppleDigest: Codable {
     var relevance: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct ApplePassageEvidence: Codable {
     @Guide(description: "Maximaal drie brongebonden punten; leeg als de passage geen hoofd- of achtergrondpunt bevat.", .maximumCount(3))
     var points: [ApplePassagePoint]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct ApplePassagePoint: Codable {
     var title: String
     var summary: String
@@ -234,12 +237,12 @@ private struct AppleDigest: Codable {
     @Guide(description: "Korte reden op basis van expliciete broninformatie.") var relevanceReason: String
     @Guide(description: "Alleen gebruikte context-ID's; leeg als context niet nodig was.") var contextIDs: [String]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct ApplePassageProgramEvidence: Codable {
     @Guide(description: "Maximaal drie concrete programmacontextpunten; leeg als er geen aantoonbare overeenkomst of spanning is.", .maximumCount(3))
     var points: [ApplePassageProgramPoint]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct ApplePassageProgramPoint: Codable {
     var title: String
     var summary: String
@@ -251,7 +254,7 @@ private struct AppleDigest: Codable {
     @Guide(description: "Korte reden op basis van expliciete broninformatie.") var relevanceReason: String
     @Guide(description: "Alleen gebruikte context-ID's; leeg als context niet nodig was.") var contextIDs: [String]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleReview: Codable {
     @Guide(description: "Maximaal twee korte Nederlandse zinnen met alleen feiten uit D-bronnen. Geen programmatekst of broncodes.")
     var summary: String
@@ -261,12 +264,12 @@ private struct AppleDigest: Codable {
     var sourceIDs: [String]
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleProgramEvidence: Codable {
     @Guide(description: "Maximaal twee concrete programmaverbanden. Leeg bij geen verband.", .maximumCount(2))
     var points: [AppleProgramEvidencePoint]
 }
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleProgramEvidencePoint: Codable {
     var title: String
     @Guide(description: "Eén korte Nederlandse zin met alleen expliciete documentfeiten.")
@@ -279,7 +282,7 @@ private struct AppleDigest: Codable {
     var relevance: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleOneQuestion: Codable {
     @Guide(description: "Eén open Nederlandse commissievraag. Geen nieuwe feiten aannemen.")
     var question: String
@@ -287,7 +290,7 @@ private struct AppleDigest: Codable {
     var sourceID: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleOverview: Codable {
     @Guide(description: "Vat uitsluitend expliciete bronfeiten samen in het Nederlands. Maximaal 25 zinnen, maar zo kort als de bron toelaat. Vul ontbrekende informatie nooit in. Maximaal 500 woorden.")
     var overview: String
@@ -295,7 +298,7 @@ private struct AppleDigest: Codable {
     var bullets: [String]
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleKeyPoint: Codable {
     var relevant: Bool
     @Guide(description: "Korte concrete Nederlandse beschrijving. Geen nieuwe feiten. Maximaal 30 woorden.")
@@ -306,7 +309,7 @@ private struct AppleDigest: Codable {
     var status: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable struct AppleParagraphDigest: Codable {
     @Guide(description: "Korte Nederlandse titel voor de volledige alinea.")
     var title: String
@@ -314,7 +317,7 @@ private struct AppleDigest: Codable {
     var summary: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleGlossaryWebAnswer: Codable {
     var fullName: String
     var explanation: String
@@ -324,7 +327,7 @@ private struct AppleDigest: Codable {
     var quote: String
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleCommitteeAssessment: Codable {
     @Guide(description: "Exact één waarde.", .anyOf(["important", "relevant", "other", "uncertain", "unassessed"]))
     var rating: String
@@ -338,7 +341,7 @@ private struct AppleDigest: Codable {
     var secondaryCategoryIDs: [String]
 }
 
-@available(macOS 26.0, *)
+@available(macOS 26.0, iOS 26.0, *)
 @Generable private struct AppleCommitteeCategorization: Codable {
     @Guide(description: "Exact één geldige categorie-ID uit de instructie of unassigned.")
     var categoryID: String

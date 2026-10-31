@@ -95,8 +95,10 @@ final class SavedWorkQueueTests: XCTestCase {
         let notified = expectation(forNotification: SavedWork.failure, object: nil)
 
         SavedWork.schedule(FailingSnapshot(), key: "preserved", directory: folder)
-        await fulfillment(of: [notified], timeout: 2)
+        // The queue barrier proves the write attempt (and its synchronous
+        // notification post) has finished before we inspect the expectation.
         let failures = await SavedWork.drain()
+        await fulfillment(of: [notified], timeout: 2)
 
         XCTAssertEqual(failures.count, 1)
         XCTAssertEqual(SavedWork.read(String.self, key: "preserved", directory: folder), "previous")
@@ -111,8 +113,10 @@ final class SavedWorkQueueTests: XCTestCase {
         let notified = expectation(forNotification: SavedWork.failure, object: nil)
 
         SavedWork.schedule("new value", key: "child", directory: blockedDirectory)
-        await fulfillment(of: [notified], timeout: 2)
+        // Drain before waiting on the observer: otherwise queue scheduling
+        // latency can consume the entire XCTest timeout before the write runs.
         let failures = await SavedWork.drain()
+        await fulfillment(of: [notified], timeout: 2)
 
         XCTAssertEqual(failures.count, 1)
         XCTAssertEqual(try Data(contentsOf: blockedDirectory), Data("keep this file".utf8))

@@ -199,6 +199,11 @@ enum ChatGPTService {
     }
 
     static let maximumErrorBodyBytes = 65_536
+    // A final Responses SSE event may contain a full copy of the answer in
+    // addition to the deltas. Keep enough room for that while bounding hostile
+    // or accidentally enormous event streams and individual JSON frames.
+    static let maximumStreamBytes = 64 * 1_024 * 1_024
+    static let maximumEventLineBytes = 20 * 1_024 * 1_024
 
     private static func boundedBody<Bytes: AsyncSequence>(from bytes: Bytes) async throws -> Data where Bytes.Element == UInt8 {
         var body = Data()
@@ -382,9 +387,11 @@ enum ChatGPTService {
 
     // AsyncBytes.lines drops empty lines. SSE uses those lines as frame
     // boundaries, so decode the bytes ourselves and retain every delimiter.
-    static func collect<Bytes: AsyncSequence>(bytes: Bytes) async throws -> String where Bytes.Element == UInt8 {
+    static func collect<Bytes: AsyncSequence>(bytes: Bytes, maximumBytes: Int = maximumStreamBytes,
+                                              maximumLineBytes: Int = maximumEventLineBytes) async throws -> String where Bytes.Element == UInt8 {
         var parser = EventStreamParser()
         var line = Data()
+        var streamBytes = 0
         var previousWasCR = false
         func output() throws -> String {
             guard !parser.output.isEmpty else { throw ChatGPTError.incomplete }
@@ -398,6 +405,8 @@ enum ChatGPTService {
         do {
             for try await byte in bytes {
                 try Task.checkCancellation()
+                guard streamBytes < maximumBytes else { throw ChatGPTError.incomplete }
+                streamBytes += 1
                 if byte == 10 && previousWasCR { previousWasCR = false; continue }
                 previousWasCR = byte == 13
                 if byte == 10 || byte == 13 {
@@ -406,7 +415,7 @@ enum ChatGPTService {
                     // keep-alive connection to close after completed inference.
                     if parser.completed { return try output() }
                 } else {
-                    guard line.count < 4_194_304 else { throw ChatGPTError.incomplete }
+                    guard line.count < maximumLineBytes else { throw ChatGPTError.incomplete }
                     line.append(byte)
                 }
             }

@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct ChatGPTSettingsView: View {
+#if os(iOS)
+    @Environment(\.appPresentationContext) private var appPresentationContext
+#endif
     @AppStorage("localAIProvider") private var provider = "apple"
     @AppStorage("chatGPTModel") private var model = "gpt-6.1-sol"
     @AppStorage("chatGPTReasoning") private var effort = "high"
@@ -119,7 +122,15 @@ struct ChatGPTSettingsView: View {
                                 Button(UIStrings.text("Uitloggen")) { Task { await account.signOut() } }.disabled(account.busy)
                             }
                         } else {
-                            Button(UIStrings.text("Continue with ChatGPT")) { Task { await account.signIn() } }.buttonStyle(FocusPrimaryButtonStyle()).disabled(account.busy)
+                            Button(UIStrings.text("Continue with ChatGPT")) {
+                                Task {
+#if os(iOS)
+                                    await account.signIn(context: appPresentationContext)
+#else
+                                    await account.signIn()
+#endif
+                                }
+                            }.buttonStyle(FocusPrimaryButtonStyle()).disabled(account.busy)
                         }
                         if account.busy { HStack { ProgressView().controlSize(.small); Text(UIStrings.text(account.status)) } }
                         if account.busy && !account.isSignedIn { Button(UIStrings.text("Inloggen annuleren")) { account.cancelSignIn() } }

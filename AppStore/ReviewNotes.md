@@ -17,6 +17,12 @@ The interface is in Dutch. The app requires macOS 14 or later. Apple Intelligenc
 
 Image-only scans may need a searchable text layer. Check table values and extracted text against the PDF.
 
+## Optional ChatGPT sign-in and network entitlement
+
+To review the optional ChatGPT sign-in, open **Settings → AI provider**, choose **ChatGPT · online**, then select **Continue with ChatGPT**. Complete authorization in the default browser and return to the app. A reviewer must use their own eligible ChatGPT account; no review credentials are supplied.
+
+The `com.apple.security.network.server` entitlement is used only for this OAuth callback. During sign-in, the app starts a temporary TCP listener bound exclusively to IPv4 loopback (`127.0.0.1`) on an operating-system-assigned ephemeral port. It registers that exact port with the `/auth/callback` path as the OAuth redirect URI. The app opens the authorization request in the default browser, validates the returned state and authorization response, exchanges the code using PKCE, and validates the ID token including its nonce. The listener stops after the callback, when sign-in is cancelled, or after five minutes. It does not accept remote connections and is not used as a general network service.
+
 ## Analysis and source checking
 
 A local Apple Intelligence analysis of the fictional sample completed during release checks. In that example, the overview described a proposed decision as though it had already been adopted. Reviewers should verify the summary against the cited passage and the full PDF. Source quotations remain available for that check; the app does not claim that every generated summary is error-free.
@@ -29,4 +35,4 @@ The optional online glossary can query Dutch Wikipedia. If the user requests an 
 
 ## Release status
 
-Build 1.0.1 (2) was submitted to App Store Connect on 30 October 2026 at 21:41 (Europe/Amsterdam). Its current status is **Waiting for Review** with one item submitted. There is no review decision yet. The privacy questionnaire is published, the age rating is 4+, and release is set to manual after approval.
+Build 1.0.1 (2) was initially submitted on 30 October 2026 at 21:41 (Europe/Amsterdam). After an automated rejection under guideline 2.4.5 concerning the `com.apple.security.network.server` entitlement, the reviewer was sent the explanation above and the same build was resubmitted on 31 October 2026 at 11:10 (Europe/Amsterdam). App Store Connect currently shows **Waiting for Review**, with two messages on the submission. The privacy questionnaire is published, the age rating is 4+, and release is set to manual after approval.

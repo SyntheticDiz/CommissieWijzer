@@ -80,30 +80,63 @@ struct TutorialView: View {
     private var playbackKey: String { "\(step)-\(replayCount)-\(reduceMotion)" }
     private var demoCaption: String { TutorialDemo.caption(step: step, phase: demoPhase) }
 
+    private var stepPickerHeader: some View {
+        #if os(iOS)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                stepCounter
+                Text("· " + tutorialText(current.group))
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                stepMenu
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                stepCounter
+                HStack {
+                    Text("· " + tutorialText(current.group))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    stepMenu
+                }
+            }
+        }
+        #else
+        HStack(spacing: 10) {
+            stepCounter
+            Text("· " + tutorialText(current.group))
+                .font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            stepMenu
+        }
+        #endif
+    }
+
+    private var stepCounter: some View {
+        Text(tutorialText("Stap \(step + 1) van \(TutorialStep.all.count)"))
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+    }
+
+    private var stepMenu: some View {
+        Menu {
+            stepMenuSection("Beginnen", range: 0..<4)
+            stepMenuSection("Lezen", range: 4..<9)
+            stepMenuSection("Voorbereiden", range: 9..<12)
+        } label: {
+            Label(UIStrings.text("Kies stap"), systemImage: "list.number")
+        }
+        .focusToolbarMenu()
+        .help(UIStrings.text("Rechtstreeks naar een stap gaan"))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-
-            HStack(spacing: 10) {
-                Text(UIStrings.text("Stap \(step + 1) van \(TutorialStep.all.count)"))
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                Text("· " + UIStrings.text(current.group))
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Menu {
-                    stepMenuSection("Beginnen", range: 0..<4)
-                    stepMenuSection("Lezen", range: 4..<9)
-                    stepMenuSection("Voorbereiden", range: 9..<12)
-                } label: {
-                    Label(UIStrings.text("Kies stap"), systemImage: "list.number")
-                }
-                .focusToolbarMenu()
-                .help(UIStrings.text("Rechtstreeks naar een stap gaan"))
-            }
+            stepPickerHeader
             ProgressView(value: Double(step + 1), total: Double(TutorialStep.all.count))
                 .tint(AppTheme.accent)
 
+            #if os(macOS)
             HStack(alignment: .top, spacing: 18) {
                 previewColumn
                     .frame(width: 492)
@@ -113,10 +146,19 @@ struct TutorialView: View {
             }
             .frame(maxHeight: .infinity)
 
+            #else
+            ScrollView {
+                VStack(spacing: 18) {
+                    previewColumn
+                    instructionCard.id(step)
+                }
+            }
+            #endif
+
             footer
         }
         .padding(22)
-        .frame(width: 900, height: 640)
+        .platformSheetSize(width: 900, height: 640)
         .background(AppTheme.background)
         .task(id: playbackKey) { await playDemo() }
         .buttonStyle(FocusSecondaryButtonStyle())
@@ -147,12 +189,12 @@ struct TutorialView: View {
                 .frame(height: 382)
                 .accessibilityHidden(true)
             HStack(spacing: 8) {
-                Text(UIStrings.text(demoCaption))
+                Text(tutorialText(demoCaption))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel((reduceMotion ? UIStrings.text("Stilstaand voorbeeld") + ": " : "") + UIStrings.text(demoCaption))
+                    .accessibilityLabel((reduceMotion ? tutorialText("Stilstaand voorbeeld") + ": " : "") + tutorialText(demoCaption))
                 if !reduceMotion {
                     Button {
                         demoPhase = 0
@@ -178,7 +220,7 @@ struct TutorialView: View {
                         .foregroundStyle(AppTheme.accent)
                         .frame(width: 38, height: 38)
                         .background(AppTheme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-                    Text(UIStrings.text(current.title))
+                    Text(tutorialText(current.title))
                         .font(.title3.bold())
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -187,7 +229,7 @@ struct TutorialView: View {
                 instructionSection("WAT JE ZIET", text: current.outcome, symbol: "checkmark.circle")
 
                 Label {
-                    Text(UIStrings.text(current.tip))
+                    Text(tutorialText(current.tip))
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: "lightbulb")
@@ -197,7 +239,7 @@ struct TutorialView: View {
                 .foregroundStyle(.secondary)
 
                 Divider()
-                Text(UIStrings.text("Dit voorbeeld verandert je documenten, analyse en instellingen niet."))
+                Text(tutorialText("Dit voorbeeld verandert je documenten, analyse en instellingen niet."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -216,7 +258,7 @@ struct TutorialView: View {
             Label(UIStrings.text(heading), systemImage: symbol)
                 .font(.caption.weight(.bold))
                 .foregroundStyle(AppTheme.accent)
-            Text(UIStrings.text(text))
+            Text(tutorialText(text))
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -295,6 +337,41 @@ struct TutorialView: View {
             demoPhase = reduceMotion ? 3 : 0
             step = target
         }
+    }
+
+    /// The shared tour retains its Mac wording on macOS while explaining the same
+    /// actions in terms of touch on iPad.
+    private func tutorialText(_ value: String) -> String {
+        let text = UIStrings.text(value)
+        #if os(iOS)
+        return text
+            .replacingOccurrences(of: "Sleep een PDF naar het startvak of kies ‘Pdf toevoegen…’", with: "Kies ‘Pdf toevoegen…’")
+            .replacingOccurrences(of: "Drag a PDF to the start area or choose ‘Add PDF…’", with: "Choose ‘Add PDF…’")
+            .replacingOccurrences(of: "Drop a PDF in the start area or choose ‘Add PDF…’", with: "Choose ‘Add PDF…’")
+            .replacingOccurrences(of: "Sleep de PDF naar het startvak", with: "Kies ‘Pdf toevoegen…’")
+            .replacingOccurrences(of: "Laat de PDF boven het vak los", with: "Open de PDF")
+            .replacingOccurrences(of: "Selecteer met de muis tekst in de PDF en laat de muisknop los.", with: "Houd je vinger op tekst in de PDF en sleep om die te selecteren.")
+            .replacingOccurrences(of: "Select text in the PDF with the mouse and release the mouse button.", with: "Touch and drag across text in the PDF to select it.")
+            .replacingOccurrences(of: "Select text in the PDF with the mouse, then release the button.", with: "Touch and drag across text in the PDF to select it.")
+            .replacingOccurrences(of: "Plaats de aanwijzer op de PDF-tekst", with: "Houd je vinger op de PDF-tekst")
+            .replacingOccurrences(of: "Sleep over de tekst met de muisknop ingedrukt", with: "Houd je vinger op de tekst en sleep")
+            .replacingOccurrences(of: "Hold the pointer over the PDF text", with: "Touch and hold the PDF text")
+            .replacingOccurrences(of: "Move the pointer over the PDF text", with: "Touch and hold the PDF text")
+            .replacingOccurrences(of: "Drag across the text while holding the mouse button", with: "Touch and drag across the text")
+            .replacingOccurrences(of: "Klik op", with: "Tik op")
+            .replacingOccurrences(of: "Click the", with: "Tap the")
+            .replacingOccurrences(of: "Klik", with: "Tik")
+            .replacingOccurrences(of: "Wijs ", with: "Kies ")
+            .replacingOccurrences(of: "Hover over", with: "Choose")
+            .replacingOccurrences(of: "Open Zoeken of druk op ⌘F", with: "Open Zoeken en typ een woord of naam")
+            .replacingOccurrences(of: "Open Search or press ⌘F and enter a word or name.", with: "Open Search and type a word or name.")
+            .replacingOccurrences(of: "druk op ⌘F", with: "open Zoeken")
+            .replacingOccurrences(of: "press ⌘F", with: "open Search")
+            .replacingOccurrences(of: "Bewaar een werkdocument met ⌘S om later verder te werken met resultaten en selectie.", with: "Bewaar het werkdocument om later verder te werken met resultaten en selectie.")
+            .replacingOccurrences(of: "Save a work document with ⌘S to continue later with your results and selection.", with: "Save the workspace to continue later with results and selections.")
+        #else
+        return text
+        #endif
     }
 }
 

@@ -144,13 +144,14 @@ struct ExportOptionsView: View {
                     Text(UIStrings.text("Commissie: \(purpose.title)")).tag(ExportScopeChoice.committee(purpose.rawValue))
                 }
             }
-            HStack {
-                ForEach(Array(["Naam en titel", "Inhoud", "Controleren"].enumerated()), id: \.offset) { index, label in
-                    Text("\(index + 1). " + UIStrings.text(label)).font(.subheadline.weight(step == index ? .semibold : .regular))
-                        .foregroundStyle(step == index ? Color.primary : Color.secondary)
-                    if index < 2 { Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary) }
-                }
+            #if os(macOS)
+            HStack { stepLabels }
+            #else
+            ViewThatFits(in: .horizontal) {
+                HStack { stepLabels }.fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: 4) { stepLabels }
             }
+            #endif
             Divider()
             ZStack(alignment: .topLeading) {
             ScrollView {
@@ -159,7 +160,13 @@ struct ExportOptionsView: View {
                         Picker(UIStrings.text("Voorinstelling"), selection: $preset) {
                             Text(UIStrings.text("Aangepast")).tag(ExportPreset?.none)
                             ForEach(ExportPreset.allCases) { option in Text(UIStrings.text(option.title)).tag(Optional(option)) }
-                        }.pickerStyle(.radioGroup).onChange(of: preset) { _, value in
+                        }
+                        #if os(macOS)
+                        .pickerStyle(.radioGroup)
+                        #else
+                        .pickerStyle(.menu)
+                        #endif
+                        .onChange(of: preset) { _, value in
                             if let value {
                                 choices = value.configuration()
                                 customizationExpanded = false
@@ -237,22 +244,34 @@ struct ExportOptionsView: View {
             }.id(step).transition(stepTransition)
             }.frame(maxHeight: .infinity, alignment: .topLeading).clipped()
             Divider()
+            #if os(macOS)
             HStack {
                 Button(UIStrings.text("Annuleren")) { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
-                Button(UIStrings.text("Terug")) { changeStep(by: -1) }.disabled(step == 0).opacity(step == 0 ? 0 : 1).accessibilityHidden(step == 0)
-                Button(UIStrings.text(step == 2 ? "Opslaan als PDF…" : "Volgende")) {
-                    if step < 2 { changeStep(by: 1) } else if let currentPresentation {
-                        choices.save()
-                        let config = currentPresentation.effective, heading = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let name = ExportConfiguration.fileName(separateName ? fileName : defaultFileName)
-                        dismiss()
-                        DispatchQueue.main.async { workspace.export(configuration: config, title: heading, fileName: name, glossary: glossary) }
-                    }
-                }.buttonStyle(FocusPrimaryButtonStyle()).keyboardShortcut(.defaultAction).tutorialTarget("exportNext")
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (separateName && fileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || (step > 0 && (sections.isEmpty || currentPresentation == nil || presentationBusy)) || committeeScopeUnavailable)
+                backButton
+                nextButton
             }
-        }.padding(24).frame(minWidth: 560, idealWidth: 620, minHeight: 500, idealHeight: 660)
+            #else
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Button(UIStrings.text("Annuleren")) { dismiss() }.keyboardShortcut(.cancelAction)
+                    Spacer()
+                    backButton
+                    nextButton
+                }.fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .trailing, spacing: 6) {
+                    nextButton
+                    Button(UIStrings.text("Annuleren")) { dismiss() }.keyboardShortcut(.cancelAction)
+                    backButton
+                }
+            }
+            #endif
+        }.padding(24)
+            #if os(macOS)
+            .frame(minWidth: 560, idealWidth: 620, minHeight: 500, idealHeight: 660)
+            #else
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            #endif
             .onChange(of: tutorialStep) { _, value in if let value { step = value } }
             .onChange(of: workspace.documentID) { _, _ in
                 refreshCommitteeScopeEligibility()
@@ -314,6 +333,33 @@ struct ExportOptionsView: View {
         .buttonStyle(FocusSecondaryButtonStyle())
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())
     }
+
+    @ViewBuilder private var stepLabels: some View {
+        ForEach(Array(["Naam en titel", "Inhoud", "Controleren"].enumerated()), id: \.offset) { index, label in
+            Text("\(index + 1). " + UIStrings.text(label)).font(.subheadline.weight(step == index ? .semibold : .regular))
+                .foregroundStyle(step == index ? Color.primary : Color.secondary)
+            if index < 2 { Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary) }
+        }
+    }
+
+    private var backButton: some View {
+        Button(UIStrings.text("Terug")) { changeStep(by: -1) }
+            .disabled(step == 0).opacity(step == 0 ? 0 : 1).accessibilityHidden(step == 0)
+    }
+
+    private var nextButton: some View {
+        Button(UIStrings.text(step == 2 ? "Opslaan als PDF…" : "Volgende")) {
+                    if step < 2 { changeStep(by: 1) } else if let currentPresentation {
+                        choices.save()
+                        let config = currentPresentation.effective, heading = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let name = ExportConfiguration.fileName(separateName ? fileName : defaultFileName)
+                        dismiss()
+                        DispatchQueue.main.async { workspace.export(configuration: config, title: heading, fileName: name, glossary: glossary) }
+                    }
+                }.buttonStyle(FocusPrimaryButtonStyle()).keyboardShortcut(.defaultAction).tutorialTarget("exportNext")
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (separateName && fileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || (step > 0 && (sections.isEmpty || currentPresentation == nil || presentationBusy)) || committeeScopeUnavailable)
+    }
+
     private func section(_ title: String, enabled: Bool, selection: Binding<Bool>, detail: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle(UIStrings.text(title), isOn: Binding(get: { enabled && selection.wrappedValue }, set: { selection.wrappedValue = $0; preset = nil })).disabled(!enabled)
@@ -507,6 +553,7 @@ struct ExportOptionsView: View {
     }
 }
 
+#if os(macOS)
 private struct ExportPDFPreview: NSViewRepresentable {
     let data: Data
 
@@ -530,3 +577,27 @@ private struct ExportPDFPreview: NSViewRepresentable {
         context.coordinator.renderedData = data
     }
 }
+#else
+private struct ExportPDFPreview: UIViewRepresentable {
+    let data: Data
+    final class Coordinator { var renderedData: Data? }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        view.backgroundColor = .systemBackground
+        view.document = PDFDocument(data: data)
+        context.coordinator.renderedData = data
+        return view
+    }
+
+    func updateUIView(_ view: PDFView, context: Context) {
+        guard context.coordinator.renderedData != data else { return }
+        view.document = PDFDocument(data: data)
+        context.coordinator.renderedData = data
+    }
+}
+#endif

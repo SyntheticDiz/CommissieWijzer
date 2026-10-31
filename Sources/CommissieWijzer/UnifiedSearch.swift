@@ -224,7 +224,7 @@ struct UnifiedSearchView: View {
                 if !query.isEmpty { Button(UIStrings.text("Wis zoekopdracht"), systemImage: "xmark.circle.fill") { query = "" }.labelStyle(.iconOnly) }
             }.padding(12).modifier(GlassSurface())
             Toggle(UIStrings.text("Ook andere woordvormen"), isOn: $includeWordForms)
-                .toggleStyle(.checkbox)
+                .platformCheckboxStyle()
                 .font(.callout)
                 .help(UIStrings.text("Toon aanvullende treffers met een andere Nederlandse woordvorm. Exacte resultaten blijven bovenaan staan."))
             if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

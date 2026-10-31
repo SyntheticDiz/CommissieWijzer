@@ -492,8 +492,8 @@ struct PatchNotesView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
             }
             HStack { Spacer(); Button(UIStrings.text("Sluiten")) { dismiss() }.keyboardShortcut(.defaultAction) }
-        }.padding(28).frame(width: 560, height: 460)
+        }.padding(28).platformSheetSize(width: 560, height: 460)
         .buttonStyle(FocusSecondaryButtonStyle())
-        .onExitCommand { dismiss() }
+        .onPlatformExit { dismiss() }
     }
 }

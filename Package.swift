@@ -3,8 +3,11 @@ import PackageDescription
 
 let package = Package(
     name: "CommissieWijzer",
-    platforms: [.macOS(.v14)],
-    products: [.executable(name: "CommissieWijzer", targets: ["CommissieWijzer"])],
+    platforms: [.macOS(.v14), .iOS("26.0")],
+    products: [
+        .executable(name: "CommissieWijzer", targets: ["CommissieWijzer"]),
+        .library(name: "CommissieShared", targets: ["CommissieCore", "SnowballDutch", "RapidFuzzNative"])
+    ],
     targets: [
         .target(name: "CommissieCore"),
         .target(name: "SnowballDutch", path: "Sources/NativeSearchSupport/SnowballDutch", publicHeadersPath: "include",

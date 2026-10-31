@@ -1,12 +1,22 @@
 import SwiftUI
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 enum AppTheme {
+    #if canImport(AppKit)
     static func adaptive(_ light: NSColor, _ dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
         })
     }
+    #elseif canImport(UIKit)
+    static func adaptive(_ light: UIColor, _ dark: UIColor) -> Color {
+        Color(uiColor: UIColor { traits in traits.userInterfaceStyle == .dark ? dark : light })
+    }
+    #endif
     static let background = adaptive(.init(red: 0.94, green: 0.95, blue: 0.97, alpha: 1), .init(red: 0.09, green: 0.11, blue: 0.14, alpha: 1))
     static let surface = adaptive(.init(white: 1, alpha: 1), .init(red: 0.15, green: 0.18, blue: 0.22, alpha: 1))
     static let border = adaptive(.init(red: 0.84, green: 0.86, blue: 0.89, alpha: 1), .init(red: 0.25, green: 0.29, blue: 0.34, alpha: 1))

@@ -145,6 +145,13 @@ struct WorkspaceArchive: Codable, Sendable {
     static func validInsight(_ point: Insight, pageCount: Int) -> Bool {
         guard point.page > 0, point.page <= pageCount else { return false }
         // New source metadata is optional; old workdocuments remain readable.
+        // `otherSources` is legacy metadata, but it is still rendered and exported
+        // as physical PDF citations. Validate it with the same bounds as newer
+        // source fields so an imported archive cannot claim a nonexistent page.
+        if let sources = point.otherSources,
+           !sources.allSatisfy({ $0.page > 0 && $0.page <= pageCount && !$0.quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            return false
+        }
         for sources in [point.contextSources, point.passageSources] {
             if let sources, !sources.allSatisfy({ $0.page > 0 && $0.page <= pageCount && !$0.quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { return false }
         }

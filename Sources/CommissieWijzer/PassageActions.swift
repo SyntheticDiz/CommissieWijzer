@@ -105,7 +105,7 @@ struct PassageActions: View {
                         fullPassage
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
-            }.padding(24).frame(width: 620, height: 620)
+            }.padding(24).platformSheetSize(width: 620, height: 620)
                 .onAppear { if questions.isEmpty { generate() } }
                 .buttonStyle(FocusSecondaryButtonStyle())
         }

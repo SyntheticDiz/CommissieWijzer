@@ -1,6 +1,10 @@
 import Foundation
 import ImageIO
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct SavedSelectionSummary: Codable, Sendable, Identifiable {
     let id: UUID
@@ -81,8 +85,13 @@ struct SavedChartAnalysis: Codable, Sendable, Identifiable {
     let explanation: ChartExplanation
 
     static func make(selected: SelectedChart, explanation: ChartExplanation) throws -> SavedChartAnalysis {
+        #if canImport(AppKit)
         let representation = NSBitmapImageRep(cgImage: selected.image)
-        guard let png = representation.representation(using: .png, properties: [:]) else {
+        let png = representation.representation(using: .png, properties: [:])
+        #elseif canImport(UIKit)
+        let png = UIImage(cgImage: selected.image).pngData()
+        #endif
+        guard let png else {
             throw AppError(message: "De geselecteerde diagramafbeelding kon niet als PNG worden bewaard.")
         }
         return SavedChartAnalysis(id: UUID(), page: selected.page, imagePNG: png, explanation: explanation)

@@ -1,10 +1,15 @@
-import AppKit
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct PassageReaderView: View {
     let showSource: (Int, String) -> Void
     private let content: PassageReaderContent
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @State private var query = ""
     @State private var matches: [NSRange] = []
@@ -48,31 +53,23 @@ struct PassageReaderView: View {
     }
 
     var body: some View {
+        #if os(iOS)
+        if dynamicTypeSize.isAccessibilitySize {
+            ScrollView { readerContent }
+        } else {
+            readerContent
+        }
+        #else
+        readerContent
+        #endif
+    }
+
+    private var readerContent: some View {
         VStack(spacing: 0) {
-            header
+            header.fixedSize(horizontal: false, vertical: true)
             Divider()
-            HStack(spacing: 10) {
-                TextField(label("Zoek in de tekst…", "Search the passage…"), text: $query)
-                    .textFieldStyle(FocusInputFieldStyle())
-                    .accessibilityLabel(label("Zoek in de volledige passage", "Search the full passage"))
-                    .onChange(of: query) { _, value in
-                        activeMatch = -1
-                        activeCue = nil
-                        clearSourceAidSelection()
-                        search(value)
-                    }
-                    .onSubmit { navigate(1) }
-                Button { navigate(-1) } label: { Image(systemName: "chevron.up") }
-                    .help(label("Vorige treffer", "Previous match"))
-                    .accessibilityLabel(label("Vorige treffer", "Previous match"))
-                    .disabled(matches.isEmpty)
-                Button { navigate(1) } label: { Image(systemName: "chevron.down") }
-                    .help(label("Volgende treffer", "Next match"))
-                    .accessibilityLabel(label("Volgende treffer", "Next match"))
-                    .disabled(matches.isEmpty)
-                Text(matchStatus).font(.caption).foregroundStyle(.secondary).frame(minWidth: 82, alignment: .trailing).monospacedDigit()
-            }
-            .padding(.horizontal, 18).padding(.vertical, 12)
+            searchControls.fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 18).padding(.vertical, 12)
             Divider()
             if !content.isCompletePassage {
                 if content.provenance == .legacyQuote {
@@ -90,52 +87,58 @@ struct PassageReaderView: View {
                     .padding(.horizontal, 18).padding(.vertical, 6)
                 }
             }
+            #if os(macOS)
             HStack(spacing: 0) {
                 if showsFindings && !cues.isEmpty { cuePanel.frame(width: 245) }
-                PassageTextView(text: content.text, matches: matches, activeMatch: activeMatch, activeCue: selectedCueRange,
-                                aidRanges: visibleAnchorRanges, contextRanges: visibleContextRanges, aidTarget: selectedAnchorRange, close: { dismiss() })
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, 20).padding(.vertical, 16)
+                passageText
             }
+            #else
+            GeometryReader { area in
+                if showsFindings && !cues.isEmpty && area.size.width < 620 {
+                    VStack(spacing: 0) {
+                        cuePanel.frame(maxWidth: .infinity)
+                            .frame(height: min(dynamicTypeSize.isAccessibilitySize ? 270 : 190,
+                                               max(dynamicTypeSize.isAccessibilitySize ? 220 : 120,
+                                                   area.size.height * (dynamicTypeSize.isAccessibilitySize ? 0.55 : 0.35))))
+                        Divider()
+                        passageText
+                    }
+                } else {
+                    HStack(spacing: 0) {
+                        if showsFindings && !cues.isEmpty { cuePanel.frame(width: 245) }
+                        passageText
+                    }
+                }
+            }
+            .frame(height: 360)
+            #endif
             Divider()
+            #if os(macOS)
             HStack {
                 Text(content.sources.map { label("PDF-pagina \($0.page)", "PDF page \($0.page)") }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
-                if !cues.isEmpty {
-                    Button { showsFindings.toggle() } label: {
-                        Label(label(showsFindings ? "Verberg vindplaatsen" : "Vindplaatsen", showsFindings ? "Hide findings" : "Findings"), systemImage: "text.magnifyingglass")
-                    }.buttonStyle(FocusQuietActionStyle()).accessibilityHint(label("Toont optionele, letterlijke zoekhulp", "Shows optional literal search hints"))
-                }
-                Button {
-                    showsSourceAid.toggle()
-                    if showsSourceAid { requestSourceAid() }
-                } label: {
-                    Label(label("Bronhulp", "Source aid"), systemImage: "text.viewfinder")
-                }
-                .buttonStyle(FocusQuietActionStyle())
-                .popover(isPresented: $showsSourceAid, arrowEdge: .bottom) { sourceAidPanel }
-                .accessibilityHint(label("Toont optionele markeringen voor data, bedragen en voorwaarden", "Shows optional highlights for dates, amounts, and conditions"))
-                Menu {
-                    ForEach(Array(content.sources.enumerated()), id: \.offset) { _, source in
-                        Button(label("Open bron op PDF-pagina \(source.page)", "Open source on PDF page \(source.page)")) {
-                            dismiss()
-                            DispatchQueue.main.async { showSource(source.page, source.quote) }
-                        }
-                    }
-                } label: { Text(label("Bronnen", "Sources")).foregroundStyle(Color.primary) }
-                .focusMenu()
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(content.text, forType: .string)
-                } label: {
-                    Label(label("Kopieer tekst", "Copy text"), systemImage: "doc.on.doc")
-                }
-                Button(label("Sluit", "Close")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+                readerActions
             }
             .padding(.horizontal, 18).padding(.vertical, 12)
+            #else
+            VStack(alignment: .leading, spacing: 6) {
+                Text(content.sources.map { label("PDF-pagina \($0.page)", "PDF page \($0.page)") }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 4) { readerActions }.fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 2) { readerActions }
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            #endif
         }
-        .frame(minWidth: 600, idealWidth: 900, maxWidth: .infinity, minHeight: 420, idealHeight: 700, maxHeight: .infinity)
+        #if os(macOS)
+        .platformReadingFrame(minWidth: 600, idealWidth: 900, maxWidth: .infinity, minHeight: 420, idealHeight: 700, maxHeight: .infinity)
+        #else
+        .frame(maxWidth: .infinity)
+        #endif
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: matches.count) { _, count in
             if count == 0 { activeMatch = -1 }
@@ -175,9 +178,123 @@ struct PassageReaderView: View {
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())
     }
 
+    private var passageText: some View {
+        PassageTextView(text: content.text, matches: matches, activeMatch: activeMatch, activeCue: selectedCueRange,
+                        aidRanges: visibleAnchorRanges, contextRanges: visibleContextRanges, aidTarget: selectedAnchorRange, close: { dismiss() })
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 20).padding(.vertical, 16)
+    }
+
+    @ViewBuilder private var searchControls: some View {
+        #if os(macOS)
+        HStack(spacing: 10) {
+            searchField
+            previousMatchButton
+            nextMatchButton
+            matchCounter
+        }
+        #else
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                searchField
+                previousMatchButton
+                nextMatchButton
+                matchCounter
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                searchField
+                HStack(spacing: 8) {
+                    previousMatchButton
+                    nextMatchButton
+                    Spacer()
+                    matchCounter
+                }
+            }
+        }
+        #endif
+    }
+
+    private var searchField: some View {
+        TextField(label("Zoek in de tekst…", "Search the passage…"), text: $query)
+            .textFieldStyle(FocusInputFieldStyle())
+            .accessibilityLabel(label("Zoek in de volledige passage", "Search the full passage"))
+            .onChange(of: query) { _, value in
+                activeMatch = -1
+                activeCue = nil
+                clearSourceAidSelection()
+                search(value)
+            }
+            .onSubmit { navigate(1) }
+    }
+
+    private var previousMatchButton: some View {
+        Button { navigate(-1) } label: { Image(systemName: "chevron.up") }
+            .help(label("Vorige treffer", "Previous match"))
+            .accessibilityLabel(label("Vorige treffer", "Previous match"))
+            .disabled(matches.isEmpty)
+    }
+
+    private var nextMatchButton: some View {
+        Button { navigate(1) } label: { Image(systemName: "chevron.down") }
+            .help(label("Volgende treffer", "Next match"))
+            .accessibilityLabel(label("Volgende treffer", "Next match"))
+            .disabled(matches.isEmpty)
+    }
+
+    private var matchCounter: some View {
+        Text(matchStatus).font(.caption).foregroundStyle(.secondary)
+            .frame(minWidth: 82, alignment: .trailing).monospacedDigit()
+    }
+
+    @ViewBuilder private var readerActions: some View {
+        readerNavigationActions
+        readerUtilityActions
+    }
+
+    @ViewBuilder private var readerNavigationActions: some View {
+        if !cues.isEmpty {
+            Button { showsFindings.toggle() } label: {
+                Label(label(showsFindings ? "Verberg vindplaatsen" : "Vindplaatsen", showsFindings ? "Hide findings" : "Findings"), systemImage: "text.magnifyingglass")
+            }.buttonStyle(FocusQuietActionStyle()).accessibilityHint(label("Toont optionele, letterlijke zoekhulp", "Shows optional literal search hints"))
+        }
+        Button {
+            showsSourceAid.toggle()
+            if showsSourceAid { requestSourceAid() }
+        } label: {
+            Label(label("Bronhulp", "Source aid"), systemImage: "text.viewfinder")
+        }
+        .buttonStyle(FocusQuietActionStyle())
+        .popover(isPresented: $showsSourceAid, arrowEdge: .bottom) { sourceAidPanel }
+        .accessibilityHint(label("Toont optionele markeringen voor data, bedragen en voorwaarden", "Shows optional highlights for dates, amounts, and conditions"))
+        Menu {
+            ForEach(Array(content.sources.enumerated()), id: \.offset) { _, source in
+                Button(label("Open bron op PDF-pagina \(source.page)", "Open source on PDF page \(source.page)")) {
+                    dismiss()
+                    DispatchQueue.main.async { showSource(source.page, source.quote) }
+                }
+            }
+        } label: { Text(label("Bronnen", "Sources")).foregroundStyle(Color.primary) }
+        .focusMenu()
+    }
+
+    @ViewBuilder private var readerUtilityActions: some View {
+        Button {
+            #if canImport(AppKit)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(content.text, forType: .string)
+            #elseif canImport(UIKit)
+            UIPasteboard.general.string = content.text
+            #endif
+        } label: {
+            Label(label("Kopieer tekst", "Copy text"), systemImage: "doc.on.doc")
+        }
+        Button(label("Sluit", "Close")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(content.title).font(.title2.weight(.semibold)).lineLimit(2)
+            Text(content.title).font(.title2.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
             Text(provenanceLabel)
                 .font(.caption).foregroundStyle(.secondary)
         }
@@ -197,12 +314,14 @@ struct PassageReaderView: View {
     }
 
     private var cuePanel: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label("Vindplaatsen — geen volledige analyse", "Findings — not a full analysis"))
-                .font(.callout.weight(.semibold))
-            Text(label("Deze letterlijke zoekhulp toont zinnen met herkenbare termen. Een trefwoord kan ook een andere betekenis hebben. Voorwaarden kunnen op meerdere plaatsen staan; deze hulp kan zinnen missen. Lees daarom de hele passage.", "This literal search aid shows sentences with recognizable terms. A term can have another meaning. Conditions may appear in several places, and this aid can miss sentences. Read the whole passage."))
-                .font(.caption).foregroundStyle(.secondary)
-            ScrollView {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(label("Vindplaatsen — geen volledige analyse", "Findings — not a full analysis"))
+                    .font(.callout.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(label("Deze letterlijke zoekhulp toont zinnen met herkenbare termen. Een trefwoord kan ook een andere betekenis hebben. Voorwaarden kunnen op meerdere plaatsen staan; deze hulp kan zinnen missen. Lees daarom de hele passage.", "This literal search aid shows sentences with recognizable terms. A term can have another meaning. Conditions may appear in several places, and this aid can miss sentences. Read the whole passage."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(cues) { cue in
                         Button {
@@ -218,9 +337,10 @@ struct PassageReaderView: View {
                         }.buttonStyle(.plain)
                     }
                 }
-            }.frame(maxHeight: .infinity)
+            }
+            .padding(12)
         }
-        .padding(12).background(Color.primary.opacity(0.035))
+        .background(Color.primary.opacity(0.035))
         .overlay(alignment: .trailing) { Divider() }
     }
 
@@ -360,6 +480,16 @@ struct PassageReaderView: View {
     }
 }
 
+private extension View {
+    @ViewBuilder func platformCategoryToggleStyle() -> some View {
+        #if os(macOS)
+        self.toggleStyle(.checkbox)
+        #else
+        self.toggleStyle(.switch)
+        #endif
+    }
+}
+
 struct PassageSourceAidPanel: View {
     let isEnglish: Bool
     let anchors: [SourceReadingAid.Anchor]
@@ -392,7 +522,7 @@ struct PassageSourceAidPanel: View {
                     Toggle(categoryLabel(category), isOn: Binding(
                         get: { enabledCategories.contains(category) },
                         set: { onCategoryToggle(category, $0) }
-                    )).toggleStyle(.checkbox)
+                    )).platformCategoryToggleStyle()
                 }
             }
             Divider()
@@ -453,6 +583,7 @@ struct PassageSourceAidPanel: View {
     private func label(_ dutch: String, _ english: String) -> String { isEnglish ? english : dutch }
 }
 
+#if canImport(AppKit)
 struct PassageTextView: NSViewRepresentable {
     let text: String
     let matches: [NSRange]
@@ -544,3 +675,61 @@ final class PassageNSTextView: NSTextView {
         super.keyDown(with: event)
     }
 }
+#elseif canImport(UIKit)
+struct PassageTextView: UIViewRepresentable {
+    let text: String
+    let matches: [NSRange]
+    let activeMatch: Int
+    let activeCue: NSRange?
+    var aidRanges: [NSRange] = []
+    var contextRanges: [NSRange] = []
+    var aidTarget: NSRange? = nil
+    let close: () -> Void
+
+    func makeUIView(context: Context) -> UITextView {
+        let view = UITextView()
+        view.isEditable = false
+        view.isSelectable = true
+        view.backgroundColor = .clear
+        view.alwaysBounceVertical = true
+        view.textContainerInset = UIEdgeInsets(top: 14, left: 20, bottom: 14, right: 20)
+        view.textContainer.lineFragmentPadding = 0
+        view.font = UIFont(name: "New York", size: 19) ?? UIFont.systemFont(ofSize: 18)
+        view.textColor = .label
+        view.dataDetectorTypes = [.link]
+        context.coordinator.textView = view
+        return view
+    }
+
+    func updateUIView(_ view: UITextView, context: Context) {
+        let changedText = view.text != text
+        if changedText { view.text = text }
+        let style = Coordinator.Style(matches: matches, activeMatch: activeMatch, activeCue: activeCue, aidRanges: aidRanges, contextRanges: contextRanges)
+        let fullRange = NSRange(location: 0, length: (text as NSString).length)
+        if changedText || context.coordinator.lastStyle != style, fullRange.length > 0 {
+            let selected = view.selectedRange
+            let attributed = NSMutableAttributedString(string: text, attributes: [.font: view.font ?? UIFont.systemFont(ofSize: 18), .foregroundColor: UIColor.label])
+            for range in contextRanges where range.location >= 0 && NSMaxRange(range) <= fullRange.length { attributed.addAttribute(.backgroundColor, value: UIColor.systemTeal.withAlphaComponent(0.22), range: range) }
+            for range in aidRanges where range.location >= 0 && NSMaxRange(range) <= fullRange.length { attributed.addAttribute(.backgroundColor, value: UIColor.systemGreen.withAlphaComponent(0.20), range: range) }
+            if let activeCue, activeCue.location >= 0, NSMaxRange(activeCue) <= fullRange.length { attributed.addAttribute(.backgroundColor, value: UIColor.systemBlue.withAlphaComponent(0.20), range: activeCue) }
+            for (index, range) in matches.enumerated() where range.location >= 0 && NSMaxRange(range) <= fullRange.length { attributed.addAttribute(.backgroundColor, value: index == activeMatch ? UIColor.systemOrange.withAlphaComponent(0.55) : UIColor.systemYellow.withAlphaComponent(0.35), range: range) }
+            view.attributedText = attributed
+            view.selectedRange = selected
+            context.coordinator.lastStyle = style
+        }
+        let target = activeMatch >= 0 && matches.indices.contains(activeMatch) ? matches[activeMatch] : (activeCue ?? aidTarget)
+        if changedText || context.coordinator.lastTarget != target {
+            context.coordinator.lastTarget = target
+            if let target { view.scrollRangeToVisible(target) }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    final class Coordinator {
+        struct Style: Equatable { let matches: [NSRange]; let activeMatch: Int; let activeCue: NSRange?; let aidRanges: [NSRange]; let contextRanges: [NSRange] }
+        weak var textView: UITextView?
+        var lastTarget: NSRange?
+        var lastStyle: Style?
+    }
+}
+#endif

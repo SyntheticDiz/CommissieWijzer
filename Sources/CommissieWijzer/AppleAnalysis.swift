@@ -2,7 +2,7 @@ import Foundation
 
 /// Dedicated local Apple pipeline. Cached successes include empty results; failed work stays retryable.
 enum AppleAnalysis {
-    typealias Request = ([String: Any]) async throws -> String
+    typealias Request = AIService.Request
     struct Source: Codable {
         let id: String
         let page: Int
@@ -79,7 +79,7 @@ enum AppleAnalysis {
     static func analyze(pages: [String], program: PartyProgram?, focus: String,
                         update: @escaping @Sendable ([Insight]) async -> Void = { _ in },
                         progress: @escaping @Sendable (Int, Int) async -> Void = { _, _ in },
-                        request: @escaping Request = AppleAIService.response, useCache: Bool = true) async throws -> [Insight] {
+                        request: @escaping Request = AppleAIService.sendableResponse, useCache: Bool = true) async throws -> [Insight] {
         var batch = Batch()
         let programIndex = program?.searchIndex
         let passages = PassageEngine.passages(pages)

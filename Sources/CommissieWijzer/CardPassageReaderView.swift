@@ -37,7 +37,7 @@ struct CardPassageReaderView: View {
                 sourceList
             }
         }
-        .frame(minWidth: 600, idealWidth: 900, maxWidth: .infinity,
+        .platformReadingFrame(minWidth: 600, idealWidth: 900, maxWidth: .infinity,
                minHeight: 420, idealHeight: 700, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }

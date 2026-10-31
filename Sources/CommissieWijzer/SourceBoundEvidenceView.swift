@@ -1,5 +1,9 @@
-import AppKit
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct SourceBoundEvidenceView: View {
     let item: SourceHighlights.Item
@@ -13,15 +17,7 @@ struct SourceBoundEvidenceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(UIStrings.text("Volledige broncontext")).font(.title2.bold())
-                    Text(UIStrings.text("De volledige beschikbare geëxtraheerde tekst van alle bronpagina’s, met één pagina ervoor en erna. Dit bewijst niet dat de PDF-tekstextractie elk zichtbaar element bevat."))
-                        .font(.callout).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button(UIStrings.text("Sluit")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-            }.padding(20)
+            contextHeader
             Divider()
             if let context {
                 if context.verifiedQuote == nil {
@@ -68,9 +64,50 @@ struct SourceBoundEvidenceView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(20)
             }
         }
+        #if os(macOS)
         .frame(minWidth: 620, idealWidth: 920, minHeight: 420, idealHeight: 720)
         .background(Color(nsColor: .windowBackgroundColor))
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(uiColor: .systemBackground))
+        #endif
         .buttonStyle(FocusSecondaryButtonStyle())
+    }
+
+    @ViewBuilder private var contextHeader: some View {
+        #if os(macOS)
+        HStack(alignment: .top) {
+            heading
+            Spacer()
+            closeButton
+        }
+        .padding(20)
+        #else
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top) {
+                heading
+                Spacer()
+                closeButton
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                heading
+                closeButton
+            }
+        }
+        .padding(20)
+        #endif
+    }
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(UIStrings.text("Volledige broncontext")).font(.title2.bold())
+            Text(UIStrings.text("De volledige beschikbare geëxtraheerde tekst van alle bronpagina’s, met één pagina ervoor en erna. Dit bewijst niet dat de PDF-tekstextractie elk zichtbaar element bevat."))
+                .font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private var closeButton: some View {
+        Button(UIStrings.text("Sluit")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
     }
 
     private func openPDF(_ page: Int) {
@@ -89,8 +126,12 @@ struct SourceBoundEvidenceView: View {
                 openPDF(page.physicalPage)
             }.buttonStyle(FocusSecondaryButtonStyle()).controlSize(.small)
             Button(UIStrings.text("Kopieer paginatekst"), systemImage: "doc.on.doc") {
+                #if os(macOS)
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(page.text, forType: .string)
+                #else
+                UIPasteboard.general.string = page.text
+                #endif
             }.buttonStyle(FocusSecondaryButtonStyle()).controlSize(.small)
         }
     }

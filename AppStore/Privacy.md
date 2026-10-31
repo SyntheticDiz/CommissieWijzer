@@ -1,31 +1,31 @@
 # Privacybeleid — CommissieWijzer
 
-Laatst bijgewerkt: 30 oktober 2026. Dit document beschrijft de huidige appimplementatie voor releasevoorbereiding. Controleer de definitieve App Store-build en Apple’s actuele App Privacy-vragen vóór inzending. De App Store-vragenlijst is nog niet ingediend.
+Laatst bijgewerkt: 31 oktober 2026. Dit document beschrijft de huidige Mac- en iPad-implementatie. De App Privacy-vragenlijst voor de Mac-versie is gepubliceerd. De iPad-versie is nog niet bij Apple ingediend en moet afzonderlijk worden beoordeeld.
 
 ## In het kort
 
-CommissieWijzer heeft geen eigen gebruikersaccount, backend, cloudopslag, telemetrie, advertenties, analytics of tracking. Pdf’s, werkdocumenten, notities, voorkeuren, analysecache en diagnostische bestanden blijven op je Mac. Je kunt optioneel een online provider of externe woordenlijst gebruiken; in die gevallen wordt de benodigde inhoud rechtstreeks naar de betreffende dienst gestuurd.
+CommissieWijzer heeft geen eigen gebruikersaccount, backend, telemetrie, advertenties, analytics of tracking. Pdf’s, werkdocumenten, notities, voorkeuren, analysecache en diagnostische bestanden worden in lokale appopslag bewaard. Op iPad maakt de app bij openen een lokale werkkopie van een werkdocument. Bewaren via Bestanden maakt een afzonderlijke exportkopie; er is geen automatische synchronisatie. Je kiest zelf een locatie, eventueel bij een cloudprovider die je gebruikt. Een online provider of externe woordenlijst is optioneel; daarvoor wordt de benodigde inhoud rechtstreeks naar de betreffende dienst gestuurd.
 
-## Lokaal op je Mac
+## Lokaal op Mac en iPad
 
-De app bewaart lokaal:
+De app bewaart lokaal op beide platforms:
 
 - de pdf die je opent en een werkdocument dat je zelf opslaat;
 - de beschikbare analyse, bronverwijzingen, geselecteerde passages en notities;
 - voorkeuren en lokale cachebestanden;
 - begrensde diagnostiek voor ChatGPT-verbindingsproblemen, zoals de foutcategorie, HTTP-status, beperkte technische foutcodes, een OpenAI-request-ID, wachttijd en appversie.
 
-De lokale ChatGPT-diagnostiek bewaart geen documentinhoud, prompts, antwoordtekst, tokens, wachtwoorden of volledige serverresponses. Bestanden staan in de door macOS en de app gekozen lokale opslag. Werkdocumenten staan op de locatie die jij kiest.
+De lokale ChatGPT-diagnostiek bewaart geen documentinhoud, prompts, antwoordtekst, tokens, wachtwoorden of volledige serverresponses. Op Mac staan appgegevens in lokale appopslag en kies je zelf waar werkdocumenten en exports worden opgeslagen. Op iPad staan appgegevens in lokale appopslag. Een geopend werkdocument wordt daar als lokale werkkopie bewaard; bewaren via Bestanden maakt een overdraagbare kopie op de locatie die jij kiest. Wijzigingen aan de werkkopie werken een eerdere export niet automatisch bij: exporteer opnieuw om de bijgewerkte versie over te zetten. CommissieWijzer synchroniseert of voegt werk tussen apparaten niet samen. Een gekozen cloudlocatie valt voor opslag en synchronisatie onder de betreffende provider.
 
 ## Apple Intelligence
 
-Apple Intelligence is een optionele analyseprovider die op geschikte Macs met macOS 26 of later lokaal beschikbaar is. CommissieWijzer verstuurt je documenten niet naar een eigen server. De beschikbaarheid en de verwerking van Apple Intelligence zijn afhankelijk van de Mac, systeemversie, taal en Apple-instellingen.
+Apple Intelligence is een optionele analyseprovider die lokaal beschikbaar is op geschikte Macs met macOS 26 of later en geschikte iPads met iPadOS 26 of later. CommissieWijzer verstuurt je documenten niet naar een eigen server. De beschikbaarheid en verwerking hangen af van het apparaat, de systeemversie, taal en Apple-instellingen.
 
 ## ChatGPT en OpenAI
 
-ChatGPT is optioneel en werkt online. Je meldt je aan via OpenAI OAuth in je browser. De app vraagt OpenAI om de ChatGPT-toegang die nodig is voor directe modelaanvragen en modelbeschikbaarheid; deze app heeft geen OpenAI API-sleutelinstelling.
+ChatGPT is optioneel en werkt online. Je meldt je aan via OpenAI OAuth. Op Mac opent dit in je browser; op iPad gebruikt de app de systeem-Safariweergave binnen de app. De app vraagt OpenAI om de ChatGPT-toegang die nodig is voor directe modelaanvragen en modelbeschikbaarheid; deze app heeft geen OpenAI API-sleutelinstelling.
 
-Tijdens aanmelding ontvangt de app je e-mailadres en OpenAI’s stabiele `sub`-accountidentifier uit het gecontroleerde ID-token. Een door de app gegenereerde vaste, willekeurige hostidentifier wordt met de OAuth-aanvraag meegestuurd. Bij heraanmelding kan de app een e-mailhint en bestaand ID-token als OpenAI-loginhints gebruiken. OAuth-tokens, accountgegevens, de clientidentificatie, scopes en vervaltijd worden in de macOS-sleutelhanger bewaard. De hostidentifier staat lokaal in appvoorkeuren.
+Tijdens aanmelding ontvangt de app je e-mailadres en OpenAI’s stabiele `sub`-accountidentifier uit het gecontroleerde ID-token. Een door de app gegenereerde vaste, willekeurige hostidentifier wordt met de OAuth-aanvraag meegestuurd. Bij heraanmelding kan de app een e-mailhint en bestaand ID-token als OpenAI-loginhints gebruiken. OAuth-tokens en accountgegevens worden in de lokale sleutelhanger bewaard: op Mac beschikbaar na de eerste ontgrendeling (`AfterFirstUnlock`) en op iPad alleen op dit apparaat beschikbaar wanneer het ontgrendeld is (`WhenUnlockedThisDeviceOnly`). De hostidentifier staat lokaal in appvoorkeuren.
 
 Wanneer je ChatGPT als provider kiest en een analyse start, stuurt de app de daarvoor benodigde documenttekst of passages rechtstreeks naar OpenAI. Bij programmavergelijking gaat ook het programma dat je zelf kiest mee. De online woordenlijst kan daarnaast de opgehaalde openbare tekst en relevante documentcontext naar de gekozen AI-provider sturen voor de uitleg. Je ChatGPT-account, beschikbare modellen en gebruikslimieten zijn van toepassing. OpenAI’s voorwaarden en privacybeleid gelden voor gegevens die je daarheen stuurt; CommissieWijzer beheert die verwerking niet.
 
@@ -39,11 +39,11 @@ Je kunt voor een afkorting expliciet een online woordenlijst raadplegen. De app 
 
 ## Bewaartermijn en verwijderen
 
-De app bewaart lokale gegevens totdat jij ze verwijdert of de bijbehorende appbestanden wist. Je kunt werkdocumenten en geëxporteerde pdf’s zelf beheren in Finder. Je kunt lokaal opgeslagen ChatGPT-toegang via Instellingen afmelden; appbestanden en werkdocumenten verwijder je zelf. Apple Intelligence-, Wikipedia- en OpenAI-gegevens vallen daarnaast onder de bewaartermijnen en voorwaarden van die diensten.
+De app bewaart lokale gegevens totdat jij ze verwijdert of de bijbehorende appbestanden wist. Je kunt werkdocumenten en geëxporteerde pdf’s zelf beheren in Finder op Mac of Bestanden op iPad. Je kunt lokaal opgeslagen ChatGPT-toegang via Instellingen afmelden; appbestanden en werkdocumenten verwijder je zelf. Apple Intelligence-, Wikipedia- en OpenAI-gegevens vallen daarnaast onder de bewaartermijnen en voorwaarden van die diensten.
 
 ## App Privacy-vragenlijst
 
-De onderstaande implementatiefeiten zijn bedoeld om de App Store-vragenlijst correct te beantwoorden. Dit is geen verklaring dat de vragenlijst al in App Store Connect is ingevuld of gepubliceerd. Controleer voor inzending of Apple’s definities voor de definitieve build dezelfde antwoorden vereisen.
+Deze vier gegevenscategorieën staan in de gepubliceerde App Privacy-vragenlijst voor de Mac-versie. De iPad-versie is nog niet ingediend en kan door Apple afzonderlijk worden beoordeeld.
 
 | Gegevenstype | Voorbeeld in deze app | Doel | Tracking |
 | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ De onderstaande implementatiefeiten zijn bedoeld om de App Store-vragenlijst cor
 | Apparaat-ID | App-specifieke willekeurige hostidentifier | Appfunctionaliteit: OAuth-clientcontext | Nee |
 | Andere gebruikersinhoud | Documentfragmenten en een geselecteerd programma bij optionele ChatGPT-analyse | Appfunctionaliteit: de door de gebruiker gestarte analyse | Nee |
 
-Deze gegevens worden niet gebruikt voor advertenties of tracking. De inhoud wordt alleen gedeeld met OpenAI wanneer je de ChatGPT-provider of online woordenlijst met die provider kiest. Diagnostische records blijven lokaal.
+Deze gegevens worden niet gebruikt voor advertenties of tracking. Documentinhoud wordt met OpenAI gedeeld wanneer je ChatGPT kiest voor analyse of uitleg. Diagnostische records blijven lokaal.
 
 ## Website
 

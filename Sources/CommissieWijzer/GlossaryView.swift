@@ -31,6 +31,13 @@ struct GlossaryView: View {
     private var pending: [GlossaryEntry] { entries.filter { own($0) == nil && $0.definitions.isEmpty && $0.reference == nil && !(web($0)?.certain == true && web($0)?.fresh == true) } }
     private func meaning(_ entry: GlossaryEntry) -> String { own(entry) ?? entry.definitions.first?.text ?? entry.reference?.meaning ?? (web(entry)?.certain == true ? web(entry)?.fullName : nil) ?? "Betekenis niet vastgesteld" }
     private func label(_ entry: GlossaryEntry) -> String { own(entry) != nil ? "Eigen definitie" : !entry.definitions.isEmpty ? "Uit document" : entry.reference != nil ? "Woordenlijst" : web(entry)?.certain == true ? "Online aangevuld · AI-uitleg" : web(entry) != nil ? "Betekenis onzeker" : "Onbekend" }
+    private func meaningButton(for entry: GlossaryEntry) -> some View {
+        Button(own(entry) == nil ? "Betekenis toevoegen" : "Betekenis aanpassen") {
+            definition = own(entry) ?? ""
+            everywhere = personal.documents[documentKey]?[Glossary.key(entry.abbreviation)] == nil && personal.general[Glossary.key(entry.abbreviation)] != nil
+            editing = entry
+        }
+    }
     var filtered: [GlossaryEntry] {
         entries.filter { search.isEmpty || ([$0.abbreviation, meaning($0), $0.reference?.meaning ?? ""] + $0.definitions.map(\.text)).joined(separator: " ").localizedCaseInsensitiveContains(search) }
     }
@@ -45,11 +52,26 @@ struct GlossaryView: View {
             Text("Betekenissen uit dit document hebben voorrang op de algemene woordenlijst. Je eigen definitie wordt als zodanig gemarkeerd.").font(.callout).foregroundStyle(.secondary)
             TextField("Zoek afkorting of betekenis…", text: $search).textFieldStyle(FocusInputFieldStyle())
             Text(UIStrings.text("Automatisch aanvullen gebruikt Wikipedia-introducties en de gekozen AI-provider.")).font(.caption).foregroundStyle(.secondary)
+            #if os(macOS)
             HStack {
                 Button("Vul ontbrekende betekenissen online aan", systemImage: "globe") { enrich() }
                     .disabled(loading || enriching || pending.isEmpty)
                 if enriching { Button("Stop") { onlineTask?.cancel() } }
             }
+            #else
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Button("Vul ontbrekende betekenissen online aan", systemImage: "globe") { enrich() }
+                        .disabled(loading || enriching || pending.isEmpty)
+                    if enriching { Button("Stop") { onlineTask?.cancel() } }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Button("Vul ontbrekende betekenissen online aan", systemImage: "globe") { enrich() }
+                        .disabled(loading || enriching || pending.isEmpty)
+                    if enriching { Button("Stop") { onlineTask?.cancel() } }
+                }
+            }
+            #endif
             if enriching { ProgressView(value: Double(completed), total: Double(max(1, total))) }
             if !onlineStatus.isEmpty { Text(onlineStatus).font(.caption).foregroundStyle(.secondary) }
             if loading { ProgressView("Afkortingen verzamelen…") }
@@ -97,21 +119,34 @@ struct GlossaryView: View {
                                     }
                                 }.padding(.top, 8)
                             }
+                            #if os(macOS)
                             HStack {
-                                Button(own(entry) == nil ? "Betekenis toevoegen" : "Betekenis aanpassen") {
-                                    definition = own(entry) ?? ""; everywhere = personal.documents[documentKey]?[Glossary.key(entry.abbreviation)] == nil && personal.general[Glossary.key(entry.abbreviation)] != nil
-                                    editing = entry
-                                }
+                                meaningButton(for: entry)
                                 Spacer()
                                 Link("Zoek online naar betekenis", destination: entry.searchURL)
-                            }.font(.callout)
+                            }
+                            .font(.callout)
+                            #else
+                            ViewThatFits(in: .horizontal) {
+                                HStack {
+                                    meaningButton(for: entry)
+                                    Spacer()
+                                    Link("Zoek online naar betekenis", destination: entry.searchURL)
+                                }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    meaningButton(for: entry)
+                                    Link("Zoek online naar betekenis", destination: entry.searchURL)
+                                }
+                            }
+                            .font(.callout)
+                            #endif
                         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
                             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
                     }
                 }
             }
             Text(UIStrings.text("Wikipedia ontvangt de afkorting. Bij ChatGPT worden ook een kort documentfragment en de gevonden bronintroducties naar OpenAI verstuurd; bij Apple Intelligence blijft die AI-verwerking lokaal. Zoek online blijft een aparte browserzoekopdracht.")).font(.caption).foregroundStyle(.secondary)
-        }.padding(24).frame(width: 700, height: 650)
+        }.padding(24).platformSheetSize(width: 700, height: 650)
         .task(id: documentKey) {
             if !initialSearch.isEmpty { search = initialSearch }
             loading = true
@@ -142,7 +177,7 @@ struct GlossaryView: View {
                         .disabled(definition.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .keyboardShortcut(.defaultAction)
                 }
-            }.padding(24).frame(width: 520)
+            }.padding(24).platformSheetSize(width: 520)
                 .buttonStyle(FocusSecondaryButtonStyle())
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())
         }

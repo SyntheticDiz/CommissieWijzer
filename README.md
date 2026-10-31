@@ -1,6 +1,6 @@
 # CommissieWijzer
 
-CommissieWijzer is een macOS-app voor het lezen en voorbereiden van Nederlandse raads- en commissiestukken. De app brengt de pdf, aandachtspunten en bijbehorende bronpassages samen, zodat je AI-uitleg bij de oorspronkelijke tekst kunt controleren.
+CommissieWijzer is een app voor Mac en iPad voor het lezen en voorbereiden van Nederlandse raads- en commissiestukken. De app brengt de pdf, aandachtspunten en bijbehorende bronpassages samen, zodat je AI-uitleg bij de oorspronkelijke tekst kunt controleren.
 
 De app behoudt de bestaande lees- en analysewerkwijze. De zelfstandige CommissieWijzer-app heeft een eigen naam, app-symbool, bundle-ID, voorkeuren en opslag.
 
@@ -55,12 +55,35 @@ De `store`-modus vereist een Mac App Distribution-identiteit, een Mac Installer 
 
 ## App Store
 
-De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). Versie 1.0.1, build 2 is ingediend en staat op **Waiting for Review**. De app is ingesteld voor openbare beschikbaarheid als gratis download in 175 storefronts, met handmatige vrijgave na goedkeuring.
+De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). macOS-versie 1.0.1, build 2 is na een toelichting op de tijdelijke loopbacklistener voor OAuth opnieuw ingediend en staat op **Waiting for Review**. De app is ingesteld voor openbare beschikbaarheid als gratis download in 175 storefronts, met handmatige vrijgave na goedkeuring.
 
 - Website: <https://syntheticdiz.github.io/CommissieWijzer/>
 - Ondersteuning: <https://syntheticdiz.github.io/CommissieWijzer/support.html>
 - Privacy: <https://syntheticdiz.github.io/CommissieWijzer/privacy.html>
 - Broncode en issues: <https://github.com/SyntheticDiz/CommissieWijzer>
+
+## iPadOS
+
+De iPad-app gebruikt dezelfde Swift-bronnen, analyseproviders, zoekondersteuning, exportlogica en het ongewijzigde werkdocumentformaat als de Mac-app. De donkere kleuren, typografie, kaarten en knopstijlen worden gedeeld. Op brede vensters staan werkveld en bron-pdf naast elkaar; op smalle vensters wissel je tussen Werkveld en Originele pdf. Pdf-selectie, bronmarkeringen, de passagelezer en bestandsdialoog gebruiken native UIKit/PDFKit. iPadOS 26 of later is vereist; de Apple-beeldanalyse van diagrammen vereist iPadOS 27 en een beschikbaar model, zoals de overeenkomstige Mac-functie macOS 27 vereist.
+
+Open `iPadOS/CommissieWijzer.xcodeproj` en kies het schema **CommissieWijzer-iPad**, of bouw vanaf de commandoregel:
+
+```sh
+CW_DEVELOPMENT_TEAM=JOUW_TEAM_ID bash build-ipad.sh simulator
+bash build-ipad.sh device
+```
+
+De simulatorbuild vereist een team-ID en wordt ad-hoc ondertekend, zodat iPadOS de eigen sleutelhanger kan gebruiken. Een ongetekende simulatorbuild mist die app-identiteit en kan ChatGPT-aanmeldgegevens niet bewaren. De team-ID wordt uitsluitend lokaal via de omgevingsvariabele ingesteld.
+
+`device` controleert een Release-build voor een echte iPad zonder ondertekening. Voor installatie op een apparaat of distributie is Apple-ondertekening nodig. Voor een ondertekend archief: stel lokaal `CW_DEVELOPMENT_TEAM` in en voer `bash build-ipad.sh archive` uit. Standaard gebruikt Xcode automatische ondertekening. Met `CW_IPAD_PROVISIONING_PROFILE` kies je expliciet een reeds geïnstalleerd iOS App Store-profiel en een bestaand Apple Distribution-certificaat. Bewaar account- en ondertekeningsgegevens buiten versiebeheer. De bestaande Mac-build en het ingediende Mac-pakket worden hiermee niet vervangen.
+
+Beide platforms gebruiken bundle-ID `nl.commissiewijzer.app`, zodat de iPad-versie als iOS-platform aan hetzelfde App Store Connect-record kan worden toegevoegd. De iPad-versie moet afzonderlijk worden beoordeeld; de bestaande Mac-inzending bewijst geen goedkeuring voor iPadOS.
+
+Werkdocumenten (`.spdfwork`, formaat 1) zijn op beide apparaten te openen, inclusief de oorspronkelijke pdf, notities, selectie, leespositie en bewaarde resultaten. Op iPad wordt een geopend werkdocument naar lokale appopslag gekopieerd; recente documenten verwijzen naar die lokale werkkopie. Bewaren via Bestanden exporteert een overdraagbare kopie. Latere lokale wijzigingen werken een eerder geëxporteerde kopie niet automatisch bij: bewaar opnieuw voordat je het bestand naar de Mac overzet. Er is geen automatische synchronisatie of samenvoeging tussen apparaten. Kies zelf een locatie in Bestanden; een door de gebruiker gekozen cloudprovider valt onder die provider.
+
+De iPad-accountaanmelding opent de systeem-Safariweergave binnen de app zodat de beveiligde loopbackaanmelding actief blijft. De bestaande PKCE-, state-, nonce- en tokencontroles blijven gedeeld. Accountgegevens staan in de lokale sleutelhanger en worden niet in werkdocumenten opgenomen.
+
+De iPad-testtarget voert dezelfde appregressietests uit als de Mac. `Tests/Fixtures/mac-v1.spdfwork` is uitsluitend fictieve testdata, gegenereerd door de Mac-archieftest. De portabiliteitstest controleert alle archiefvelden en schrijft op de simulator `Documents/iPad-RoundTrip.spdfwork`, dat ook weer met de Mac-test kan worden geopend.
 
 ## Licentie
 

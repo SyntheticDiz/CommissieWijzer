@@ -1,6 +1,20 @@
 import XCTest
 @testable import CommissieWijzer
 
+private final class LockedValue<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value
+    init(_ value: Value) { self.value = value }
+    func read() -> Value {
+        lock.lock(); defer { lock.unlock() }
+        return value
+    }
+    func update(_ body: (inout Value) -> Void) {
+        lock.lock(); defer { lock.unlock() }
+        body(&value)
+    }
+}
+
 final class PassageEngineTests: XCTestCase {
     private func answer(_ input: String, relevance: String = "main", sourceIDs: [String]? = nil,
                         contextIDs: [String] = [], point: Bool = true) -> String {
@@ -100,15 +114,15 @@ final class PassageEngineTests: XCTestCase {
         let text = String(repeating: "Deze regeling wordt voortgezet tenzij de raad anders besluit. ", count: 120)
         let passage = PassageEngine.passages([text])[0]
         let part = PassageEngine.parts(passage)[0]
-        var inputs: [String] = []
+        let inputs = LockedValue<[String]>([])
         let results = try await PassageEngine.extract(part, model: AppleAIService.modelID, focus: "", program: nil, candidate: nil,
             request: { body in
                 let input = body["input"] as! String
-                inputs.append(input)
+                inputs.update { $0.append(input) }
                 if input.utf8.count > 4_000 { throw AppleFailure.context }
                 return self.answer(input)
             }, useCache: false)
-        XCTAssertGreaterThan(inputs.count, 2)
+        XCTAssertGreaterThan(inputs.read().count, 2)
         XCTAssertGreaterThan(results.count, 1)
         XCTAssertEqual(results.compactMap(\.passagePartIndex), Array(1...results.count))
         XCTAssertEqual(Set(results.compactMap(\.passagePartCount)), [results.count])
@@ -127,23 +141,25 @@ final class PassageEngineTests: XCTestCase {
     func testFailedMiddleLeafKeepsSuccessfulChildrenAndTheirPositions() async throws {
         let text = (1...18).map { "Gebied \($0) ontvangt uitsluitend na toestemming een bijdrage van \($0 * 100) euro voor onderhoud." }.joined(separator: " ")
         let passage = PassageEngine.passages([text])[0]
-        var leafCalls = 0
+        let leafCalls = LockedValue(0)
         do {
             _ = try await PassageEngine.extract(PassageEngine.parts(passage)[0], model: AppleAIService.modelID,
                 focus: "", program: nil, candidate: nil, request: { body in
                     let input = body["input"] as! String
                     let core = input.components(separatedBy: "CORE (enige citeerbare documentbron):\n")[1].components(separatedBy: "\nCONTEXT")[0]
                     if core.utf8.count > 500 { throw AppleFailure.context }
-                    leafCalls += 1
-                    if leafCalls == 2 { throw AppleFailure.refusal }
+                    var call = 0
+                    leafCalls.update { $0 += 1; call = $0 }
+                    if call == 2 { throw AppleFailure.refusal }
                     return self.answer(input)
                 }, useCache: false)
             XCTFail("An omitted leaf must not be reported as complete")
         } catch let error as PassageEngine.Incomplete {
-            XCTAssertGreaterThan(leafCalls, 2)
+            let count = leafCalls.read()
+            XCTAssertGreaterThan(count, 2)
             XCTAssertEqual(error.cause as? AppleFailure, .refusal)
-            XCTAssertEqual(error.points.compactMap(\.passagePartIndex), (1...leafCalls).filter { $0 != 2 })
-            XCTAssertEqual(Set(error.points.compactMap(\.passagePartCount)), [leafCalls])
+            XCTAssertEqual(error.points.compactMap(\.passagePartIndex), (1...count).filter { $0 != 2 })
+            XCTAssertEqual(Set(error.points.compactMap(\.passagePartCount)), [count])
             XCTAssertTrue(error.points.allSatisfy { $0.passageSources?.first?.quote == text && $0.relevanceClass == "uncertain" })
         }
     }

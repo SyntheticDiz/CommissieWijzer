@@ -75,7 +75,7 @@ struct LayoutCorrectionView: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 480, idealWidth: 940, minHeight: 420, idealHeight: 760)
+        .platformReadingFrame(minWidth: 480, idealWidth: 940, minHeight: 420, idealHeight: 760)
         .onAppear {
             page = Self.clampedPage(visiblePage, count: workspace.document?.pages.count ?? 1)
             loadPage()

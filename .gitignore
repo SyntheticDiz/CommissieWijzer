@@ -8,3 +8,5 @@ dist/
 *.provisionprofile
 AppStore/Submission.local.json
 Verification/
+xcuserdata/
+*.xcuserstate

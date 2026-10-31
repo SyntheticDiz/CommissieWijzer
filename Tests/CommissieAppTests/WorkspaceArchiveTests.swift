@@ -1,6 +1,10 @@
 import XCTest
 import PDFKit
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 @testable import CommissieWijzer
 
 @MainActor
@@ -74,6 +78,9 @@ final class WorkspaceArchiveTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: folder) }
         let url = folder.appendingPathComponent("complete.spdfwork")
         try archive.write(url)
+        if let output = ProcessInfo.processInfo.environment["CW_PORTABLE_FIXTURE_OUTPUT"] {
+            try archive.write(URL(fileURLWithPath: output))
+        }
         let loaded = try WorkspaceArchive.read(url)
 
         XCTAssertEqual(loaded.pdf, basePDF)
@@ -147,6 +154,23 @@ final class WorkspaceArchiveTests: XCTestCase {
         XCTAssertEqual(restored.savedChartAnalyses?.count, 0)
     }
 
+    func testLegacyInsightSourcesCannotCitePagesOutsideArchivedPDF() throws {
+        let page = "De gemeente bouwt woningen."
+        let pdfData = try BriefingPDF.data(document: OpenPDF(name: "Basis.pdf", data: Data(), pages: [], findings: []),
+                                           insights: [], analyzed: false, title: "Basis")
+        let workspace = SimpleWorkspace()
+        workspace.document = OpenPDF(name: "Basis.pdf", data: pdfData, pages: [page], findings: [])
+        let validArchive = try workspace.archive(readingPage: 1)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(validArchive)) as? [String: Any])
+        object["insights"] = [["title": "Punt", "summary": "Samenvatting", "relevance": "", "question": "",
+                                "quote": page, "page": 1,
+                                "otherSources": [["page": 2, "quote": "Niet in dit document"]]]]
+        let archive = try JSONDecoder().decode(WorkspaceArchive.self,
+                                               from: JSONSerialization.data(withJSONObject: object))
+
+        XCTAssertThrowsError(try archive.validate(), "Legacy extra-source citations are rendered in PDF exports and must refer to an archived page.")
+    }
+
     private func makeReview(passage: PassageEngine.Passage, purpose: MeetingPurpose, model: String,
                             rating: CommitteeAssessmentService.Rating) -> CommitteeAssessmentService.Review {
         let entry = CommitteeAssessmentService.Assessment(passageID: passage.id, sources: passage.sources,
@@ -156,11 +180,19 @@ final class WorkspaceArchiveTests: XCTestCase {
     }
 
     private func makePNG() throws -> Data {
+        #if os(macOS)
         let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1, pixelsHigh: 1,
                                                     bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
                                                     isPlanar: false, colorSpaceName: .deviceRGB,
                                                     bytesPerRow: 0, bitsPerPixel: 0))
         bitmap.setColor(.white, atX: 0, y: 0)
         return try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        #else
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1))
+        return renderer.pngData { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+        }
+        #endif
     }
 }

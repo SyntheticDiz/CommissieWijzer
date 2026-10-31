@@ -90,7 +90,7 @@ struct OCRTableReviewView: View {
             }
         }
         .padding(18)
-        .frame(minWidth: 420, idealWidth: 1000, minHeight: 360, idealHeight: 850)
+        .platformReadingFrame(minWidth: 420, idealWidth: 1000, minHeight: 360, idealHeight: 850)
         .onAppear { selectFirstUncertain() }
         .buttonStyle(FocusSecondaryButtonStyle())
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())

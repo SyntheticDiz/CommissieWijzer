@@ -1,4 +1,11 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#if canImport(SafariServices)
+import SafariServices
+#endif
+#endif
 import Combine
 import CryptoKit
 import Foundation
@@ -14,6 +21,28 @@ struct ChatGPTModel: Identifiable, Sendable {
 struct ChatGPTAccountProfile: Sendable {
     let email: String
     let subject: String
+}
+
+/// Owns the single refresh operation. The identifier prevents an older waiter
+/// from clearing a newer refresh installed after its operation was invalidated.
+struct ChatGPTRefreshFlight {
+    private(set) var current: (id: UUID, task: Task<String, Error>)?
+
+    mutating func install(_ task: Task<String, Error>) -> UUID {
+        let id = UUID()
+        current = (id, task)
+        return id
+    }
+
+    mutating func clear(ifCurrent id: UUID) {
+        guard current?.id == id else { return }
+        current = nil
+    }
+
+    mutating func cancel() {
+        current?.task.cancel()
+        current = nil
+    }
 }
 
 enum ChatGPTOAuth {
@@ -56,6 +85,16 @@ enum ChatGPTOAuth {
 
     static func pkceChallenge(verifier: String) -> String {
         base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
+    }
+
+    /// Applies OpenID Connect's authorized-party rule to a verified token's
+    /// audience claims. A token with multiple audiences must name this client
+    /// as `azp`; when `azp` is present it must always match this client.
+    static func audienceIsValid(_ audiences: [String], authorizedParty: String?, expected: String) -> Bool {
+        guard audiences.contains(expected) else { return false }
+        if let authorizedParty, authorizedParty != expected { return false }
+        if audiences.count > 1 { return authorizedParty == expected }
+        return true
     }
 
     static func authorizationURL(clientID: String, callbackURI: String, state: String, nonce: String,
@@ -177,14 +216,19 @@ enum ChatGPTOAuth {
               let claims = try JSONSerialization.jsonObject(with: claimsData) as? [String: Any],
               let jwks = try JSONSerialization.jsonObject(with: jwksData) as? [String: Any],
               let keys = jwks["keys"] as? [[String: Any]],
-              let jwk = keys.first(where: { $0["kid"] as? String == keyID && $0["kty"] as? String == "RSA" }),
+              let jwk = keys.first(where: {
+                  $0["kid"] as? String == keyID && $0["kty"] as? String == "RSA" &&
+                  ($0["use"] == nil || $0["use"] as? String == "sig") &&
+                  ($0["alg"] == nil || $0["alg"] as? String == "RS256")
+              }),
               let modulus = jwk["n"] as? String, let exponent = jwk["e"] as? String,
-              let n = decodeBase64URL(modulus), let e = decodeBase64URL(exponent),
+              let n = decodeBase64URL(modulus), rsaBitLength(n) >= 2048,
+              let e = decodeBase64URL(exponent),
               let publicKeyData = rsaPublicKeyDER(modulus: n, exponent: e) else { throw AccountError.invalidIdentityToken }
         let attributes: [CFString: Any] = [
             kSecAttrKeyType: kSecAttrKeyTypeRSA,
             kSecAttrKeyClass: kSecAttrKeyClassPublic,
-            kSecAttrKeySizeInBits: n.count * 8
+            kSecAttrKeySizeInBits: rsaBitLength(n)
         ]
         var keyError: Unmanaged<CFError>?
         guard let publicKey = SecKeyCreateWithData(publicKeyData as CFData, attributes as CFDictionary, &keyError) else {
@@ -196,7 +240,8 @@ enum ChatGPTOAuth {
             throw AccountError.invalidIdentityToken
         }
         let audiences = (claims["aud"] as? String).map { [$0] } ?? (claims["aud"] as? [String] ?? [])
-        guard claims["iss"] as? String == issuer, audiences.contains(audience),
+        guard claims["iss"] as? String == issuer,
+              audienceIsValid(audiences, authorizedParty: claims["azp"] as? String, expected: audience),
               let expiration = claims["exp"] as? TimeInterval, expiration > now.timeIntervalSince1970,
               (nonce == nil || claims["nonce"] as? String == nonce),
               let subject = claims["sub"] as? String, !subject.isEmpty,
@@ -214,6 +259,12 @@ enum ChatGPTOAuth {
         }
         guard let n = integer(modulus), let e = integer(exponent) else { return nil }
         return derElement(tag: 0x30, body: n + e)
+    }
+
+    private static func rsaBitLength(_ modulus: Data) -> Int {
+        let significant = modulus.drop(while: { $0 == 0 })
+        guard let first = significant.first else { return 0 }
+        return (significant.count - 1) * 8 + (8 - first.leadingZeroBitCount)
     }
 
     private static func derElement(tag: UInt8, body: Data) -> Data {
@@ -248,10 +299,16 @@ final class ChatGPTAccount: ObservableObject {
         Task { await loadSavedAccount() }
     }
 
-    func signIn() async {
+    #if os(iOS)
+    func signIn(context: AppPresentationContext?) async { await beginSignIn(presentationContext: context) }
+    #else
+    func signIn() async { await beginSignIn(presentationContext: nil) }
+    #endif
+
+    private func beginSignIn(presentationContext: (any Sendable & AnyObject)?) async {
         guard !busy else { return }
         busy = true; error = nil; status = "Verbinden met ChatGPT…"
-        let task = Task { try await ChatGPTConnection.shared.signIn() }
+        let task = Task { try await ChatGPTConnection.shared.signIn(presentationContext: presentationContext) }
         signInTask = task
         do {
             let profile = try await task.value
@@ -302,7 +359,7 @@ final class ChatGPTAccount: ObservableObject {
 actor ChatGPTConnection {
     static let shared = ChatGPTConnection()
 
-    fileprivate struct Credential: Codable, Sendable {
+    struct Credential: Codable, Sendable {
         var clientID: String
         var callbackURI: String
         var hostID: String
@@ -342,8 +399,9 @@ actor ChatGPTConnection {
     private var credential: Credential?
     private var didLoadCredential = false
     private var callbackServer: LoopbackCallbackServer?
-    private var refreshTask: Task<String, Error>?
+    private var refreshFlight = ChatGPTRefreshFlight()
     private var loggingOut = false
+    private var signingIn = false
     private var generation: UInt64 = 0
 
     private init() {
@@ -362,9 +420,16 @@ actor ChatGPTConnection {
         return ChatGPTAccountProfile(email: record.email, subject: record.subject)
     }
 
-    func signIn() async throws -> ChatGPTAccountProfile {
+    func signIn(presentationContext: (any Sendable & AnyObject)? = nil) async throws -> ChatGPTAccountProfile {
         try Task.checkCancellation()
-        guard !loggingOut else { throw AccountError.notSignedIn }
+        guard !loggingOut, !signingIn else { throw AccountError.notSignedIn }
+        // Stop any refresh using the previous grant before rotating credentials
+        // through reauthorization. Otherwise a late refresh can overwrite the
+        // newly issued refresh token with an older, already-consumed token.
+        signingIn = true
+        generation &+= 1
+        refreshFlight.cancel()
+        defer { signingIn = false }
         let previous = loadCredentialIfPresent()
         let isNew = previous == nil || previous?.clientID.isEmpty == true
         let operationGeneration = generation
@@ -387,6 +452,7 @@ actor ChatGPTConnection {
             reauthorization: !isNew, idTokenHint: previous?.idToken, loginHint: previous?.email
         )
         let callbackTask = Task { try await server.waitForCallback() }
+#if os(macOS)
         let opened = await MainActor.run { NSWorkspace.shared.open(authorizeURL) }
         guard opened else { callbackTask.cancel(); throw AccountError.browserUnavailable }
         let callback: ChatGPTOAuth.Callback
@@ -401,6 +467,25 @@ actor ChatGPTConnection {
             callbackTask.cancel()
             throw error
         }
+#else
+        let browser = try await MainActor.run {
+            try iPadAuthBrowser.present(authorizeURL, context: presentationContext as? AppPresentationContext) { server.cancel() }
+        }
+        let callback: ChatGPTOAuth.Callback
+        do {
+            callback = try await withTaskCancellationHandler {
+                try await callbackTask.value
+            } onCancel: {
+                callbackTask.cancel()
+                server.cancel()
+            }
+        } catch {
+            callbackTask.cancel()
+            await MainActor.run { browser.dismiss() }
+            throw error
+        }
+        await MainActor.run { browser.dismiss() }
+#endif
         try Task.checkCancellation()
         guard callback.state == attempt.state else { throw AccountError.invalidCallback }
         if callback.error == "access_denied" { throw AccountError.accessDenied }
@@ -445,7 +530,7 @@ actor ChatGPTConnection {
         loggingOut = true
         generation &+= 1
         callbackServer?.cancel(); callbackServer = nil
-        refreshTask?.cancel(); refreshTask = nil
+        refreshFlight.cancel()
         defer { loggingOut = false }
         let record = loadCredential()
         var revoked = record.refreshToken == nil
@@ -457,7 +542,7 @@ actor ChatGPTConnection {
                 request.httpMethod = "POST"
                 request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 request.httpBody = formBody(["token": refreshToken, "token_type_hint": "refresh_token", "client_id": clientID])
-                let (_, response) = try await session.data(for: request)
+                let (_, response) = try await boundedData(for: request)
                 revoked = (response as? HTTPURLResponse)?.statusCode == 200
             } catch {
                 revoked = false
@@ -478,10 +563,11 @@ actor ChatGPTConnection {
         guard hasPlanScopes(record.scopes), let token = record.accessToken, let expiry = record.expiresAt,
               record.refreshToken != nil else { throw AccountError.notSignedIn }
         if expiry.timeIntervalSinceNow > 90 { return token }
-        if let refreshTask { return try await refreshTask.value }
+        guard !signingIn else { throw AccountError.notSignedIn }
+        if let flight = refreshFlight.current { return try await flight.task.value }
         let task = Task { try await self.refreshAccessToken() }
-        refreshTask = task
-        defer { refreshTask = nil }
+        let taskID = refreshFlight.install(task)
+        defer { refreshFlight.clear(ifCurrent: taskID) }
         return try await task.value
     }
 
@@ -492,7 +578,7 @@ actor ChatGPTConnection {
         var request = URLRequest(url: URL(string: ChatGPTOAuth.resource + "/models")!)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await boundedData(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw AccountError.modelsUnavailable }
         return (try ChatGPTOAuth.parseModels(data), ChatGPTOAuth.catalogNotice(data))
     }
@@ -507,7 +593,7 @@ actor ChatGPTConnection {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = formBody(["grant_type": "refresh_token", "client_id": record.clientID,
                                      "refresh_token": refreshToken, "resource": ChatGPTOAuth.resource])
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await boundedData(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw AccountError.refreshFailed }
         let tokens = try JSONDecoder().decode(TokenResponse.self, from: data)
         guard tokens.token_type.lowercased() == "bearer",
@@ -537,7 +623,7 @@ actor ChatGPTConnection {
         request.httpBody = formBody(["grant_type": "authorization_code", "client_id": clientID,
                                      "code": code, "redirect_uri": attempt.callbackURI,
                                      "code_verifier": attempt.verifier, "resource": ChatGPTOAuth.resource])
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await boundedData(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw AccountError.codeExchangeFailed }
         return try JSONDecoder().decode(TokenResponse.self, from: data)
     }
@@ -557,9 +643,24 @@ actor ChatGPTConnection {
     private func fetch(_ url: URL) async throws -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await boundedData(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw AccountError.networkRequestFailed }
         return data
+    }
+
+    private func boundedData(for request: URLRequest, maximumBytes: Int = 2 * 1_024 * 1_024) async throws -> (Data, URLResponse) {
+        let (bytes, response) = try await session.bytes(for: request)
+        var data = Data()
+        data.reserveCapacity(min(maximumBytes, 64 * 1_024))
+        for try await byte in bytes {
+            try Task.checkCancellation()
+            guard data.count < maximumBytes else {
+                bytes.task.cancel()
+                throw AccountError.responseTooLarge
+            }
+            data.append(byte)
+        }
+        return (data, response)
     }
 
     private func hasPlanScopes(_ scopes: [String]) -> Bool {
@@ -625,12 +726,12 @@ private final class RedirectRefuser: NSObject, URLSessionTaskDelegate, @unchecke
     }
 }
 
-private enum ChatGPTKeychain {
-    private static let service = "nl.commissiewijzer.chatgpt-account"
-    private static let account = "primary"
+enum ChatGPTKeychain {
+    static let service = "nl.commissiewijzer.chatgpt-account"
+    static let account = "primary"
 
-    static func load() -> ChatGPTConnection.Credential? {
-        var query = baseQuery
+    static func load(service: String = service, account: String = account) -> ChatGPTConnection.Credential? {
+        var query = baseQuery(service: service, account: account)
         query[kSecReturnData] = true
         query[kSecMatchLimit] = kSecMatchLimitOne
         var result: CFTypeRef?
@@ -639,29 +740,46 @@ private enum ChatGPTKeychain {
         return try? JSONDecoder().decode(ChatGPTConnection.Credential.self, from: data)
     }
 
-    static func save(_ credential: ChatGPTConnection.Credential) throws {
+    static func save(_ credential: ChatGPTConnection.Credential, service: String = service, account: String = account) throws {
         let data: Data
         do { data = try JSONEncoder().encode(credential) }
-        catch { throw AccountError.keychainFailure }
+        catch { throw ChatGPTKeychainError(status: errSecParam) }
         let attributes: [CFString: Any] = [
             kSecValueData: data,
-            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            kSecAttrAccessible: keychainAccessibility
         ]
-        let updateStatus = SecItemUpdate(baseQuery as CFDictionary, attributes as CFDictionary)
+        let query = baseQuery(service: service, account: account)
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if updateStatus == errSecItemNotFound {
-            var query = baseQuery
-            for (key, value) in attributes { query[key] = value }
-            guard SecItemAdd(query as CFDictionary, nil) == errSecSuccess else { throw AccountError.keychainFailure }
+            var addQuery = query
+            for (key, value) in attributes { addQuery[key] = value }
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            guard addStatus == errSecSuccess else { throw ChatGPTKeychainError(status: addStatus) }
         } else if updateStatus != errSecSuccess {
-            throw AccountError.keychainFailure
+            throw ChatGPTKeychainError(status: updateStatus)
         }
     }
 
-    static func delete() { SecItemDelete(baseQuery as CFDictionary) }
+    static func delete(service: String = service, account: String = account) {
+        SecItemDelete(baseQuery(service: service, account: account) as CFDictionary)
+    }
 
-    private static var baseQuery: [CFString: Any] {
+    private static func baseQuery(service: String, account: String) -> [CFString: Any] {
         [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
     }
+
+    private static var keychainAccessibility: CFString {
+#if os(iOS)
+        return kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+#else
+        return kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+#endif
+    }
+}
+
+struct ChatGPTKeychainError: LocalizedError {
+    let status: OSStatus
+    var errorDescription: String? { "De beveiligde ChatGPT-gegevens konden niet worden opgeslagen." }
 }
 
 private final class LoopbackCallbackServer: @unchecked Sendable {
@@ -792,8 +910,8 @@ private final class LoopbackCallbackServer: @unchecked Sendable {
 
 private enum AccountError: LocalizedError {
     case invalidRequest, randomnessUnavailable, invalidCallback, accessDenied, callbackTimedOut, listenerUnavailable
-    case invalidIdentityToken, planScopeMissing, invalidResponse, invalidDiscovery, networkRequestFailed
-    case browserUnavailable, codeExchangeFailed, refreshFailed, modelsUnavailable, notSignedIn, keychainFailure
+    case invalidIdentityToken, planScopeMissing, invalidResponse, invalidDiscovery, networkRequestFailed, responseTooLarge
+    case browserUnavailable, codeExchangeFailed, refreshFailed, modelsUnavailable, notSignedIn
 
     var errorDescription: String? {
         switch self {
@@ -808,12 +926,12 @@ private enum AccountError: LocalizedError {
         case .invalidResponse: "ChatGPT gaf een ongeldige reactie."
         case .invalidDiscovery: "De officiële aanmeldconfiguratie kon niet veilig worden gevalideerd."
         case .networkRequestFailed: "Verbinding met ChatGPT is mislukt."
+        case .responseTooLarge: "ChatGPT heeft een onverwacht groot antwoord gegeven."
         case .browserUnavailable: "De systeem browser kon niet worden geopend."
         case .codeExchangeFailed: "De aanmeldcode kon niet worden ingewisseld. Probeer opnieuw."
         case .refreshFailed: "De ChatGPT-sessie kon niet worden vernieuwd. Meld opnieuw aan."
         case .modelsUnavailable: "De modellenlijst van deze ChatGPT-account kon niet worden opgehaald."
         case .notSignedIn: "Meld je eerst aan met ChatGPT."
-        case .keychainFailure: "De beveiligde ChatGPT-gegevens konden niet worden opgeslagen."
         }
     }
 }

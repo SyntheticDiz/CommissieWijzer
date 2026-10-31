@@ -1,5 +1,9 @@
-import AppKit
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct ChartAnalysisView: View {
     let selected: SelectedChart
@@ -30,7 +34,14 @@ struct ChartAnalysisView: View {
             GeometryReader { geometry in
                 Group {
                     if geometry.size.width >= 760 {
+                        #if canImport(AppKit)
                         HSplitView { chartPreview; explanationPane }
+                        #elseif canImport(UIKit)
+                        HStack(spacing: 12) {
+                            chartPreview.frame(maxWidth: .infinity, maxHeight: .infinity)
+                            explanationPane.frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        #endif
                     } else {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
@@ -49,7 +60,7 @@ struct ChartAnalysisView: View {
             }
         }
         .padding(24)
-        .frame(minWidth: 420, idealWidth: 860, minHeight: 380, idealHeight: 620)
+        .platformReadingFrame(minWidth: 420, idealWidth: 860, minHeight: 380, idealHeight: 620)
         .background(AppTheme.background)
         .task { if initialExplanation == nil { run() } }
         .onDisappear { analysisTask?.cancel() }
@@ -58,10 +69,17 @@ struct ChartAnalysisView: View {
 
     private var chartPreview: some View {
         ScrollView {
+            #if canImport(AppKit)
             Image(nsImage: NSImage(cgImage: selected.image, size: .zero))
                 .resizable().scaledToFit()
                 .frame(maxWidth: .infinity)
                 .padding(12)
+            #elseif canImport(UIKit)
+            Image(uiImage: UIImage(cgImage: selected.image))
+                .resizable().scaledToFit()
+                .frame(maxWidth: .infinity)
+                .padding(12)
+            #endif
         }
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .accessibilityLabel(UIStrings.text("Geselecteerd diagram uit PDF-pagina \(selected.page)"))
@@ -129,7 +147,11 @@ struct ChartAnalysisView: View {
             sections.append("Leesbare waarden\n" + explanation.visibleValues.map { "• " + $0 }.joined(separator: "\n"))
         }
         sections.append(explanation.caution)
+        #if canImport(AppKit)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(sections.joined(separator: "\n\n"), forType: .string)
+        #elseif canImport(UIKit)
+        UIPasteboard.general.string = sections.joined(separator: "\n\n")
+        #endif
     }
 }

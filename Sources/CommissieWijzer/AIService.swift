@@ -33,7 +33,9 @@ struct AppError: LocalizedError {
 }
 
 enum AIService {
-    typealias Request = ([String: Any]) async throws -> String
+    /// Requests may cross task-group boundaries during chunked analysis.
+    /// Keep provider closures safe to invoke from those concurrent tasks.
+    typealias Request = @Sendable ([String: Any]) async throws -> String
 
     static func analyzeLocal(pages: [String], model: String, context: String, program: PartyProgram? = nil, targeted: Bool = false,
                              update: @escaping @Sendable ([Insight]) async -> Void = { _ in },

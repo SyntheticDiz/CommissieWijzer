@@ -61,7 +61,7 @@ struct SavedWorkspaceExtrasView: View {
                     }
                 }
             }
-        }.padding(24).frame(minWidth: 460, idealWidth: 620, minHeight: 360, idealHeight: 500)
+        }.padding(24).platformReadingFrame(minWidth: 460, idealWidth: 620, minHeight: 360, idealHeight: 500)
         .buttonStyle(FocusSecondaryButtonStyle())
     }
 }

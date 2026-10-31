@@ -12,6 +12,26 @@ struct ChatGPTModelSwitchView: View {
     }
 
     var body: some View {
+        responsiveContent
+            .padding(24)
+            .platformReadingFrame(minWidth: 460, minHeight: 430)
+            .task {
+                if account.isSignedIn && account.models.isEmpty { await account.refreshModels() }
+                choice = Self.makeChoice(workspace.activeModel, catalog: account.models)
+            }
+            .onChange(of: account.models.map(\.id)) { _, _ in
+                if choice.encoded(using: account.models) == nil {
+                    choice = Self.makeChoice(workspace.activeModel, catalog: account.models)
+                }
+            }
+            .onChange(of: choice.orchestratorModel) { _, _ in choice.normalize(using: account.models) }
+            .onChange(of: choice.workerModel) { _, _ in choice.normalize(using: account.models) }
+            .buttonStyle(FocusSecondaryButtonStyle())
+            .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+    }
+
+    @ViewBuilder private var responsiveContent: some View {
+        #if os(macOS)
         VStack(alignment: .leading, spacing: 16) {
             Text(UIStrings.text("Wissel AI-model")).font(.title2.weight(.semibold))
             Text(UIStrings.text("De fase \(workspace.analysisPhase?.title ?? "AI-analyse") wordt volledig opnieuw uitgevoerd met deze keuze. Afgeronde eerdere fasen blijven behouden met hun eigen model."))
@@ -60,21 +80,67 @@ struct ChatGPTModelSwitchView: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(24)
-        .frame(minWidth: 460, minHeight: 430)
-        .task {
-            if account.isSignedIn && account.models.isEmpty { await account.refreshModels() }
-            choice = Self.makeChoice(workspace.activeModel, catalog: account.models)
-        }
-        .onChange(of: account.models.map(\.id)) { _, _ in
-            if choice.encoded(using: account.models) == nil {
-                choice = Self.makeChoice(workspace.activeModel, catalog: account.models)
+        #else
+        VStack(alignment: .leading, spacing: 12) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(UIStrings.text("Wissel AI-model")).font(.title2.weight(.semibold))
+                    Text(UIStrings.text("De fase \(workspace.analysisPhase?.title ?? "AI-analyse") wordt volledig opnieuw uitgevoerd met deze keuze. Afgeronde eerdere fasen blijven behouden met hun eigen model."))
+                    Text(UIStrings.text("De volledige PDF, bronnen en je zelfselectie blijven behouden. Deze keuze geldt alleen voor deze analyse en wijzigt je instellingen niet."))
+                        .foregroundStyle(.secondary)
+                    DisclosureGroup(UIStrings.text("Bewaarde fasemodellen")) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            provenance("Punten", model: workspace.analysisModel)
+                            provenance("Documentsamenvatting", model: workspace.summaryModel)
+                            provenance("Bronpassages", model: workspace.highlightModel)
+                        }.font(.caption)
+                    }.font(.caption)
+
+                    if !account.isSignedIn {
+                        Label(UIStrings.text("Meld je aan met ChatGPT om beschikbare modellen te zien."), systemImage: "person.crop.circle.badge.exclamationmark")
+                    } else if account.models.isEmpty {
+                        HStack { ProgressView().controlSize(.small); Text(UIStrings.text(account.busy ? account.status : "Beschikbare accountmodellen ophalen…")) }
+                    } else {
+                        FocusChoiceTabs(UIStrings.text("ChatGPT-werkwijze"), selection: $choice.routing, options: [
+                            .init(value: ChatGPTModelChoice.Routing.single, title: UIStrings.text("Eén model")),
+                            .init(value: ChatGPTModelChoice.Routing.orchestrated, title: UIStrings.text("Orchestrator en subagents"))
+                        ])
+                        modelPicker(title: choice.routing == .single ? "ChatGPT-model" : "Orchestrator-model",
+                                    model: $choice.orchestratorModel, effort: $choice.orchestratorEffort)
+                        if choice.routing == .orchestrated {
+                            modelPicker(title: "Subagent-model", model: $choice.workerModel, effort: $choice.workerEffort)
+                            Text(UIStrings.text("De ingestelde taakverdeling blijft behouden: subagents verwerken passages; de orchestrator maakt overzichten en controleert bronnen."))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        if !account.catalogNotice.isEmpty {
+                            Text(UIStrings.text(account.catalogNotice)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Button(UIStrings.text("Annuleer")) { dismiss() }.keyboardShortcut(.cancelAction)
+                    Spacer()
+                    applyButton
+                }
+                VStack(alignment: .trailing, spacing: 8) {
+                    applyButton
+                    Button(UIStrings.text("Annuleer")) { dismiss() }.keyboardShortcut(.cancelAction)
+                }
             }
         }
-        .onChange(of: choice.orchestratorModel) { _, _ in choice.normalize(using: account.models) }
-        .onChange(of: choice.workerModel) { _, _ in choice.normalize(using: account.models) }
-        .buttonStyle(FocusSecondaryButtonStyle())
-        .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+        #endif
+    }
+
+    private var applyButton: some View {
+        Button(UIStrings.text("Pas toe en herstart fase")) {
+            workspace.applyChatGPTModelSwitch(choice, catalog: account.models)
+            dismiss()
+        }
+        .buttonStyle(FocusPrimaryButtonStyle())
+        .disabled(!workspace.canSwitchChatGPTModel || !account.isSignedIn || account.busy || choice.encoded(using: account.models) == nil)
+        .keyboardShortcut(.defaultAction)
     }
 
     @ViewBuilder private func modelPicker(title: String, model: Binding<String>, effort: Binding<String>) -> some View {

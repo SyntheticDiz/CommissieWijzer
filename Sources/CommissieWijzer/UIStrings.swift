@@ -3,6 +3,18 @@ import Foundation
 /// Only UI strings are passed here. Model prompts, quotes and generated content stay untouched.
 enum UIStrings {
     static func text(_ value: String, language: String? = nil) -> String {
+        platformText(translated(value, language: language))
+    }
+    private static func platformText(_ value: String) -> String {
+        #if os(iOS)
+        return value.replacingOccurrences(of: "deze Mac", with: "deze iPad")
+            .replacingOccurrences(of: "this Mac", with: "this iPad")
+            .replacingOccurrences(of: "macOS", with: "iPadOS")
+        #else
+        return value
+        #endif
+    }
+    private static func translated(_ value: String, language: String?) -> String {
         guard (language ?? UserDefaults.standard.string(forKey: "uiLanguage") ?? "nl") == "en" else { return value }
         if let translated = english[value] { return translated }
         for (pattern, replacement) in patterns {
@@ -785,6 +797,7 @@ enum UIStrings {
         "Herkende cellen — controleer cijfers, mintekens en kolommen in de PDF. ‘Onleesbaar’ betekent dat er een teken staat dat OCR niet kon lezen. Lege cellen zijn geen nul. De gewone documentanalyse gebruikt deze OCR-tekst niet. Na jouw broncontrole kun je afzonderlijke tabelleespunten laten kiezen.": "Recognized cells — check figures, minus signs, and columns in the PDF. ‘Unreadable’ means a character is present that OCR could not read. Empty cells are not zero. The regular document analysis does not use this OCR text. After checking the source, you can select separate table findings.",
         "Controleer of corrigeer cellen": "Review or correct cells",
         "Bewaar daarna een werkdocument (⌘S) om correcties en broncontrole later te herstellen.": "Save a workspace (⌘S) to restore corrections and source review later.",
+        "Bewaar daarna het werkdocument om correcties en broncontrole later te herstellen.": "Save the workspace to restore corrections and source review later.",
         "Tabelleespunten selecteren…": "Selecting table findings…",
         "Analyseer gecontroleerde tabel": "Analyse reviewed table",
         "Belangrijkste leespunten": "Key reading points",

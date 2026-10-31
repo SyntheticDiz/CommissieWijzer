@@ -2,7 +2,7 @@ import Foundation
 
 enum ApplePassageQuestions {
     struct Answer: Decodable { let question: String; let sourceID: String }
-    static func generate(passage: String, focus: String, existing: [PassageQuestion], progress: @escaping ([PassageQuestion]) async -> Void, request: @escaping AIService.Request = AppleAIService.response, useCache: Bool = true) async throws -> [PassageQuestion] {
+    static func generate(passage: String, focus: String, existing: [PassageQuestion], progress: @escaping ([PassageQuestion]) async -> Void, request: @escaping AIService.Request = AppleAIService.sendableResponse, useCache: Bool = true) async throws -> [PassageQuestion] {
         let key = AppleAnalysis.cacheKey(["questions", passage, focus])
         let seed = existing + (useCache ? (LocalCache.read([PassageQuestion].self, key: key) ?? []) : [])
         var accepted: [PassageQuestion] = []

@@ -78,6 +78,7 @@ import PDFKit
                                     .position(x: bounds.midX, y: bounds.midY)
                                     .opacity(motion.opacity)
                             }
+                            #if os(macOS)
                             if step == 0 && phase == 0 {
                                 Label("Commissiestuk.pdf", systemImage: "doc.fill")
                                     .font(.caption.weight(.medium))
@@ -88,6 +89,7 @@ import PDFKit
                                     .position(x: motion.position.x - 65, y: motion.position.y - 24)
                                     .opacity(motion.opacity)
                             }
+                            #endif
                             TutorialDemoPointer(clickProgress: motion.clickProgress)
                                 .position(motion.position)
                                 .opacity(motion.opacity)
@@ -554,6 +556,13 @@ import PDFKit
 
 private struct TutorialDemoPointer: View {
     let clickProgress: Double
+    private var symbol: String {
+        #if os(iOS)
+        return "hand.point.up.left"
+        #else
+        return "cursorarrow"
+        #endif
+    }
 
     var body: some View {
         ZStack {
@@ -563,7 +572,7 @@ private struct TutorialDemoPointer: View {
                     .scaleEffect(0.65 + 0.55 * clickProgress)
                     .opacity(1 - clickProgress)
             }
-            Image(systemName: "cursorarrow")
+            Image(systemName: symbol)
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.9), radius: 2, x: 1, y: 2)

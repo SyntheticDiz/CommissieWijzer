@@ -322,14 +322,30 @@ private struct OCRStatusLine: View {
     let unresolvedCount: Int
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text(UIStrings.text(confirmed ? "OCR · door jou gecontroleerd" : "OCR · nog controleren"))
-                .foregroundStyle(confirmed ? Color.secondary : Color.orange)
-            Text(UIStrings.text("\(unresolvedCount) onzekere cellen"))
-                .foregroundStyle(.secondary)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                statusText
+                countText
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                statusText
+                countText
+            }
         }
         .font(.caption)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var statusText: some View {
+        Text(UIStrings.text(confirmed ? "OCR · door jou gecontroleerd" : "OCR · nog controleren"))
+            .foregroundStyle(confirmed ? Color.secondary : Color.orange)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var countText: some View {
+        Text(UIStrings.text("\(unresolvedCount) onzekere cellen"))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -402,6 +418,14 @@ private struct TableReviewControls: View {
     let reviewDisabled: Bool
     let analysisID: String?
     let analysisError: String?
+
+    private var saveHint: String {
+        #if os(macOS)
+        return "Bewaar daarna een werkdocument (⌘S) om correcties en broncontrole later te herstellen."
+        #else
+        return "Bewaar daarna het werkdocument om correcties en broncontrole later te herstellen."
+        #endif
+    }
     let canReview: Bool
     let canAnalyze: Bool
     let review: () -> Void
@@ -428,7 +452,7 @@ private struct TableReviewControls: View {
                 Button(UIStrings.text("Controleer of corrigeer cellen"), systemImage: "pencil.and.list.clipboard", action: review)
                     .buttonStyle(FocusSecondaryButtonStyle())
                     .disabled(reviewDisabled || analysisID != nil)
-                Text(UIStrings.text("Bewaar daarna een werkdocument (⌘S) om correcties en broncontrole later te herstellen."))
+                Text(UIStrings.text(saveHint))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -1,5 +1,10 @@
 import Foundation
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
+import Combine
 import PDFKit
 import UniformTypeIdentifiers
 import CommissieCore
@@ -46,6 +51,9 @@ private actor ChatGPTProgramProgressPhase {
 
 @MainActor
 final class SimpleWorkspace: ObservableObject {
+#if os(iOS)
+    var presentationContext: AppPresentationContext?
+#endif
     typealias PointsUpdate = @Sendable ([Insight]) async -> Void
     typealias WarningUpdate = @Sendable (Int) async -> Void
     typealias ProgressUpdate = @Sendable (Int, Int) async -> Void
@@ -1817,6 +1825,7 @@ final class SimpleWorkspace: ObservableObject {
 
     func export(configuration: ExportConfiguration, title: String, fileName: String, glossary: [ExportGlossaryItem]) {
         guard canStartAnalysis, let document else { return }
+#if os(macOS)
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.nameFieldStringValue = fileName
@@ -1824,6 +1833,7 @@ final class SimpleWorkspace: ObservableObject {
         let directory = Self.exportDirectory(configuredPath: folder)
         panel.directoryURL = directory
         guard panel.runModal() == .OK, let url = panel.url else { return }
+#endif
         // Capture a consistent workspace snapshot before starting asynchronous file I/O.
         let material = exportContent(for: configuration, glossary: glossary)
         let snapshotDocument = document
@@ -1860,8 +1870,24 @@ final class SimpleWorkspace: ObservableObject {
                 try Task.checkCancellation()
                 self.exportWriting = true
                 self.status = "PDF opslaan…"
+#if os(macOS)
                 try await Task.detached(priority: .utility) { try data.write(to: url, options: .atomic) }.value
                 if self.documentID == snapshotID { self.status = "PDF opgeslagen: \(url.lastPathComponent)" }
+#else
+                await withCheckedContinuation { continuation in
+                    iPadFileAccess.export(data: data, filename: fileName + ".pdf", contentType: .pdf,
+                                          context: self.presentationContext) { result in
+                        switch result {
+                        case .success(let destination):
+                            self.status = destination.map { "PDF opgeslagen: \($0.lastPathComponent)" } ?? "PDF opgeslagen."
+                        case .failure(let error) where error is CancellationError:
+                            self.status = "PDF-export geannuleerd."
+                        case .failure(let error): self.error = error.localizedDescription
+                        }
+                        continuation.resume()
+                    }
+                }
+#endif
             } catch is CancellationError {
                 if self.documentID == snapshotID { self.status = "PDF-export geannuleerd." }
             } catch {
@@ -2041,20 +2067,75 @@ final class SimpleWorkspace: ObservableObject {
     }
     func relocateRecentWorkspace(_ entry: RecentWorkspaceDocuments.Entry) {
         guard canStartAnalysis else { return }
+#if os(macOS)
         let panel = NSOpenPanel(); panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [UTType(exportedAs: "nl.commissiewijzer.app.work", conformingTo: .data)]
         panel.message = "Kies het werkdocument op de nieuwe locatie."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         openWorkspace(at: url, replacingRecent: entry)
+#else
+        iPadFileAccess.open(contentTypes: [UTType(exportedAs: "nl.commissiewijzer.app.work", conformingTo: .data)],
+                            context: presentationContext) { result in
+            switch result {
+            case .success(let url): self.openWorkspace(at: url, replacingRecent: entry)
+            case .failure(let error) where error is CancellationError: break
+            case .failure(let error): self.error = error.localizedDescription
+            }
+        }
+#endif
     }
     func saveWorkspace(readingPage: Int, viewState: WorkspaceViewState? = nil, completion: ((Bool) -> Void)? = nil) {
         guard canStartAnalysis, let document else { completion?(false); return }
+#if os(macOS)
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(exportedAs: "nl.commissiewijzer.app.work", conformingTo: .data)]
         panel.nameFieldStringValue = (document.name as NSString).deletingPathExtension + ".spdfwork"
         panel.message = "Bewaart de bron-PDF, resultaten, selectie, notities en leespositie in één lokaal werkdocument."
         guard panel.runModal() == .OK, let url = panel.url else { completion?(false); return }
         writeWorkspaceArchive(to: url, readingPage: readingPage, viewState: viewState, completion: completion)
+#else
+        let snapshot: WorkspaceArchive
+        do { snapshot = try archive(readingPage: readingPage, viewState: viewState) }
+        catch { self.error = error.localizedDescription; completion?(false); return }
+        let capturedRevision = revisionToken
+        let capturedDocumentID = documentID
+        let filename = (document.name as NSString).deletingPathExtension + ".spdfwork"
+        exporting = true; status = "Werkdocument voorbereiden…"
+        Task {
+            do {
+                let stagingURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".spdfwork")
+                defer { try? FileManager.default.removeItem(at: stagingURL) }
+                let writer = workspaceArchiveWriter
+                try await Task.detached(priority: .utility) { try writer(snapshot, stagingURL) }.value
+                let data = try Data(contentsOf: stagingURL)
+                status = "Werkdocument opslaan…"
+                iPadFileAccess.export(data: data, filename: filename,
+                                      contentType: UTType(exportedAs: "nl.commissiewijzer.app.work", conformingTo: .data),
+                                      context: presentationContext) { result in
+                    self.exporting = false
+                    switch result {
+                    case .success(let url):
+                        guard self.documentID == capturedDocumentID else {
+                            self.error = "Het actieve werkdocument is gewijzigd terwijl de exportkiezer openstond. De gekozen export is wel opgeslagen."
+                            completion?(false)
+                            return
+                        }
+                        self.markSaved(capturedRevision)
+                        if let url {
+                            self.adoptAccess(to: url, alreadyStarted: false)
+                            self.recordRecentWorkspace(url)
+                            self.status = "Werkdocument bewaard: " + url.lastPathComponent
+                        } else { self.status = "Werkdocument bewaard." }
+                        completion?(self.documentID == capturedDocumentID)
+                    case .failure(let error) where error is CancellationError:
+                        self.status = "Werkdocument export geannuleerd."
+                        completion?(false)
+                    case .failure(let error): self.error = error.localizedDescription; completion?(false)
+                    }
+                }
+            } catch { exporting = false; self.error = error.localizedDescription; completion?(false) }
+        }
+#endif
     }
 
     private func writeWorkspaceArchive(to url: URL, readingPage: Int, viewState: WorkspaceViewState?, completion: ((Bool) -> Void)?) {
@@ -2091,30 +2172,52 @@ final class SimpleWorkspace: ObservableObject {
     }
 
     func saveWorkspace(to url: URL, readingPage: Int, viewState: WorkspaceViewState? = nil, completion: ((Bool) -> Void)? = nil) {
-        guard canStartAnalysis, let document else { completion?(false); return }
+        guard canStartAnalysis else { completion?(false); return }
         writeWorkspaceArchive(to: url, readingPage: readingPage, viewState: viewState, completion: completion)
     }
     func openWorkspace() {
         guard canStartAnalysis else { return }
+#if os(macOS)
         let panel = NSOpenPanel(); panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [UTType(exportedAs: "nl.commissiewijzer.app.work", conformingTo: .data)]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         openWorkspace(at: url)
+#else
+        iPadFileAccess.open(contentTypes: [UTType(exportedAs: "nl.commissiewijzer.app.work", conformingTo: .data)],
+                            context: presentationContext) { result in
+            switch result {
+            case .success(let url): self.openWorkspace(at: url)
+            case .failure(let error) where error is CancellationError: break
+            case .failure(let error): self.error = error.localizedDescription
+            }
+        }
+#endif
     }
     func openWorkspace(at url: URL, replacingRecent: RecentWorkspaceDocuments.Entry? = nil) {
         guard canStartAnalysis else { return }
+#if os(macOS)
         let acquiredAccess = url.startAccessingSecurityScopedResource()
+#else
+        let acquiredAccess = false
+#endif
         exporting = true; status = "Werkdocument openen…"
         Task {
+            var workspaceURL = url
             do {
-                let saved = try await Task.detached(priority: .userInitiated) { try WorkspaceArchive.read(url) }.value
+                #if os(iOS)
+                workspaceURL = try await Task.detached(priority: .userInitiated) {
+                    try iPadFileAccess.localCopy(of: url)
+                }.value
+                #endif
+                let resolvedURL = workspaceURL
+                let saved = try await Task.detached(priority: .userInitiated) { try WorkspaceArchive.read(resolvedURL) }.value
                 exporting = false
                 try restore(saved, persist: true, prevalidated: true)
-                adoptAccess(to: url, alreadyStarted: acquiredAccess)
-                if let replacingRecent { try? RecentWorkspaceDocuments.shared.replace(replacingRecent, with: url) }
-                else { recordRecentWorkspace(url) }
+                adoptAccess(to: workspaceURL, alreadyStarted: acquiredAccess)
+                if let replacingRecent { try? RecentWorkspaceDocuments.shared.replace(replacingRecent, with: workspaceURL) }
+                else { recordRecentWorkspace(workspaceURL) }
             } catch {
-                if acquiredAccess { url.stopAccessingSecurityScopedResource() }
+                if acquiredAccess { workspaceURL.stopAccessingSecurityScopedResource() }
                 exporting = false; self.error = error.localizedDescription
             }
         }

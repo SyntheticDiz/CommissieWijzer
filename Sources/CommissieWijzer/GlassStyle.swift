@@ -161,6 +161,7 @@ private struct FocusButtonLabel: View {
             .foregroundStyle(foreground)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
+            .platformTouchTarget()
             .contentShape(shape)
             .background(background, in: shape)
             .overlay {
@@ -190,7 +191,7 @@ private struct FocusToolbarMenuSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .menuStyle(.borderlessButton)
+            .platformToolbarMenuStyle()
             .tint(Color.primary)
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 7).padding(.vertical, 6)
@@ -233,9 +234,10 @@ private struct FocusMenuSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .menuStyle(.borderlessButton)
+            .platformToolbarMenuStyle()
             .tint(Color.primary)
             .padding(.horizontal, horizontalPadding).padding(.vertical, verticalPadding)
+            .platformTouchTarget()
             .background(!isEnabled ? AppTheme.buttonDisabled : isHovered || isFocused ? AppTheme.buttonHover : AppTheme.buttonSurface,
                         in: RoundedRectangle(cornerRadius: 8))
             .overlay {

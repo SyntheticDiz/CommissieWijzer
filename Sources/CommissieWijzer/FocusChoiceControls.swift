@@ -94,6 +94,7 @@ struct FocusChoiceTabs<Value: Hashable>: View {
                 .strokeBorder(contrast == .increased ? Color.primary.opacity(0.62) : AppTheme.border.opacity(0.55), lineWidth: 1)
                 .allowsHitTesting(false)
         }
+        #if os(macOS)
         .onMoveCommand { direction in
             guard isEnabled, !options.isEmpty,
                   direction == .left || direction == .right,
@@ -102,6 +103,17 @@ struct FocusChoiceTabs<Value: Hashable>: View {
             selection = options[next].value
             focusedValue = options[next].value
         }
+        #else
+        .onKeyPress(keys: [.leftArrow, .rightArrow]) { key in
+            guard isEnabled, !options.isEmpty,
+                  let index = options.firstIndex(where: { $0.value == (focusedValue ?? selection) }) else { return .ignored }
+            let delta = key.key == .rightArrow ? 1 : -1
+            let next = min(options.count - 1, max(0, index + delta))
+            selection = options[next].value
+            focusedValue = options[next].value
+            return .handled
+        }
+        #endif
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
     }
@@ -137,7 +149,7 @@ private struct FocusChoiceTabButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .frame(maxWidth: .infinity, minHeight: 36)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 8)
             .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
             .background(selected && isEnabled ? AppTheme.buttonSurface : .clear,

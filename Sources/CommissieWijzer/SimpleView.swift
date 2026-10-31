@@ -1,5 +1,9 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import CommissieCore
 
 private enum WorkbenchSection: String, CaseIterable {
@@ -14,6 +18,7 @@ private enum PendingWorkspaceAction {
     case choosePDF
     case importPDF([URL])
     case openWorkspace
+    case openExternalWorkspace(URL)
     case openRecentWorkspace(RecentWorkspaceDocuments.Entry)
     case relocateRecentWorkspace(RecentWorkspaceDocuments.Entry)
     case returnToImport
@@ -23,20 +28,38 @@ private enum PendingWorkspaceAction {
 
 enum TerminationScheduler {
     @MainActor
-    static func enqueue(_ action: @escaping @MainActor () -> Void) {
+    static func enqueue(_ action: @escaping @MainActor @Sendable () -> Void) {
         RunLoop.main.perform(inModes: [.common]) {
             MainActor.assumeIsolated { action() }
         }
     }
 }
 
+private struct PlatformWorkbenchSplit<Content: View>: View {
+    let content: Content
+    init(@ViewBuilder content: () -> Content) { self.content = content() }
+    var body: some View {
+        #if os(macOS)
+        HSplitView { content }
+        #else
+        HStack(spacing: 0) { content }
+        #endif
+    }
+}
+
 struct SimpleView: View {
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
-    @StateObject private var workspace = SimpleWorkspace()
+    @StateObject private var workspace: SimpleWorkspace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+#if os(iOS)
+    @Environment(\.appPresentationContext) private var appPresentationContext
+#endif
     @StateObject private var pdfControls = PDFControls()
     @StateObject private var selectionSummary = SelectionSummary()
+    #if os(macOS)
     @StateObject private var closeBridge = WorkspaceWindowCloseBridge()
+    #endif
     @ObservedObject private var chatGPTAccount = ChatGPTAccount.shared
     @ObservedObject private var recentDocuments = RecentWorkspaceDocuments.shared
     @AppStorage("showPDFPane") private var showPDFPane = true
@@ -105,6 +128,14 @@ struct SimpleView: View {
     @State private var pendingActionSaveInFlight = false
     @State private var restoredNavigationID: UUID?
     @State private var pendingComparisonSource: (id: String, page: Int, quote: String)?
+    #if os(iOS)
+    @State private var iPadAnalysisFraction: CGFloat = 0.58
+    @State private var splitDragStartFraction: CGFloat?
+    #endif
+
+    @MainActor init(workspace: SimpleWorkspace? = nil) {
+        _workspace = StateObject(wrappedValue: workspace ?? SimpleWorkspace())
+    }
     private var viewState: WorkspaceViewState {
         WorkspaceViewState(section: section.rawValue, pointsMode: pointsMode.rawValue, openGroups: openGroups,
                            pointPageFilter: pointPageFilter, reviewFilter: reviewFilter, pdfVisible: showPDFPane,
@@ -128,6 +159,13 @@ struct SimpleView: View {
     private var focus: AnalysisFocus { .init(topics: workspace.focus) }
     private var overviewAnalysisIncomplete: Bool { workspace.baseAnalysisIncomplete }
     @AppStorage("appearance") private var appearance = "system"
+    private var effectiveColorScheme: ColorScheme? {
+        #if os(iOS)
+        .dark
+        #else
+        appearance == "dark" ? .dark : appearance == "light" ? .light : nil
+        #endif
+    }
 
     var body: some View { alertContent }
 
@@ -160,10 +198,21 @@ struct SimpleView: View {
         .background(AppTheme.background)
         .navigationTitle(workspace.processingPresented ? "CommissieWijzer" : workspace.showsWelcome ? "CommissieWijzer" : workspace.document?.name ?? "CommissieWijzer")
         .toolbar { mainToolbar }
+        #if os(macOS)
         .toolbarBackground(AppTheme.background, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
-        .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
+        #else
+        .toolbarBackground(AppTheme.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        #endif
+        .preferredColorScheme(effectiveColorScheme)
+        #if os(macOS)
         .background(WorkspaceWindowCloseGuard(bridge: closeBridge).frame(width: 0, height: 0))
+        #endif
+#if os(iOS)
+        .onAppear { workspace.presentationContext = appPresentationContext }
+        .onChange(of: appPresentationContext?.id) { _, _ in workspace.presentationContext = appPresentationContext }
+#endif
     }
 
     private var presentedContent: some View {
@@ -210,7 +259,7 @@ struct SimpleView: View {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 250_000_000)
                         guard workspace.documentID == expectedDocumentID else { return }
-                        if let image = NSImage(data: chart.imagePNG)?.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                        if let image = chartPreviewImage(chart.imagePNG) {
                             selectedChartExplanation = chart.explanation
                             selectedChart = SelectedChart(page: chart.page, image: image)
                         } else { workspace.error = "De bewaarde diagramafbeelding kon niet worden geopend." }
@@ -300,6 +349,21 @@ struct SimpleView: View {
     private var eventObservedContent: some View {
         stateObservedContent
         .onAppear { handleAppear() }
+        .onChange(of: scenePhase) { _, phase in
+            #if os(iOS)
+            guard phase == .background else { return }
+            iPadBackgroundExecution.perform {
+                if workspace.document != nil && workspace.hasUnsavedChanges && workspace.isOpenedWorkdocument {
+                    do { try await workspace.autosaveOpenedWorkdocument() }
+                    catch { workspace.error = "Werkdocument automatisch bewaren is niet gelukt: " + error.localizedDescription }
+                }
+                let failures = await SavedWork.drain()
+                if !failures.isEmpty {
+                    workspace.error = "Lokale wijzigingen bewaren is niet gelukt:\n" + failures.joined(separator: "\n")
+                }
+            }
+            #endif
+        }
         .onChange(of: chatGPTAccount.isSignedIn) { _, _ in appleUnavailable = AIConfiguration.unavailability() }
         .onReceive(NotificationCenter.default.publisher(for: SavedWork.failure).receive(on: RunLoop.main)) { notice in workspace.error = notice.object as? String }
         .onReceive(NotificationCenter.default.publisher(for: .appOpenPDF)) { _ in
@@ -313,6 +377,17 @@ struct SimpleView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .appFind)) { _ in
             handleFindRequest()
+        }
+        .onOpenURL { url in
+            switch url.pathExtension.lowercased() {
+            case "pdf":
+                pendingImportPurpose = importPurpose
+                requestWorkspaceAction(.importPDF([url]))
+            case "spdfwork":
+                requestWorkspaceAction(.openExternalWorkspace(url))
+            default:
+                break
+            }
         }
         .task(id: workspace.documentID) { await refreshSearchBase() }
     }
@@ -345,7 +420,7 @@ struct SimpleView: View {
         GeometryReader { geometry in
         ScrollView {
         VStack(spacing: 20) {
-            Image(nsImage: NSApplication.shared.applicationIconImage).resizable().scaledToFit().frame(width: 64, height: 64)
+            appIconView
             Text(UIStrings.text("Welkom bij CommissieWijzer")).font(.system(size: 30, weight: .semibold))
             Text(UIStrings.text("Van commissiestuk naar overzicht.")).font(.title3).foregroundStyle(.secondary)
             Text(UIStrings.text(AIConfiguration.label(AIConfiguration.selectedModel)))
@@ -372,6 +447,22 @@ struct SimpleView: View {
         }
     }
 
+    @ViewBuilder private var appIconView: some View {
+        #if os(macOS)
+        Image(nsImage: NSApplication.shared.applicationIconImage).resizable().scaledToFit().frame(width: 64, height: 64)
+        #else
+        Image("CWBrand").resizable().scaledToFit().frame(width: 64, height: 64)
+        #endif
+    }
+
+    private func chartPreviewImage(_ data: Data) -> CGImage? {
+        #if os(macOS)
+        return NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        #else
+        return UIImage(data: data)?.cgImage
+        #endif
+    }
+
     private var recentWorkspaces: some View {
         RecentWorkspacesList(entries: recentDocuments.entries,
                              disabled: workspace.busy || workspace.committeeReviewBusy || workspace.exporting,
@@ -381,6 +472,49 @@ struct SimpleView: View {
     }
 
     @ToolbarContentBuilder private var mainToolbar: some ToolbarContent {
+        #if os(iOS)
+        ToolbarItemGroup(placement: .primaryAction) {
+            if !workspace.processingPresented {
+                Button(UIStrings.text("Nieuwe pdf"), systemImage: "plus") { requestWorkspaceAction(.choosePDF) }
+                    .help(UIStrings.text("Nieuwe pdf openen"))
+                    .disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting)
+                    .buttonStyle(FocusToolbarActionStyle())
+                if !workspace.showsWelcome {
+                    Button(UIStrings.text(section == .selection ? "Exporteer mijn selectie" : "Exporteren"), systemImage: "square.and.arrow.up") { showingExport = true }
+                        .disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting || workspace.document == nil)
+                        .help(UIStrings.text("Kies welke onderdelen je wilt exporteren"))
+                        .buttonStyle(FocusToolbarActionStyle())
+                } else {
+                    Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { showingSettings = true }
+                        .buttonStyle(FocusToolbarActionStyle())
+                }
+                Menu {
+                    if !workspace.showsWelcome {
+                        Button(UIStrings.text("Analyseopties"), systemImage: "slider.horizontal.3") {
+                            chatPresentation = nil; section = .overview; showingAnalysisOptions.toggle()
+                            if showingAnalysisOptions { pendingScrollID = "summary-root" }
+                        }
+                        Button(UIStrings.text("Documentchat"), systemImage: "bubble.left.and.bubble.right") {
+                            openChat(pages: Array(1...(workspace.document?.pages.count ?? 1)), wholeDocument: true)
+                        }.disabled(workspace.busy)
+                        Button(UIStrings.text("Werkdocument openen…")) { requestWorkspaceAction(.openWorkspace) }
+                        Button(UIStrings.text("Werkdocument bewaren…")) { saveWorkspace() }.disabled(workspace.document == nil)
+                        Button(UIStrings.text("Vergelijk punten"), systemImage: "rectangle.split.2x1") { showingComparison = true }
+                            .disabled(workspace.busy || workspace.organizedInsights.count < 2)
+                    }
+                    Button(UIStrings.text("Rondleiding"), systemImage: "questionmark.circle") { showingTutorial = true }
+                    if !workspace.showsWelcome {
+                        Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { showingSettings = true }
+                    }
+                } label: {
+                    Label(UIStrings.text("Meer"), systemImage: "ellipsis.circle")
+                }
+                .accessibilityLabel(UIStrings.text("Meer opties"))
+                .focusToolbarMenu()
+                .disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting)
+            }
+        }
+        #else
         ToolbarItemGroup(placement: .primaryAction) {
             if !workspace.processingPresented {
             if !workspace.showsWelcome {
@@ -433,9 +567,29 @@ struct SimpleView: View {
                 .buttonStyle(FocusToolbarActionStyle())
             }
         }
+        #endif
     }
 
-    private func workbenchControls(compact: Bool) -> some View {
+    @ViewBuilder private func workbenchControls(compact: Bool) -> some View {
+        #if os(iOS)
+        if compact {
+            VStack(alignment: .leading, spacing: 8) {
+                ProcessingModePicker(compareProgram: $compareProgram, disabled: workspace.busy)
+                analysisControls
+                readingControls.labelStyle(.iconOnly)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HStack(spacing: 12) {
+                ProcessingModePicker(compareProgram: $compareProgram, disabled: workspace.busy)
+                    .fixedSize(horizontal: true, vertical: false)
+                analysisControls
+                Spacer(minLength: 12)
+                readingControls.labelStyle(.titleAndIcon)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        #else
         HStack(spacing: 12) {
             ProcessingModePicker(compareProgram: $compareProgram, disabled: workspace.busy)
                 .fixedSize(horizontal: true, vertical: false)
@@ -447,6 +601,7 @@ struct SimpleView: View {
                 readingControls.labelStyle(.titleAndIcon)
             }
         }
+        #endif
     }
 
     private var analysisControls: some View {
@@ -496,7 +651,8 @@ struct SimpleView: View {
                         pdfControls.pin(.init(id: "committee-status-\(page)-\(quote.hashValue)", page: page, quote: quote))
                     },
                     showTable: { openTable($0) }).padding(.horizontal, 24)
-                HStack(spacing: 8) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
                     ForEach(WorkbenchSection.allCases, id: \.self) { destination in
                         Button {
                             chatPresentation = nil
@@ -506,7 +662,7 @@ struct SimpleView: View {
                             if destination == .search { searchFocusRequest += 1 }
                             if destination == .tables { pendingTableID = lastTableID }
                         } label: {
-                            Text(UIStrings.text(workbenchSectionTitle(destination)) + (destination == .selection ? " (\(workspace.selectedInsightGroups.reduce(0) { $0 + $1.points.count } + workspace.chosenPassages.count))" : destination == .tables ? " (\(workspace.tables.count))" : ""))
+                            Text(workbenchTabTitle(destination)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
                                 .font(.callout.weight(section == destination ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
                                 .foregroundStyle(section == destination ? Color.primary : Color.secondary)
                                 .background(section == destination ? AppTheme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 9))
@@ -522,8 +678,28 @@ struct SimpleView: View {
                             .accessibilityValue(section == destination ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
                     }
                     Spacer(minLength: 0)
-                }.padding(.horizontal, 24).padding(.bottom, 6)
-                HSplitView {
+                    }.padding(.horizontal, 24)
+                    }.padding(.bottom, 6)
+                GeometryReader { layout in
+                let narrow = layout.size.width < 1_000
+                VStack(spacing: 6) {
+                    #if os(iOS)
+                    if narrow {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 4) {
+                                narrowPaneButton(title: "Werkveld", symbol: "rectangle.split.2x1", selected: !showPDFPane) { showPDFPane = false }
+                                narrowPaneButton(title: "Originele pdf", symbol: "doc.text", selected: showPDFPane) { showPDFPane = true }
+                            }.fixedSize(horizontal: true, vertical: false)
+                            VStack(spacing: 4) {
+                                narrowPaneButton(title: "Werkveld", symbol: "rectangle.split.2x1", selected: !showPDFPane) { showPDFPane = false }
+                                narrowPaneButton(title: "Originele pdf", symbol: "doc.text", selected: showPDFPane) { showPDFPane = true }
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.top, 4)
+                    }
+                    #endif
+                PlatformWorkbenchSplit {
                     VStack(spacing: 12) {
                     SelectionSummaryCard(session: selectionSummary)
                     ZStack {
@@ -687,7 +863,7 @@ struct SimpleView: View {
                                         }
                                     } label: {
                                         HStack(spacing: 12) {
-                                            Text(group.title + " · " + (pointsMode == .mine ? "\(group.points.count) " + UIStrings.text("geselecteerd") : pointsMode == .featured ? "\(group.points.count) " + UIStrings.text("van") + " \(totalByGroup[group.id, default: group.points.count])" : "\(group.points.count)"))
+                                            Text(groupHeading(group, total: totalByGroup[group.id, default: group.points.count]))
                                                 .font(.subheadline.weight(.semibold))
                                                 .foregroundStyle(.secondary)
                                             Spacer(minLength: 12)
@@ -736,7 +912,19 @@ struct SimpleView: View {
                         }.frame(maxWidth: 820).frame(maxWidth: .infinity)
                             .padding(.horizontal, 24).padding(.bottom, 24)
                             .background(PersistentScrollbarsAttachment())
-                    }.frame(minWidth: 380, idealWidth: 640)
+                    }
+                    #if os(macOS)
+                    .frame(minWidth: 380, idealWidth: 640)
+                    #else
+                    .frame(minWidth: 0,
+                           idealWidth: narrow && showPDFPane ? 0 : layout.size.width * 0.6,
+                           maxWidth: narrow && showPDFPane ? 0 : .infinity,
+                           maxHeight: .infinity)
+                    #endif
+                        #if os(iOS)
+                        .allowsHitTesting(!narrow || !showPDFPane)
+                        .accessibilityHidden(narrow && showPDFPane)
+                        #endif
                         .onChange(of: pendingScrollID) { _, destination in
                             if let destination {
                                 let expectedDocumentID = workspace.documentID
@@ -770,10 +958,28 @@ struct SimpleView: View {
                                          },
                                          embedded: true, passage: chat.passage, initialQuestion: chatQuestion,
                                          close: { chatPresentation = nil })
-                            .id(chat.id).frame(minWidth: 410, idealWidth: 530)
+                            .id(chat.id)
+                            #if os(macOS)
+                            .frame(minWidth: 410, idealWidth: 530)
+                            #else
+                            .frame(minWidth: 0, idealWidth: narrow ? layout.size.width : layout.size.width * iPadAnalysisFraction)
+                            #endif
                     }
                     }
-                    }.frame(minWidth: 380, idealWidth: 640)
+                    }
+                    #if os(macOS)
+                    .frame(minWidth: 380, idealWidth: 640)
+                    #else
+                    .frame(width: iPadAnalysisPaneWidth(availableWidth: layout.size.width - (showPDFPane && !narrow ? 14 : 0), narrow: narrow))
+                    .frame(maxHeight: .infinity)
+                    .allowsHitTesting(!narrow || !showPDFPane)
+                    .accessibilityHidden(narrow && showPDFPane)
+                    #endif
+                    #if os(iOS)
+                    if showPDFPane && !narrow {
+                        iPadSplitDivider(availableWidth: layout.size.width - 14)
+                    }
+                    #endif
                     if showPDFPane {
                     PDFPreview(data: document.data, page: workspace.page, navigationID: workspace.navigationID, controls: pdfControls)
                         .overlay(alignment: .bottom) { PDFControlsBar(controls: pdfControls).padding(20) }
@@ -842,10 +1048,17 @@ struct SimpleView: View {
                             .padding(12)
 
                         }
+                        #if os(macOS)
                         .frame(minWidth: 320, idealWidth: 480)
+                        #else
+                        .frame(width: narrow ? layout.size.width : max(320, layout.size.width - 14 - iPadAnalysisPaneWidth(availableWidth: layout.size.width - 14, narrow: false)))
+                        .frame(maxHeight: .infinity)
+                        #endif
                         .background(AppTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 22))
                     }
+                }
+                }
                 }
             }
         }
@@ -856,10 +1069,94 @@ struct SimpleView: View {
             } else if workspace.restoredViewState != nil {
                 restoredNavigationID = workspace.navigationID
             } else {
+                #if os(macOS)
                 showPDFPane = true
+                #endif
             }
         }
     }
+
+    private func workbenchTabTitle(_ destination: WorkbenchSection) -> String {
+        let title = UIStrings.text(workbenchSectionTitle(destination))
+        switch destination {
+        case .selection:
+            let selectedCount = workspace.selectedInsightGroups.reduce(0) { $0 + $1.points.count }
+            return title + " (\(selectedCount + workspace.chosenPassages.count))"
+        case .tables: return title + " (\(workspace.tables.count))"
+        default: return title
+        }
+    }
+
+    private func groupHeading(_ group: InsightGroup, total: Int) -> String {
+        let count: String
+        switch pointsMode {
+        case .mine: count = "\(group.points.count) " + UIStrings.text("geselecteerd")
+        case .featured: count = "\(group.points.count) " + UIStrings.text("van") + " \(total)"
+        case .all: count = "\(group.points.count)"
+        }
+        return group.title + " · " + count
+    }
+
+    private func narrowPaneButton(title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(UIStrings.text(title), systemImage: symbol)
+                .font(.callout.weight(selected ? .semibold : .medium))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(selected ? Color.primary : Color.secondary)
+                .background(selected ? AppTheme.buttonSurface : .clear, in: RoundedRectangle(cornerRadius: 10))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(selected ? AppTheme.border.opacity(0.75) : Color.clear, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityValue(selected ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
+    }
+
+    #if os(iOS)
+    private func iPadAnalysisPaneWidth(availableWidth: CGFloat, narrow: Bool) -> CGFloat {
+        if narrow { return showPDFPane ? 0 : availableWidth }
+        if !showPDFPane { return availableWidth }
+        let lowerBound: CGFloat = 360
+        let upperBound = max(lowerBound, availableWidth - 320)
+        return min(upperBound, max(lowerBound, availableWidth * iPadAnalysisFraction))
+    }
+
+    private func iPadSplitDivider(availableWidth: CGFloat) -> some View {
+        Rectangle()
+            .fill(AppTheme.border.opacity(0.45))
+            .frame(width: 14)
+            .overlay {
+                Capsule().fill(AppTheme.border.opacity(0.8)).frame(width: 4, height: 54)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 1)
+                .onChanged { value in
+                    let startingFraction = splitDragStartFraction ?? iPadAnalysisFraction
+                    splitDragStartFraction = startingFraction
+                    let minimum = 360 / availableWidth
+                    let maximum = max(minimum, 1 - 320 / availableWidth)
+                    iPadAnalysisFraction = min(maximum, max(minimum, startingFraction + value.translation.width / availableWidth))
+                }
+                .onEnded { _ in splitDragStartFraction = nil })
+            .accessibilityElement()
+            .accessibilityLabel(UIStrings.text("Breedte van werkveld en PDF aanpassen"))
+            .accessibilityValue("\(Int((iPadAnalysisPaneWidth(availableWidth: availableWidth, narrow: false) / availableWidth * 100).rounded()))% werkveld")
+            .accessibilityAdjustableAction { direction in
+                let minimum = 360 / availableWidth
+                let maximum = max(minimum, 1 - 320 / availableWidth)
+                switch direction {
+                case .increment: iPadAnalysisFraction = min(maximum, iPadAnalysisFraction + 0.04)
+                case .decrement: iPadAnalysisFraction = max(minimum, iPadAnalysisFraction - 0.04)
+                @unknown default: break
+                }
+            }
+    }
+    #endif
 
     private var readingAgendaCard: some View {
         let entries = ReadingAgenda.entries(workspace.organizedInsights)
@@ -1089,8 +1386,10 @@ struct SimpleView: View {
     }
 
     private func handleAppear() {
+        #if os(macOS)
         closeBridge.workspace = workspace
         WorkspaceWindowRegistry.register(workspace)
+        #endif
         workspace.updateTerminationSnapshot(readingPage: workspace.page, viewState: viewState)
         refreshProgramChoice()
         appleUnavailable = AIConfiguration.unavailability()
@@ -1164,15 +1463,25 @@ struct SimpleView: View {
         pendingActionDialogPresented = false
         switch action {
         case .choosePDF: importing = true
-        case .importPDF(let urls): _ = importPDF(urls)
+        case .importPDF(let urls):
+            #if os(iOS)
+            showPDFPane = false
+            #endif
+            _ = importPDF(urls)
         case .openWorkspace: workspace.openWorkspace()
+        case .openExternalWorkspace(let url): workspace.openWorkspace(at: url)
         case .openRecentWorkspace(let entry): workspace.openRecentWorkspace(entry)
         case .relocateRecentWorkspace(let entry): workspace.relocateRecentWorkspace(entry)
         case .returnToImport: workspace.returnToImport()
-        case .closeWindow: closeBridge.closeAfterAuthorization()
+        case .closeWindow:
+            #if os(macOS)
+            closeBridge.closeAfterAuthorization()
+            #endif
         case .terminate:
+            #if os(macOS)
             if workspace.hasUnsavedChanges { WorkspaceWindowRegistry.authorizeTerminationRevision(for: workspace) }
             continueTerminationSequence()
+            #endif
         }
     }
 
@@ -1181,7 +1490,9 @@ struct SimpleView: View {
         if let action = pendingWorkspaceAction, case .terminate = action { wasTermination = true } else { wasTermination = false }
         pendingWorkspaceAction = nil
         pendingActionDialogPresented = false
+        #if os(macOS)
         if wasTermination { WorkspaceWindowRegistry.cancelTerminationSequence() }
+        #endif
     }
 
     private func handleTerminationRequest(_ object: Any?) {
@@ -1198,9 +1509,11 @@ struct SimpleView: View {
     }
 
     private func continueTerminationSequence() {
+        #if os(macOS)
         if !WorkspaceWindowRegistry.requestNextDirtyWorkspace() {
             TerminationScheduler.enqueue { NSApp.terminate(nil) }
         }
+        #endif
     }
 
     private func saveThenContinue() {
@@ -1242,22 +1555,26 @@ struct SimpleView: View {
             canOpen: canInteract,
             canSave: canInteract && workspace.document != nil,
             open: {
+                #if os(macOS)
                 guard !isWorkspaceFileModalPresented, NSApp.modalWindow == nil,
-                      NSApp.keyWindow?.sheetParent == nil, NSApp.keyWindow?.attachedSheet == nil,
-                      !workspace.busy, !workspace.committeeReviewBusy, !workspace.exporting else { return }
+                      NSApp.keyWindow?.sheetParent == nil, NSApp.keyWindow?.attachedSheet == nil else { return }
+                #endif
+                guard !workspace.busy, !workspace.committeeReviewBusy, !workspace.exporting else { return }
                 requestWorkspaceAction(.openWorkspace)
             },
             save: {
+                #if os(macOS)
                 guard !isWorkspaceFileModalPresented, NSApp.modalWindow == nil,
-                      NSApp.keyWindow?.sheetParent == nil, NSApp.keyWindow?.attachedSheet == nil,
-                      !workspace.busy, !workspace.committeeReviewBusy, !workspace.exporting,
+                      NSApp.keyWindow?.sheetParent == nil, NSApp.keyWindow?.attachedSheet == nil else { return }
+                #endif
+                guard !workspace.busy, !workspace.committeeReviewBusy, !workspace.exporting,
                       workspace.document != nil else { return }
                 saveWorkspace()
             })
     }
 
     @ViewBuilder private var pointFilters: some View {
-        Toggle(UIStrings.text("Compact lezen"), isOn: $compactReading).toggleStyle(.checkbox)
+        Toggle(UIStrings.text("Compact lezen"), isOn: $compactReading).platformCheckboxStyle()
         TextField(UIStrings.text("Filter pagina’s"), text: $pointPageFilter).textFieldStyle(FocusInputFieldStyle()).frame(maxWidth: 150)
         let selectedReviewTitle = ["Alle", "Nog controleren", "Door mij gecontroleerd"][min(2, max(0, reviewFilter))]
         FocusMenuPicker(UIStrings.text("Controle"), selection: $reviewFilter, selectedTitle: UIStrings.text(selectedReviewTitle)) {
@@ -1275,7 +1592,13 @@ struct SimpleView: View {
             return
         }
         func point(_ source: CGPoint) -> CGPoint {
-            CGPoint(x: source.x, y: view.isFlipped ? source.y : view.bounds.height - source.y)
+            #if os(macOS)
+            let usesTopLeftOrigin = view.isFlipped
+            #else
+            // UIKit's PDFView uses the same top-left origin as the drag gesture.
+            let usesTopLeftOrigin = true
+            #endif
+            return CGPoint(x: source.x, y: usesTopLeftOrigin ? source.y : view.bounds.height - source.y)
         }
         let first = point(CGPoint(x: area.minX, y: area.minY))
         let last = point(CGPoint(x: area.maxX, y: area.maxY))

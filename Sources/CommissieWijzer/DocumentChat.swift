@@ -203,12 +203,28 @@ struct DocumentChatView: View {
     var close: (() -> Void)? = nil
     @State private var draft = ""
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(UIStrings.text("Chat over \(pages.count == document.pages.count ? "het document" : "pagina’s")")).font(.title2.bold())
-                Spacer()
-                Button(UIStrings.text(embedded ? "Terug naar overzicht" : "Gereed")) { if let close { close() } else { dismiss() } }
+        sizedConversation
+            .task {
+                if !initialQuestion.isEmpty && session.messages.isEmpty {
+                    session.send(initialQuestion, document: document, pages: pages, focus: focus, model: model, passage: passage)
+                }
             }
+            .onDisappear { session.cancel() }
+            .buttonStyle(FocusSecondaryButtonStyle())
+            .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+    }
+
+    private var sizedConversation: some View {
+        #if os(macOS)
+        conversationContent.padding(24).frame(width: embedded ? nil : 740, height: embedded ? nil : 680)
+        #else
+        conversationContent.padding(16).frame(maxWidth: embedded ? nil : 740, maxHeight: embedded ? nil : .infinity)
+        #endif
+    }
+
+    private var conversationContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            chatHeader
             if let passage {
                 DisclosureGroup(UIStrings.text("Geselecteerde passage")) { SourceQuoteView(text: passage).font(.callout) }
             }
@@ -223,28 +239,71 @@ struct DocumentChatView: View {
                     }
                 }.onChange(of: session.messages.count) { _, _ in if let id = session.messages.last?.id { proxy.scrollTo(id, anchor: .bottom) } }
             }
-            if session.busy { HStack { ProgressView().controlSize(.small); Text(UIStrings.text("Bronnen vergelijken…")); Button(UIStrings.text("Stop")) { session.cancel() } } }
+            if session.busy { busyStatus }
             if let error = session.error { Text(UIStrings.text(error)).font(.callout).foregroundStyle(.orange).textSelection(.enabled) }
-            HStack(alignment: .bottom) {
-                TextField(UIStrings.text("Vraag over de geselecteerde tekst…"), text: $draft, axis: .vertical).lineLimit(2...5).textFieldStyle(FocusInputFieldStyle()).tutorialTarget("chat")
-                    .onKeyPress(keys: [.return], phases: .down) { press in
-                        if press.modifiers.contains(.shift) { return .ignored }
-                        submit(); return .handled
-                    }
-                Button(UIStrings.text("Verstuur"), systemImage: "paperplane") {
-                    submit()
-                }.disabled(session.busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.utf8.count > 700)
+            #if os(macOS)
+            HStack(alignment: .bottom) { questionField; sendButton }
+            #else
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .bottom) { questionField; sendButton }
+                VStack(alignment: .trailing, spacing: 8) { questionField; sendButton }
             }
+            #endif
+            #if os(iOS)
+            Text(UIStrings.text("\(draft.utf8.count) / 700 bytes · Tik op Verstuur om te verzenden.")).font(.caption).foregroundStyle(.secondary)
+            #else
             Text(UIStrings.text("\(draft.utf8.count) / 700 bytes · Enter: versturen · Shift+Enter: nieuwe regel")).font(.caption).foregroundStyle(.secondary)
-        }.padding(24).frame(width: embedded ? nil : 740, height: embedded ? nil : 680)
-        .task {
-            if !initialQuestion.isEmpty && session.messages.isEmpty {
-                session.send(initialQuestion, document: document, pages: pages, focus: focus, model: model, passage: passage)
+            #endif
+        }
+    }
+    private var questionField: some View {
+        TextField(UIStrings.text("Vraag over de geselecteerde tekst…"), text: $draft, axis: .vertical)
+            .lineLimit(2...5).textFieldStyle(FocusInputFieldStyle()).tutorialTarget("chat")
+            .onKeyPress(keys: [.return], phases: .down) { press in
+                if press.modifiers.contains(.shift) { return .ignored }
+                submit(); return .handled
+            }
+    }
+    @ViewBuilder private var chatHeader: some View {
+        #if os(macOS)
+        HStack {
+            Text(UIStrings.text("Chat over \(pages.count == document.pages.count ? "het document" : "pagina’s")")).font(.title2.bold())
+            Spacer()
+            closeButton
+        }
+        #else
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                Text(UIStrings.text("Chat over \(pages.count == document.pages.count ? "het document" : "pagina’s")")).font(.title2.bold())
+                Spacer()
+                closeButton
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(UIStrings.text("Chat over \(pages.count == document.pages.count ? "het document" : "pagina’s")")).font(.title2.bold())
+                closeButton
             }
         }
-        .onDisappear { session.cancel() }
-        .buttonStyle(FocusSecondaryButtonStyle())
-        .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+        #endif
+    }
+    private var closeButton: some View {
+        Button(UIStrings.text(embedded ? "Terug naar overzicht" : "Gereed")) { if let close { close() } else { dismiss() } }
+    }
+    @ViewBuilder private var busyStatus: some View {
+        #if os(macOS)
+        HStack { ProgressView().controlSize(.small); Text(UIStrings.text("Bronnen vergelijken…")); Button(UIStrings.text("Stop")) { session.cancel() } }
+        #else
+        ViewThatFits(in: .horizontal) {
+            HStack { ProgressView().controlSize(.small); Text(UIStrings.text("Bronnen vergelijken…")); Button(UIStrings.text("Stop")) { session.cancel() } }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack { ProgressView().controlSize(.small); Text(UIStrings.text("Bronnen vergelijken…")) }
+                Button(UIStrings.text("Stop")) { session.cancel() }
+            }
+        }
+        #endif
+    }
+    private var sendButton: some View {
+        Button(UIStrings.text("Verstuur"), systemImage: "paperplane") { submit() }
+            .disabled(session.busy || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.utf8.count > 700)
     }
     private func messageView(_ message: ChatMessage) -> some View {
         VStack(alignment: .leading, spacing: 10) {

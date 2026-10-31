@@ -30,7 +30,7 @@ struct ThirdPartyLicensesView: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.padding(24).frame(minWidth: 540, idealWidth: 680, minHeight: 420, idealHeight: 640)
+        }.padding(24).platformReadingFrame(minWidth: 540, idealWidth: 680, minHeight: 420, idealHeight: 640)
         .buttonStyle(FocusSecondaryButtonStyle())
     }
 }

@@ -12,6 +12,19 @@ struct InsightComparisonSheet: View {
     private var second: Insight? { points.first { $0.id == secondID } }
 
     var body: some View {
+        responsiveContent
+            .padding(22).platformReadingFrame(minWidth: 720, minHeight: 500)
+            .onAppear {
+                if firstID.isEmpty { firstID = points.first?.id ?? "" }
+                if secondID.isEmpty { secondID = points.dropFirst().first?.id ?? firstID }
+            }
+            .onChange(of: firstID) { _, newValue in if secondID == newValue { secondID = points.first(where: { $0.id != newValue })?.id ?? newValue } }
+            .onChange(of: secondID) { _, newValue in if firstID == newValue { firstID = points.first(where: { $0.id != newValue })?.id ?? newValue } }
+            .buttonStyle(FocusSecondaryButtonStyle())
+    }
+
+    @ViewBuilder private var responsiveContent: some View {
+        #if os(macOS)
         VStack(alignment: .leading, spacing: 12) {
             Text(UIStrings.text("Vergelijk bestaande punten"))
                 .font(.title2.weight(.semibold))
@@ -29,14 +42,41 @@ struct InsightComparisonSheet: View {
             }
             HStack { Spacer(); Button(UIStrings.text("Gereed")) { dismiss() }.buttonStyle(FocusSecondaryButtonStyle()).keyboardShortcut(.cancelAction) }
         }
-        .padding(22).frame(minWidth: 720, minHeight: 500)
-        .onAppear {
-            if firstID.isEmpty { firstID = points.first?.id ?? "" }
-            if secondID.isEmpty { secondID = points.dropFirst().first?.id ?? firstID }
+        #else
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 12) {
+                Text(UIStrings.text("Vergelijk bestaande punten"))
+                    .font(.title2.weight(.semibold))
+                Text(UIStrings.text("Kies twee punten. De tekst, passage en bron blijven afzonderlijk; er wordt geen gecombineerde uitleg gemaakt."))
+                    .font(.callout).foregroundStyle(.secondary)
+                if geometry.size.width < 620 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        pointPicker(title: "Eerste punt", selection: $firstID)
+                        pointPicker(title: "Tweede punt", selection: $secondID)
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 14) {
+                        pointPicker(title: "Eerste punt", selection: $firstID)
+                        pointPicker(title: "Tweede punt", selection: $secondID)
+                    }
+                }
+                ScrollView {
+                    if geometry.size.width < 620 {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if let first { comparisonColumn(first) }
+                            if let second { comparisonColumn(second) }
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 16) {
+                            if let first { comparisonColumn(first) }
+                            if let second { comparisonColumn(second) }
+                        }
+                    }
+                }
+                HStack { Spacer(); Button(UIStrings.text("Gereed")) { dismiss() }.buttonStyle(FocusSecondaryButtonStyle()).keyboardShortcut(.cancelAction) }
+            }
         }
-        .onChange(of: firstID) { _, newValue in if secondID == newValue { secondID = points.first(where: { $0.id != newValue })?.id ?? newValue } }
-        .onChange(of: secondID) { _, newValue in if firstID == newValue { firstID = points.first(where: { $0.id != newValue })?.id ?? newValue } }
-        .buttonStyle(FocusSecondaryButtonStyle())
+        #endif
     }
 
     private func pointPicker(title: String, selection: Binding<String>) -> some View {

@@ -1,5 +1,9 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 extension Notification.Name {
     static let appOpenPDF = Notification.Name("CommissieWijzerOpenPDF")
@@ -8,6 +12,7 @@ extension Notification.Name {
     static let appRequestWindowClose = Notification.Name("CommissieWijzerRequestWindowClose")
 }
 
+#if os(macOS)
 @MainActor enum WorkspaceWindowRegistry {
     private final class WeakWorkspace {
         weak var value: SimpleWorkspace?
@@ -151,6 +156,9 @@ extension Notification.Name {
     }
 }
 
+#endif
+
+#if os(macOS)
 @main
 struct CommissieWijzerApp: App {
     @NSApplicationDelegateAdaptor(CommissieWijzerAppDelegate.self) private var appDelegate
@@ -182,6 +190,28 @@ struct CommissieWijzerApp: App {
         }
     }
 }
+#else
+@main
+struct CommissieWijzerApp: App {
+    init() {
+        ForkSetup.migrate()
+        AppleAISettings.migrate()
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            NavigationStack {
+                SimpleView()
+            }
+                .appPresentationContextHost()
+                .tint(AppTheme.accent)
+                .buttonStyle(FocusSecondaryButtonStyle())
+                .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+                .preferredColorScheme(.dark)
+        }
+    }
+}
+#endif
 
 struct WorkspaceFileMenuActions {
     let canOpen: Bool
@@ -201,6 +231,7 @@ extension FocusedValues {
     }
 }
 
+#if os(macOS)
 private struct WorkspaceFileCommands: Commands {
     @FocusedValue(\.appWorkspaceFileMenuActions) private var actions
 
@@ -217,3 +248,4 @@ private struct WorkspaceFileCommands: Commands {
         }
     }
 }
+#endif

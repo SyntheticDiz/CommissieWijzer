@@ -36,13 +36,7 @@ struct ProcessingSplashView: View {
             VStack(spacing: 8) {
                 Text(workspace.processingName).font(.title3.weight(.semibold))
                     .multilineTextAlignment(.center).lineLimit(3)
-                ZStack {
-                    Text(UIStrings.text(presentation.primaryStatus) + (presentation.activeStage == .committee ? " · " + UIStrings.text(workspace.meetingPurpose.title) : "")).id(presentation.primaryStatus)
-                        .font(.body).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center).transition(.opacity)
-                }
-                .frame(height: 44)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: presentation.primaryStatus)
+                statusDisplay
             }
             stageRow
             if workspace.processingMessage == nil {
@@ -63,18 +57,7 @@ struct ProcessingSplashView: View {
                 if let count = progressCount {
                     Text(UIStrings.text(count)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 }
-                HStack(spacing: 12) {
-                    Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
-                        .buttonStyle(FocusSecondaryButtonStyle())
-                    if workspace.canSwitchChatGPTModel {
-                        Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
-                            .buttonStyle(FocusSecondaryButtonStyle())
-                    }
-                    if workspace.processingDocumentReady {
-                    Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
-                        .buttonStyle(FocusPrimaryButtonStyle())
-                    }
-                }.controlSize(.large)
+                busyActions.controlSize(.large)
             } else if completed {
                 // Reserve the action's space so completion does not move the illustration.
                 Button(UIStrings.text("Stop analyse")) {}.controlSize(.large).hidden().accessibilityHidden(true)
@@ -83,14 +66,7 @@ struct ProcessingSplashView: View {
                     Text(message.components(separatedBy: "\n").map { UIStrings.text($0) }.joined(separator: "\n")).font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
                 }.frame(maxHeight: 140)
-                HStack(spacing: 12) {
-                    Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
-                        .buttonStyle(FocusSecondaryButtonStyle())
-                    if !workspace.showsWelcome && workspace.document != nil {
-                        Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
-                            .buttonStyle(FocusPrimaryButtonStyle())
-                    }
-                }.controlSize(.large)
+                errorActions.controlSize(.large)
             }
             details
         }
@@ -114,6 +90,100 @@ struct ProcessingSplashView: View {
         }
         .font(.caption2)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private var statusDisplay: some View {
+        #if os(macOS)
+        statusText.frame(height: 44)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: presentation.primaryStatus)
+        #else
+        statusText.frame(minHeight: 44)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: presentation.primaryStatus)
+        #endif
+    }
+
+    private var statusText: some View {
+        ZStack {
+            Text(UIStrings.text(presentation.primaryStatus) + (presentation.activeStage == .committee ? " · " + UIStrings.text(workspace.meetingPurpose.title) : "")).id(presentation.primaryStatus)
+                .font(.body).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).transition(.opacity)
+        }
+    }
+
+    @ViewBuilder private var busyActions: some View {
+        #if os(macOS)
+        HStack(spacing: 12) {
+            Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
+                .buttonStyle(FocusSecondaryButtonStyle())
+            if workspace.canSwitchChatGPTModel {
+                Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+            }
+            if workspace.processingDocumentReady {
+                Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
+                    .buttonStyle(FocusPrimaryButtonStyle())
+            }
+        }
+        #else
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                if workspace.canSwitchChatGPTModel {
+                    Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
+                        .buttonStyle(FocusSecondaryButtonStyle())
+                }
+                if workspace.processingDocumentReady {
+                    Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
+                        .buttonStyle(FocusPrimaryButtonStyle())
+                }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                if workspace.canSwitchChatGPTModel {
+                    Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
+                        .buttonStyle(FocusSecondaryButtonStyle())
+                }
+                if workspace.processingDocumentReady {
+                    Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
+                        .buttonStyle(FocusPrimaryButtonStyle())
+                }
+            }
+        }
+        #endif
+    }
+
+    @ViewBuilder private var errorActions: some View {
+        #if os(macOS)
+        HStack(spacing: 12) {
+            Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
+                .buttonStyle(FocusSecondaryButtonStyle())
+            if !workspace.showsWelcome && workspace.document != nil {
+                Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
+                    .buttonStyle(FocusPrimaryButtonStyle())
+            }
+        }
+        #else
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                if !workspace.showsWelcome && workspace.document != nil {
+                    Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
+                        .buttonStyle(FocusPrimaryButtonStyle())
+                }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                if !workspace.showsWelcome && workspace.document != nil {
+                    Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
+                        .buttonStyle(FocusPrimaryButtonStyle())
+                }
+            }
+        }
+        #endif
     }
 
     private func stageItem(_ stage: ProcessingPresentation.Stage) -> some View {

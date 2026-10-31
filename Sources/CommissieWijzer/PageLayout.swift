@@ -1,6 +1,11 @@
 import Foundation
 import PDFKit
 import CryptoKit
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct LayoutOverride: Codable, Sendable {
     var columns: Int = 0 // 0 = automatic
@@ -153,8 +158,15 @@ enum PageLayout {
             let rect = selection.bounds(for: page)
             guard !rect.isEmpty, !rect.isInfinite else { continue }
             guard text.substring(with: match.range) != "\u{FFFC}" else { continue }
+            let bold: Bool
+            #if canImport(AppKit)
             let font = attributed.flatMap { match.range.location < $0.length ? $0.attribute(.font, at: match.range.location, effectiveRange: nil) as? NSFont : nil }
-            fragments.append(Fragment(text: text.substring(with: match.range), rect: rect, bold: font?.fontDescriptor.symbolicTraits.contains(.bold) == true))
+            bold = font?.fontDescriptor.symbolicTraits.contains(.bold) == true
+            #elseif canImport(UIKit)
+            let font = attributed.flatMap { match.range.location < $0.length ? $0.attribute(.font, at: match.range.location, effectiveRange: nil) as? UIFont : nil }
+            bold = font?.fontDescriptor.symbolicTraits.contains(.traitBold) == true
+            #endif
+            fragments.append(Fragment(text: text.substring(with: match.range), rect: rect, bold: bold))
         }
         if checkingCancellation { try Task.checkCancellation() }
         return fragments

@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 import FoundationModels
 import PDFKit
 import Vision
@@ -21,7 +25,11 @@ enum ChartImageRenderer {
                                       bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpaceCreateDeviceRGB(),
                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        #if canImport(AppKit)
         context.setFillColor(NSColor.white.cgColor)
+        #elseif canImport(UIKit)
+        context.setFillColor(UIColor.white.cgColor)
+        #endif
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         context.scaleBy(x: scale, y: scale)
         context.translateBy(x: -crop.minX, y: -crop.minY)
@@ -41,7 +49,11 @@ struct ChartExplanation: Codable, Sendable {
 
 enum ChartAnalysisService {
     static func unavailableReason() -> String? {
+        #if os(iOS)
+        guard #available(iOS 27.0, *) else { return "Beeldanalyse met Apple Intelligence vereist iPadOS 27 of nieuwer." }
+        #else
         guard #available(macOS 27.0, *) else { return "Beeldanalyse met Apple Intelligence vereist macOS 27 of nieuwer." }
+        #endif
         if let reason = AppleAIService.unavailability() { return reason }
         guard SystemLanguageModel.default.capabilities.contains(.vision) else {
             return "Het geïnstalleerde Apple-model kan nog geen afbeeldingen analyseren. Werk macOS en Apple Intelligence bij."
@@ -51,7 +63,11 @@ enum ChartAnalysisService {
 
     static func analyze(_ image: CGImage) async throws -> ChartExplanation {
         if let reason = unavailableReason() { throw AppError(message: reason) }
+        #if os(iOS)
+        guard #available(iOS 27.0, *) else { throw AppError(message: "Beeldanalyse vereist iPadOS 27.") }
+        #else
         guard #available(macOS 27.0, *) else { throw AppError(message: "Beeldanalyse vereist macOS 27.") }
+        #endif
         try Task.checkCancellation()
         let recognized = try await Task.detached(priority: .userInitiated) { try recognizeText(in: image) }.value
         let instructions = """
@@ -119,7 +135,7 @@ enum ChartValueCheck {
     }
 }
 
-@available(macOS 27.0, *)
+@available(macOS 27.0, iOS 27.0, *)
 @Generable
 private struct AppleChartDescription {
     @Guide(description: "Kies staafdiagram of cirkeldiagram als die vormen zichtbaar zijn. Alleen geen diagram als er echt geen diagram is.", .anyOf(["staafdiagram", "cirkeldiagram", "geen diagram"]))
