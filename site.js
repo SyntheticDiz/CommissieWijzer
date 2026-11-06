@@ -45,8 +45,6 @@
   let storyRequest = 0;
   let storyFadeTimer = 0;
   let playbackTimer = 0;
-  let demoVisible = false;
-  let syncPending = false;
 
   function setPlaybackButton() {
     if (!playButton) return;
@@ -123,7 +121,6 @@
 
   function setStep(step, source = "manual") {
     if (!Number.isInteger(step) || step < 0 || step >= story.length) return;
-    if (source === "scroll" && step === selectedStep) return;
     if (source === "manual") stopPlayback();
     selectedStep = step;
     setStoryCapture(story[step], step);
@@ -149,37 +146,11 @@
 
   if (demo && "IntersectionObserver" in window) {
     const demoObserver = new IntersectionObserver(([entry]) => {
-      demoVisible = entry.isIntersecting && entry.intersectionRatio > .22;
-      if (!demoVisible) stopPlayback();
+      if (!entry.isIntersecting || entry.intersectionRatio <= .22) stopPlayback();
     }, { threshold: [0, .22, .5] });
     demoObserver.observe(demo);
-  } else if (demo) {
-    demoVisible = elementIsVisible(demo);
   }
 
-  function syncFromScroll() {
-    if (!demoVisible || syncPending || window.innerWidth <= 700 || motionPreference.matches) return;
-    syncPending = true;
-    window.requestAnimationFrame(() => {
-      syncPending = false;
-      let nearest = -1;
-      let nearestDistance = Infinity;
-      const anchor = window.innerHeight * .5;
-      storySteps.forEach((element, index) => {
-        const rect = element.getBoundingClientRect();
-        if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
-        const center = rect.top + Math.min(rect.height, window.innerHeight) / 2;
-        const distance = Math.abs(center - anchor);
-        if (distance < nearestDistance) {
-          nearest = index;
-          nearestDistance = distance;
-        }
-      });
-      if (nearest >= 0) setStep(nearest, "scroll");
-    });
-  }
-  window.addEventListener("scroll", syncFromScroll, { passive: true });
-  window.addEventListener("resize", syncFromScroll, { passive: true });
   window.addEventListener("wheel", stopPlayback, { passive: true });
   document.addEventListener("pointerdown", event => {
     if (playbackTimer && !playButton?.contains(event.target)) stopPlayback();
@@ -381,6 +352,114 @@
       selectFeature(featureTabs[next], true);
     });
   });
+
+  // Optional one-screen navigation. It activates only on pages that mark their
+  // direct main sections with data-screen; ordinary pages keep native scrolling.
+  const screens = [...document.querySelectorAll("main > section[data-screen]")];
+  if (screens.length > 1) {
+    const introOptions = document.querySelector(".intro-options");
+    const compactWidth = window.matchMedia("(max-width: 700px)");
+    function setIntroLayout() {
+      introOptions.open = !compactWidth.matches;
+    }
+    setIntroLayout();
+    compactWidth.addEventListener("change", setIntroLayout);
+
+    let transitionUntil = 0;
+    let wheelQuietTimer = 0;
+    let wheelLocked = false;
+    let touch = null;
+    function nearestScreenIndex() {
+      let nearest = 0;
+      for (let i = 1; i < screens.length; i++) {
+        if (Math.abs(screens[i].getBoundingClientRect().top) <
+            Math.abs(screens[nearest].getBoundingClientRect().top)) nearest = i;
+      }
+      return nearest;
+    }
+    function canScrollInside(target, direction) {
+      const owner = screens[nearestScreenIndex()];
+      for (let node = target instanceof Element ? target : null; node && node !== owner; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (!/(auto|scroll|overlay)/.test(style.overflowY)) continue;
+        if (direction > 0 && node.scrollTop + node.clientHeight < node.scrollHeight - 2) return true;
+        if (direction < 0 && node.scrollTop > 2) return true;
+      }
+      return false;
+    }
+    function navigate(index) {
+      index = Math.max(0, Math.min(screens.length - 1, index));
+      if (index === nearestScreenIndex()) return false;
+      transitionUntil = performance.now() + 760;
+      const screen = screens[index];
+      screen.scrollIntoView({ behavior: motionPreference.matches ? "instant" : "smooth", block: "start" });
+      screen.focus({ preventScroll: true });
+      return true;
+    }
+    function move(direction) {
+      const current = nearestScreenIndex();
+      const next = current + direction;
+      if (next < 0 || next >= screens.length) return false;
+      return navigate(next);
+    }
+    function armWheelUnlock() {
+      clearTimeout(wheelQuietTimer);
+      const delay = Math.max(220, transitionUntil - performance.now());
+      wheelQuietTimer = setTimeout(() => { wheelLocked = false; transitionUntil = 0; }, delay);
+    }
+    document.addEventListener("wheel", event => {
+      const direction = Math.sign(event.deltaY);
+      if (!direction || event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      if (wheelLocked) armWheelUnlock();
+      if (wheelLocked) { event.preventDefault(); return; }
+      if (canScrollInside(event.target, direction)) return;
+      if (move(direction)) {
+        event.preventDefault();
+        wheelLocked = true;
+        armWheelUnlock();
+      }
+    }, { passive: false });
+
+    document.addEventListener("touchstart", event => {
+      if (event.touches.length !== 1) { touch = null; return; }
+      touch = { y: event.touches[0].clientY, x: event.touches[0].clientX, target: event.target, owner: null, moved: false };
+    }, { passive: true });
+    document.addEventListener("touchmove", event => {
+      if (!touch || event.touches.length !== 1) { touch = null; return; }
+      const dx = touch.x - event.touches[0].clientX;
+      const dy = touch.y - event.touches[0].clientY;
+      if (touch.owner === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+        if (Math.abs(dx) > Math.abs(dy) * 1.2) touch.owner = "native";
+        else {
+          const direction = Math.sign(dy);
+          touch.owner = canScrollInside(touch.target, direction) ? "native" : "screen";
+        }
+      }
+      if (touch.owner !== "screen") return;
+      event.preventDefault();
+      if (!touch.moved && Math.abs(dy) > 55) {
+        touch.moved = move(Math.sign(dy));
+      }
+    }, { passive: false });
+    document.addEventListener("touchend", () => { touch = null; }, { passive: true });
+    document.addEventListener("touchcancel", () => { touch = null; }, { passive: true });
+
+    document.addEventListener("keydown", event => {
+      const el = event.target;
+      if (el.closest("input, textarea, select, [contenteditable='true'], button, a, [role='tab']") || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+      let direction = 0;
+      if (event.key === "ArrowDown" || event.key === "PageDown" || (event.key === " " && !event.shiftKey)) direction = 1;
+      else if (event.key === "ArrowUp" || event.key === "PageUp" || (event.key === " " && event.shiftKey)) direction = -1;
+      else if (event.key === "Home") direction = -screens.length;
+      else if (event.key === "End") direction = screens.length;
+      if (!direction) return;
+      if (Math.abs(direction) === 1 && canScrollInside(event.target, direction)) return;
+      const changed = Math.abs(direction) > 1
+        ? navigate(direction < 0 ? 0 : screens.length - 1)
+        : move(direction);
+      if (changed) event.preventDefault();
+    });
+  }
 
   root.classList.add("js");
   const revealItems = [...document.querySelectorAll(".reveal")];

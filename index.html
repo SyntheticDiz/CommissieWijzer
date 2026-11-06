@@ -9,162 +9,190 @@
   <title>CommissieWijzer — Van raadsstuk naar voorbereiding</title>
   <link rel="icon" type="image/png" href="Assets/CommissieWijzer.png">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="home-screens.css">
   <script defer src="site.js"></script>
 </head>
 <body class="home-page">
   <a class="skip-link" href="#main">Ga naar inhoud</a>
-  <header class="site-header wrap">
-    <a class="brand" href="index.html" aria-label="CommissieWijzer startpagina"><img src="Assets/CommissieWijzer.png" width="36" height="36" alt=""><span>CommissieWijzer</span></a>
-    <nav class="site-nav" aria-label="Hoofdnavigatie">
-      <a href="#werkwijze">Werkwijze</a><a href="#mogelijkheden">Mogelijkheden</a><a href="faq.html">Veelgestelde vragen</a><a href="support.html">Ondersteuning</a><a href="privacy.html">Privacy</a>
-    </nav>
-  </header>
 
   <main id="main">
-    <section class="hero wrap" aria-labelledby="hero-title">
-      <a class="hero-mark" href="#werkwijze" aria-label="Bekijk de werkwijze"><img src="Assets/CommissieWijzer.png" width="68" height="68" alt=""></a>
-      <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Een Mac-app voor raads- en commissiestukken</p>
-      <h1 id="hero-title">Van raadsstuk<br><span>naar voorbereiding.</span></h1>
-      <p class="hero-lede">CommissieWijzer helpt je documenten te doorgronden en je voorbereiding te ordenen. AI geeft aanknopingspunten; jij leest de bron, weegt wat relevant is en maakt je eigen afweging. De oorspronkelijke pdf blijft leidend. De app is open source en bewaart je voorbereiding lokaal op je Mac.</p>
-      <div class="hero-actions"><a class="button button-primary" href="#werkwijze">Ontdek de werkwijze <span aria-hidden="true">↓</span></a><a class="button button-quiet" href="support.html">Ondersteuning</a></div>
-      <div class="hero-meta"><span class="release-pill"><span aria-hidden="true"></span> In beoordeling bij Apple</span><span>macOS 14 of later</span><span>Appgegevens lokaal op je Mac</span><span><a href="https://github.com/SyntheticDiz/CommissieWijzer">Open source · bekijk de broncode op GitHub</a></span></div>
-    </section>
-
-    <section class="intro-features wrap" id="inleiding" aria-labelledby="intro-features-title">
-      <div class="intro-features-copy">
-        <p class="eyebrow">Rustige voorbereiding, punt voor punt</p>
-        <h2 id="intro-features-title">Van eerste lezing<br><span>tot eigen agenda.</span></h2>
-        <p>Raadsleden en commissieleden worden vaak overladen met een eindeloze stroom onderzoeken, rapporten en gemeentelijke documenten. Voor grote fracties is dit geen probleem, maar kleinere fracties kunnen om uiteenlopende redenen al snel door de bomen het bos niet meer zien. Tegelijkertijd wordt er natuurlijk ook van hen verwacht dat ze goed en nauwkeurig werk leveren en dossierkennis opbouwen. Om hen te helpen is er CommissieWijzer: een handig hulpmiddel bij de voorbereiding op je volgende raads- of commissievergadering. CommissieWijzer maakt het eenvoudig om complexe documentatie om te zetten in begrijpelijke taal, zodat je minder tijd kwijt bent aan het doorspitten van ellenlange documenten en meer tijd hebt om je in te zetten voor de dingen waar jij en je fractie voor staan.</p>
-      </div>
-      <div class="feature-lists" aria-label="Zes mogelijkheden van CommissieWijzer">
-        <ul class="feature-list">
-          <li>Open en analyseer pdf’s lokaal met Apple Intelligence of via je ChatGPT-abonnement.</li>
-          <li>Zet analyses om in overzichtelijke lijsten, afgestemd op specifieke commissies of de raadsvergadering.</li>
-          <li>Importeer je partijprogramma en vind punten die aansluiten bij de doelen van jouw fractie.</li>
-        </ul>
-        <ul class="feature-list">
-          <li>Maak selecties van punten die relevant zijn voor jou en je fractie.</li>
-          <li>Sla punten op, voeg eigen notities toe en exporteer een overzicht met bronvermeldingen.</li>
-          <li>Chat met je documenten over de inhoud.</li>
-        </ul>
-      </div>
-      <p class="intro-features-note">Voor pdf’s zonder doorzoekbare tekst is eerst tekstherkenning (OCR) nodig. OCR kan fouten maken; controleer herkende tekst, tabellen en cijfers in de afbeelding.</p>
-    </section>
-
-    <section class="demo-section" id="werkwijze" aria-labelledby="demo-title">
-      <div class="wrap" id="voorbeeld">
-        <div class="section-heading centered reveal">
-          <p class="eyebrow">Van document naar bespreking</p>
-          <h2 id="demo-title">Analyse naast<br><span>de oorspronkelijke pdf.</span></h2>
-          <p>CommissieWijzer ondersteunt je voorbereiding; de app neemt het werk niet van je over. Links staan de AI-analyse en je werkveld voor punten, selectie en notities; rechts staat de originele pdf. Zo kun je een aandachtspunt naast het echte document bekijken en de bron controleren. De rondgang toont echte appbeelden met een volledig fictief raadsvoorstel; de website verwerkt zelf geen documenten.</p>
-        </div>
-
-        <div class="demo-layout">
-          <div class="story-list" role="group" aria-label="Stappen in de werkwijze">
-            <article class="story-step is-current" data-story-step="0" id="stap-open">
-              <span class="story-number">01</span><div><p class="eyebrow">DOCUMENTPUNTEN</p><h3>Open het stuk en begin bij de punten.</h3><p>De echte appweergave toont aandachtspunten links en de oorspronkelijke fictieve voorbeeld-pdf rechts.</p></div>
-            </article>
-            <article class="story-step" data-story-step="1" id="stap-bron">
-              <span class="story-number">02</span><div><p class="eyebrow">BRONPASSAGE</p><h3>Volg een punt terug naar de bron.</h3><p>Open de gekoppelde passage in de pdf. Lees de volledige context en controleer zelf bedragen, voorwaarden en besluitstatus.</p></div>
-            </article>
-            <article class="story-step" data-story-step="2" id="stap-selectie">
-              <span class="story-number">03</span><div><p class="eyebrow">MIJN SELECTIE</p><h3>Bewaar je eigen selectie en notitie.</h3><p>De echte appweergave laat zien hoe een punt, persoonlijke controle en voorbereidingsnotitie bij elkaar staan.</p></div>
-            </article>
-            <article class="story-step" data-story-step="3" id="stap-zoeken">
-              <span class="story-number">04</span><div><p class="eyebrow">LOKAAL ZOEKEN</p><h3>Vind tekst en eigen notities terug.</h3><p>Zoek lokaal in de pdf, beschikbare resultaten en notities. Een resultaat verwijst terug naar de relevante pagina.</p></div>
-            </article>
+    <section class="home-screen hero-screen" id="start" tabindex="-1" data-screen="1" aria-labelledby="hero-title">
+      <div class="screen-body">
+        <header class="site-header wrap">
+          <a class="brand" href="index.html" aria-label="CommissieWijzer startpagina"><img src="Assets/CommissieWijzer.png" width="36" height="36" alt=""><span>CommissieWijzer</span></a>
+          <nav class="site-nav" aria-label="Hoofdnavigatie">
+            <a href="#werkwijze">Werkwijze</a><a href="#mogelijkheden">Mogelijkheden</a><a href="faq.html">Veelgestelde vragen</a><a href="support.html">Ondersteuning</a><a href="privacy.html">Privacy</a>
+          </nav>
+        </header>
+          <div class="hero wrap">
+            <a class="hero-mark" href="#werkwijze" aria-label="Bekijk de werkwijze"><img src="Assets/CommissieWijzer.png" width="68" height="68" alt=""></a>
+            <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Een Mac-app voor raads- en commissiestukken</p>
+            <h1 id="hero-title">Van raadsstuk<br><span>naar voorbereiding.</span></h1>
+            <p class="hero-lede">CommissieWijzer helpt je documenten te doorgronden en je voorbereiding te ordenen. AI geeft aanknopingspunten; jij leest de bron, weegt wat relevant is en maakt je eigen afweging. De oorspronkelijke pdf blijft leidend. De app is open source en bewaart je voorbereiding lokaal op je Mac.</p>
+            <div class="hero-actions"><a class="button button-primary" href="#werkwijze">Ontdek de werkwijze <span aria-hidden="true">↓</span></a><a class="button button-quiet" href="support.html">Ondersteuning</a></div>
+            <div class="hero-meta"><span class="release-pill"><span aria-hidden="true"></span> In beoordeling bij Apple</span><span>macOS 14 of later</span><span>Appgegevens lokaal op je Mac</span><span><a href="https://github.com/SyntheticDiz/CommissieWijzer">Open source · bekijk de broncode op GitHub</a></span></div>
           </div>
+      </div>
+      <a class="screen-next" href="#inleiding" data-screen-next aria-label="Volgend scherm: inleiding"><span aria-hidden="true"></span></a>
+    </section>
 
-          <div class="demo-sticky">
-            <figure class="app-capture reveal" aria-labelledby="capture-caption">
-              <p class="capture-label"><span class="status-dot" aria-hidden="true"></span> Echte appbeelden met volledig fictief raadsvoorstel</p>
-              <div class="capture-frame" id="demo-capture-frame" data-step="0">
-                <img id="demo-capture" class="is-active" src="WebsiteAssets/documentpunten.jpg" width="2560" height="1680" alt="Echte schermafbeelding van CommissieWijzer: documentpunten links en de fictieve voorbeeld-pdf rechts." decoding="async">
-                <img id="demo-capture-next" width="2560" height="1680" alt="" aria-hidden="true" decoding="async">
-              </div>
-              <figcaption id="capture-caption"><span id="demo-caption-text">Documentpunten naast de originele voorbeeld-pdf.</span><a id="full-shot-link" href="WebsiteAssets/documentpunten.jpg" target="_blank" rel="noopener">Bekijk volledige appweergave <span aria-hidden="true">↗</span></a></figcaption>
-              <noscript><p class="capture-noscript">De foto toont de echte app. De vier stappen staan in de tekst ernaast.</p></noscript>
-            </figure>
-            <div class="demo-controls">
-              <div class="demo-progress" role="group" aria-label="Kies een appbeeld">
-                <button type="button" class="progress-step is-active" aria-pressed="true" data-demo-step="0"><span>01</span><b>Documentpunten</b></button>
-                <button type="button" class="progress-step" aria-pressed="false" data-demo-step="1"><span>02</span><b>Bron</b></button>
-                <button type="button" class="progress-step" aria-pressed="false" data-demo-step="2"><span>03</span><b>Notitie</b></button>
-                <button type="button" class="progress-step" aria-pressed="false" data-demo-step="3"><span>04</span><b>Zoeken</b></button>
-              </div>
-              <button type="button" class="play-control" id="play-demo" aria-pressed="false" aria-label="Speel appbeelden automatisch af"><span aria-hidden="true">▶</span><span class="play-label">Speel stappen</span></button>
+    <section class="home-screen intro-screen" id="inleiding" tabindex="-1" data-screen="2" aria-labelledby="intro-features-title">
+      <div class="screen-body">
+        <div class="intro-features wrap">
+          <div class="intro-features-copy">
+            <p class="eyebrow">Rustige voorbereiding, punt voor punt</p>
+            <h2 id="intro-features-title">Van eerste lezing<br><span>tot eigen agenda.</span></h2>
+            <p>Raadsleden en commissieleden worden vaak overladen met een eindeloze stroom onderzoeken, rapporten en gemeentelijke documenten. Voor grote fracties is dit geen probleem, maar kleinere fracties kunnen om uiteenlopende redenen al snel door de bomen het bos niet meer zien. Tegelijkertijd wordt er natuurlijk ook van hen verwacht dat ze goed en nauwkeurig werk leveren en dossierkennis opbouwen. Om hen te helpen is er CommissieWijzer: een handig hulpmiddel bij de voorbereiding op je volgende raads- of commissievergadering. CommissieWijzer maakt het eenvoudig om complexe documentatie om te zetten in begrijpelijke taal, zodat je minder tijd kwijt bent aan het doorspitten van ellenlange documenten en meer tijd hebt om je in te zetten voor de dingen waar jij en je fractie voor staan.</p>
+          </div>
+          <details class="intro-options" open>
+            <summary>Zes mogelijkheden van CommissieWijzer</summary>
+            <div class="feature-lists" aria-label="Zes mogelijkheden van CommissieWijzer">
+              <ul class="feature-list">
+                <li>Open en analyseer pdf’s lokaal met Apple Intelligence of via je ChatGPT-abonnement.</li>
+                <li>Zet analyses om in overzichtelijke lijsten, afgestemd op specifieke commissies of de raadsvergadering.</li>
+                <li>Importeer je partijprogramma en vind punten die aansluiten bij de doelen van jouw fractie.</li>
+              </ul>
+              <ul class="feature-list">
+                <li>Maak selecties van punten die relevant zijn voor jou en je fractie.</li>
+                <li>Sla punten op, voeg eigen notities toe en exporteer een overzicht met bronvermeldingen.</li>
+                <li>Chat met je documenten over de inhoud.</li>
+              </ul>
             </div>
-            <p class="demo-disclaimer">Dit zijn echte appbeelden. Het raadsvoorstel en de voorbereidingsnotitie zijn volledig fictief. De website verwerkt geen documenten.</p>
+            <p class="intro-features-note">Voor pdf’s zonder doorzoekbare tekst is eerst tekstherkenning (OCR) nodig. OCR kan fouten maken; controleer herkende tekst, tabellen en cijfers in de afbeelding.</p>
+          </details>
+
+        </div>
+      </div>
+      <a class="screen-next" href="#werkwijze" data-screen-next aria-label="Volgend scherm: werkwijze"><span aria-hidden="true"></span></a>
+    </section>
+
+    <section class="home-screen demo-section" id="werkwijze" tabindex="-1" data-screen="3" aria-labelledby="demo-title">
+      <div class="screen-body">
+        <div class="wrap" id="voorbeeld">
+          <div class="section-heading centered reveal">
+            <p class="eyebrow">Van document naar bespreking</p>
+            <h2 id="demo-title">Analyse naast<br><span>de oorspronkelijke pdf.</span></h2>
+            <p>Links zie je de aandachtspunten en je notities. Rechts lees je de bijbehorende passage in het fictieve raadsvoorstel.</p>
+          </div>
+
+          <div class="demo-layout">
+            <div class="story-list" role="group" aria-label="Stappen in de werkwijze">
+              <article class="story-step is-current" data-story-step="0" id="stap-open">
+                <span class="story-number">01</span><div><p class="eyebrow">DOCUMENTPUNTEN</p><h3>Open het stuk en begin bij de punten.</h3><p>De echte appweergave toont aandachtspunten links en de oorspronkelijke fictieve voorbeeld-pdf rechts.</p></div>
+              </article>
+              <article class="story-step" data-story-step="1" id="stap-bron">
+                <span class="story-number">02</span><div><p class="eyebrow">BRONPASSAGE</p><h3>Volg een punt terug naar de bron.</h3><p>Open de gekoppelde passage in de pdf. Lees de volledige context en controleer zelf bedragen, voorwaarden en besluitstatus.</p></div>
+              </article>
+              <article class="story-step" data-story-step="2" id="stap-selectie">
+                <span class="story-number">03</span><div><p class="eyebrow">MIJN SELECTIE</p><h3>Bewaar je eigen selectie en notitie.</h3><p>De echte appweergave laat zien hoe een punt, persoonlijke controle en voorbereidingsnotitie bij elkaar staan.</p></div>
+              </article>
+              <article class="story-step" data-story-step="3" id="stap-zoeken">
+                <span class="story-number">04</span><div><p class="eyebrow">LOKAAL ZOEKEN</p><h3>Vind tekst en eigen notities terug.</h3><p>Zoek lokaal in de pdf, beschikbare resultaten en notities. Een resultaat verwijst terug naar de relevante pagina.</p></div>
+              </article>
+            </div>
+
+            <div class="demo-sticky">
+              <figure class="app-capture reveal" aria-labelledby="capture-caption">
+                <p class="capture-label"><span class="status-dot" aria-hidden="true"></span> Echte appbeelden met volledig fictief raadsvoorstel</p>
+                <div class="capture-frame" id="demo-capture-frame" data-step="0">
+                  <img id="demo-capture" class="is-active" src="WebsiteAssets/documentpunten.jpg" width="2560" height="1680" alt="Echte schermafbeelding van CommissieWijzer: documentpunten links en de fictieve voorbeeld-pdf rechts." decoding="async">
+                  <img id="demo-capture-next" width="2560" height="1680" alt="" aria-hidden="true" decoding="async">
+                </div>
+                <figcaption id="capture-caption"><span id="demo-caption-text">Documentpunten naast de originele voorbeeld-pdf.</span><a id="full-shot-link" href="WebsiteAssets/documentpunten.jpg" target="_blank" rel="noopener">Bekijk volledige appweergave <span aria-hidden="true">↗</span></a></figcaption>
+                <noscript><p class="capture-noscript">De foto toont de echte app. De vier stappen staan in de tekst ernaast.</p></noscript>
+              </figure>
+              <div class="demo-controls">
+                <div class="demo-progress" role="group" aria-label="Kies een appbeeld">
+                  <button type="button" class="progress-step is-active" aria-pressed="true" data-demo-step="0"><span>01</span><b>Documentpunten</b></button>
+                  <button type="button" class="progress-step" aria-pressed="false" data-demo-step="1"><span>02</span><b>Bron</b></button>
+                  <button type="button" class="progress-step" aria-pressed="false" data-demo-step="2"><span>03</span><b>Notitie</b></button>
+                  <button type="button" class="progress-step" aria-pressed="false" data-demo-step="3"><span>04</span><b>Zoeken</b></button>
+                </div>
+                <button type="button" class="play-control" id="play-demo" aria-pressed="false" aria-label="Speel appbeelden automatisch af"><span aria-hidden="true">▶</span><span class="play-label">Speel stappen</span></button>
+              </div>
+              <p class="demo-disclaimer">Dit zijn echte appbeelden. Het raadsvoorstel en de voorbereidingsnotitie zijn volledig fictief. De website verwerkt geen documenten.</p>
+            </div>
           </div>
         </div>
       </div>
+      <a class="screen-next" href="#bron" data-screen-next aria-label="Volgend scherm: bronpassage"><span aria-hidden="true"></span></a>
     </section>
 
-    <section class="source-section section-pad" aria-labelledby="source-title">
-      <div class="wrap source-layout">
-        <div class="source-copy">
-          <p class="eyebrow">Van punt terug naar tekst</p>
-          <h2 id="source-title">Een conclusie is<br><span>pas een begin.</span></h2>
-          <p>Een AI-punt is een aanknopingspunt, geen oordeel. Kies ‘Lees passage’ om de gekoppelde tekst in context te openen en snel naast je analyse te controleren. Lees de passage zelf, weeg de betekenis en bepaal wat relevant is voor jouw fractie. Controleer bedragen, voorwaarden en besluitstatus in de oorspronkelijke pdf; een citaat of uitleg kan onvolledig of onjuist zijn.</p>
-          <ul class="plain-list"><li>Bekijk de volledige beschikbare passage en paginaverwijzing</li><li>Houd voorstel, verzoek en vastgesteld besluit uit elkaar</li><li>Controleer getallen en voorwaarden in de oorspronkelijke pdf</li></ul>
-          <p class="quiet-note">CommissieWijzer helpt je vinden en ordenen; jij leest en beoordeelt het voorstel.</p>
-        </div>
-        <figure class="source-visual reveal">
-          <p class="capture-label"><span class="status-dot" aria-hidden="true"></span> Een echt appbeeld · gekoppelde bronpassage</p>
-          <a class="source-capture-link" id="source-full-shot-link" href="WebsiteAssets/bronpassage.jpg" target="_blank" rel="noopener" aria-label="Bekijk volledige appweergave met bronpassage">
-            <img id="source-capture" src="WebsiteAssets/bronpassage.jpg" width="2560" height="1680" alt="Echte schermafbeelding van CommissieWijzer met de gevonden bronpassage uit het fictieve raadsvoorstel.">
-          </a>
-          <figcaption>De app toont de gevonden passage in de context van het document. De afbeelding is een echte schermopname; de inhoud is fictief.</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <section class="feature-section section-pad" id="mogelijkheden" aria-labelledby="features-title">
-      <div class="wrap">
-        <div class="section-heading feature-heading reveal"><p class="eyebrow">Jouw werkruimte</p><h2 id="features-title">Handige stappen.<br><span>Eigen keuzes.</span></h2><p>Bekijk echte schermbeelden en lees hoe deze functies in de Mac-app werken. Deze website opent geen documenten en voert geen analyse uit.</p></div>
-        <div class="feature-explorer">
-          <div class="feature-tabs" role="tablist" aria-label="Ontdek mogelijkheden">
-            <button type="button" role="tab" id="feature-tab-search" aria-selected="true" aria-controls="feature-panel" tabindex="0" data-feature="search">Lokaal zoeken</button>
-            <button type="button" role="tab" id="feature-tab-notes" aria-selected="false" aria-controls="feature-panel" tabindex="-1" data-feature="notes">Notities</button>
-            <button type="button" role="tab" id="feature-tab-program" aria-selected="false" aria-controls="feature-panel" tabindex="-1" data-feature="program">Programma vergelijken</button>
-            <button type="button" role="tab" id="feature-tab-export" aria-selected="false" aria-controls="feature-panel" tabindex="-1" data-feature="export">Bewaren en exporteren</button>
+    <section class="home-screen source-section section-pad" id="bron" tabindex="-1" data-screen="4" aria-labelledby="source-title">
+      <div class="screen-body">
+        <div class="wrap source-layout">
+          <div class="source-copy">
+            <p class="eyebrow">Van punt terug naar tekst</p>
+            <h2 id="source-title">Een conclusie is<br><span>pas een begin.</span></h2>
+            <p>Met ‘Lees passage’ open je de tekst waarop een aandachtspunt is gebaseerd. Lees de context en bepaal zelf wat je wilt meenemen naar de vergadering.</p>
+            <ul class="plain-list"><li>Bekijk de volledige beschikbare passage en paginaverwijzing</li><li>Houd voorstel, verzoek en vastgesteld besluit uit elkaar</li><li>Controleer getallen en voorwaarden in de oorspronkelijke pdf</li></ul>
+            <p class="quiet-note">CommissieWijzer helpt je vinden en ordenen; jij leest en beoordeelt het voorstel.</p>
           </div>
-          <div class="feature-panel" id="feature-panel" role="tabpanel" aria-labelledby="feature-tab-search" tabindex="0">
-            <div class="feature-description"><span class="eyebrow" id="feature-kicker">LEZEN · LOKAAL</span><h3 id="feature-title">Zoek in de tekst die jij hebt geopend.</h3><p id="feature-copy">Zoeken doorzoekt lokaal de pdf-tekst en beschikbare analyse, resultaten en notities. Resultaten verwijzen terug naar de relevante pagina.</p><a class="text-link" id="feature-link" href="support.html#scan">Meer over pdf-inlezen <span aria-hidden="true">↗</span></a></div>
-            <figure class="feature-capture">
-              <a id="feature-full-shot-link" href="WebsiteAssets/lokaal-zoeken.jpg" target="_blank" rel="noopener" aria-label="Bekijk volledige appweergave">
-                <img id="feature-capture" class="is-active" src="WebsiteAssets/lokaal-zoeken.jpg" width="2560" height="1680" alt="Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief document.">
-                <img id="feature-capture-next" width="2560" height="1680" alt="" aria-hidden="true">
-              </a>
-              <figcaption id="feature-caption">Echte appweergave · lokaal zoeken in een fictief document.</figcaption>
-            </figure>
+          <figure class="source-visual reveal">
+            <p class="capture-label"><span class="status-dot" aria-hidden="true"></span> Een echt appbeeld · gekoppelde bronpassage</p>
+            <a class="source-capture-link" id="source-full-shot-link" href="WebsiteAssets/bronpassage.jpg" target="_blank" rel="noopener" aria-label="Bekijk volledige appweergave met bronpassage">
+              <img id="source-capture" src="WebsiteAssets/bronpassage.jpg" width="2560" height="1680" alt="Echte schermafbeelding van CommissieWijzer met de gevonden bronpassage uit het fictieve raadsvoorstel.">
+            </a>
+            <figcaption>De app toont de gevonden passage in de context van het document. De afbeelding is een echte schermopname; de inhoud is fictief.</figcaption>
+          </figure>
+        </div>
+      </div>
+      <a class="screen-next" href="#mogelijkheden" data-screen-next aria-label="Volgend scherm: mogelijkheden"><span aria-hidden="true"></span></a>
+    </section>
+
+    <section class="home-screen feature-section section-pad" id="mogelijkheden" tabindex="-1" data-screen="5" aria-labelledby="features-title">
+      <div class="screen-body">
+        <div class="wrap">
+          <div class="section-heading feature-heading reveal"><p class="eyebrow">Jouw werkruimte</p><h2 id="features-title">Handige stappen.<br><span>Eigen keuzes.</span></h2><p>Bekijk echte schermbeelden en lees hoe deze functies in de Mac-app werken. Deze website opent geen documenten en voert geen analyse uit.</p></div>
+          <div class="feature-explorer">
+            <div class="feature-tabs" role="tablist" aria-label="Ontdek mogelijkheden">
+              <button type="button" role="tab" id="feature-tab-search" aria-selected="true" aria-controls="feature-panel" tabindex="0" data-feature="search">Lokaal zoeken</button>
+              <button type="button" role="tab" id="feature-tab-notes" aria-selected="false" aria-controls="feature-panel" tabindex="-1" data-feature="notes">Notities</button>
+              <button type="button" role="tab" id="feature-tab-program" aria-selected="false" aria-controls="feature-panel" tabindex="-1" data-feature="program">Programma vergelijken</button>
+              <button type="button" role="tab" id="feature-tab-export" aria-selected="false" aria-controls="feature-panel" tabindex="-1" data-feature="export">Bewaren en exporteren</button>
+            </div>
+            <div class="feature-panel" id="feature-panel" role="tabpanel" aria-labelledby="feature-tab-search" tabindex="0">
+              <div class="feature-description"><span class="eyebrow" id="feature-kicker">LEZEN · LOKAAL</span><h3 id="feature-title">Zoek in de tekst die jij hebt geopend.</h3><p id="feature-copy">Zoeken doorzoekt lokaal de pdf-tekst en beschikbare analyse, resultaten en notities. Resultaten verwijzen terug naar de relevante pagina.</p><a class="text-link" id="feature-link" href="support.html#scan">Meer over pdf-inlezen <span aria-hidden="true">↗</span></a></div>
+              <figure class="feature-capture">
+                <a id="feature-full-shot-link" href="WebsiteAssets/lokaal-zoeken.jpg" target="_blank" rel="noopener" aria-label="Bekijk volledige appweergave">
+                  <img id="feature-capture" class="is-active" src="WebsiteAssets/lokaal-zoeken.jpg" width="2560" height="1680" alt="Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief document.">
+                  <img id="feature-capture-next" width="2560" height="1680" alt="" aria-hidden="true">
+                </a>
+                <figcaption id="feature-caption">Echte appweergave · lokaal zoeken in een fictief document.</figcaption>
+              </figure>
+            </div>
           </div>
+          <noscript class="nojs-feature-list">
+            <section><h3>Lokaal zoeken</h3><p>Zoek in pdf-tekst, resultaten en eigen notities; de zoekopdracht blijft lokaal.</p></section>
+            <section><h3>Notities</h3><p>Voeg eigen vragen en geselecteerde passages toe aan je voorbereiding en werkdocument.</p></section>
+            <section><h3>Programma vergelijken</h3><p>Vergelijk desgewenst met een programma dat je zelf kiest; de neutrale samenvatting gebruikt dat kader niet.</p></section>
+            <section><h3>Bewaren en exporteren</h3><p>Bewaar een werkdocument op je Mac of exporteer een samenvatting of selectie als pdf.</p></section>
+          </noscript>
         </div>
-        <noscript class="nojs-feature-list">
-          <section><h3>Lokaal zoeken</h3><p>Zoek in pdf-tekst, resultaten en eigen notities; de zoekopdracht blijft lokaal.</p></section>
-          <section><h3>Notities</h3><p>Voeg eigen vragen en geselecteerde passages toe aan je voorbereiding en werkdocument.</p></section>
-          <section><h3>Programma vergelijken</h3><p>Vergelijk desgewenst met een programma dat je zelf kiest; de neutrale samenvatting gebruikt dat kader niet.</p></section>
-          <section><h3>Bewaren en exporteren</h3><p>Bewaar een werkdocument op je Mac of exporteer een samenvatting of selectie als pdf.</p></section>
-        </noscript>
       </div>
+      <a class="screen-next" href="#providers" data-screen-next aria-label="Volgend scherm: providerkeuze"><span aria-hidden="true"></span></a>
     </section>
 
-    <section class="provider-section section-pad" aria-labelledby="provider-title">
-      <div class="wrap provider-layout">
-        <div><p class="eyebrow">Jij kiest de provider</p><h2 id="provider-title">Lokaal waar het kan.<br><span>Online als jij kiest.</span></h2><p class="provider-lede">Na pdf-import start de analyse met de provider die in Instellingen staat. Lees en zoek ook lokaal, en bekijk eerder opgeslagen werk wanneer AI niet beschikbaar is.</p></div>
-        <div class="provider-options">
-          <article class="provider-option"><span class="provider-icon" aria-hidden="true">⌘</span><div><h3>Apple Intelligence</h3><p>Lokale verwerking op geschikte hardware met macOS 26 of later. Beschikbaarheid hangt ook af van systeemtaal en Apple-instellingen.</p><span class="provider-tag">OP HET APPARAAT</span></div></article>
-          <article class="provider-option"><span class="provider-icon provider-icon-online" aria-hidden="true">↗</span><div><h3>ChatGPT</h3><p>Optionele online provider via OpenAI OAuth. Je hebt een ChatGPT-account nodig; de app heeft geen API-sleutelinstelling.</p><span class="provider-tag">DOCUMENTTEKST NAAR OPENAI</span></div></article>
+    <section class="home-screen provider-section section-pad" id="providers" tabindex="-1" data-screen="6" aria-labelledby="provider-title">
+      <div class="screen-body">
+        <div class="wrap provider-layout">
+          <div><p class="eyebrow">Jij kiest de provider</p><h2 id="provider-title">Lokaal waar het kan.<br><span>Online als jij kiest.</span></h2><p class="provider-lede">Na pdf-import start de analyse met de provider die in Instellingen staat. Lees en zoek ook lokaal, en bekijk eerder opgeslagen werk wanneer AI niet beschikbaar is.</p></div>
+          <div class="provider-options">
+            <article class="provider-option"><span class="provider-icon" aria-hidden="true">⌘</span><div><h3>Apple Intelligence</h3><p>Lokale verwerking op geschikte hardware met macOS 26 of later. Beschikbaarheid hangt ook af van systeemtaal en Apple-instellingen.</p><span class="provider-tag">OP HET APPARAAT</span></div></article>
+            <article class="provider-option"><span class="provider-icon provider-icon-online" aria-hidden="true">↗</span><div><h3>ChatGPT</h3><p>Optionele online provider via OpenAI OAuth. Je hebt een ChatGPT-account nodig; de app heeft geen API-sleutelinstelling.</p><span class="provider-tag">DOCUMENTTEKST NAAR OPENAI</span></div></article>
+          </div>
+          <p class="provider-disclosure">Je werk blijft op je Mac. Kies je ChatGPT voor de analyse, dan deelt de app de benodigde documentfragmenten en eventueel je gekozen programma met OpenAI. <a href="privacy.html">Lees wat per provider wordt verwerkt.</a></p>
         </div>
-        <p class="provider-disclosure">Pdf’s, werkdocumenten, notities, voorkeuren en caches worden lokaal op je Mac bewaard; CommissieWijzer heeft geen eigen server of cloudopslag. Kies je ChatGPT, dan stuurt de app benodigde documentfragmenten en eventueel je gekozen programma online naar OpenAI. Apple Intelligence verwerkt lokaal op geschikte Macs met macOS 26 of later; CommissieWijzer zelf vereist macOS 14 of later. <a href="privacy.html">Lees wat per provider wordt verwerkt.</a></p>
       </div>
+      <a class="screen-next" href="#afronding" data-screen-next aria-label="Volgend scherm: afronding"><span aria-hidden="true"></span></a>
     </section>
 
-    <section class="closing-section section-pad">
-      <div class="wrap closing-card"><div><p class="eyebrow">Voorbereiding met de bron in beeld</p><h2>Lees zorgvuldig.<br><span>Houd de bron dichtbij.</span></h2><p>De app is ingediend bij Apple en wacht op beoordeling. Bekijk ondertussen de werkwijze, het privacybeleid of de projectbron.</p></div><div class="closing-actions"><a class="button button-primary" href="support.html">Ondersteuning</a><a class="button button-quiet" href="privacy.html">Privacybeleid</a><a class="text-link" href="https://github.com/SyntheticDiz/CommissieWijzer">Bekijk CommissieWijzer op GitHub <span aria-hidden="true">↗</span></a><span class="release-note">In beoordeling bij Apple · Nog geen download beschikbaar</span></div></div>
+    <section class="home-screen closing-section section-pad" id="afronding" tabindex="-1" data-screen="7" aria-labelledby="closing-title">
+      <div class="screen-body">
+        <div class="wrap closing-card"><div><p class="eyebrow">Voorbereiding met de bron in beeld</p><h2 id="closing-title">Lees zorgvuldig.<br><span>Houd de bron dichtbij.</span></h2><p>De app is ingediend bij Apple en wacht op beoordeling. Bekijk ondertussen de werkwijze, het privacybeleid of de projectbron.</p></div><div class="closing-actions"><a class="button button-primary" href="support.html">Ondersteuning</a><a class="button button-quiet" href="privacy.html">Privacybeleid</a><a class="text-link" href="https://github.com/SyntheticDiz/CommissieWijzer">Bekijk CommissieWijzer op GitHub <span aria-hidden="true">↗</span></a><span class="release-note">In beoordeling bij Apple · Nog geen download beschikbaar</span></div></div>
+        <footer class="site-footer wrap"><a class="brand" href="index.html"><img src="Assets/CommissieWijzer.png" width="30" height="30" alt=""><span>CommissieWijzer</span></a><p>Een hulpmiddel bij het lezen. De bron blijft leidend.</p><nav aria-label="Voettekst"><a href="#werkwijze">Werkwijze</a><a href="faq.html">Veelgestelde vragen</a><a href="support.html">Ondersteuning</a><a href="privacy.html">Privacy</a><a href="https://github.com/SyntheticDiz/CommissieWijzer/issues">GitHub Issues</a></nav><small>© 2026 CommissieWijzer · In beoordeling bij Apple</small></footer>
+      </div>
     </section>
   </main>
-
-  <footer class="site-footer wrap"><a class="brand" href="index.html"><img src="Assets/CommissieWijzer.png" width="30" height="30" alt=""><span>CommissieWijzer</span></a><p>Een hulpmiddel bij het lezen. De bron blijft leidend.</p><nav aria-label="Voettekst"><a href="#werkwijze">Werkwijze</a><a href="faq.html">Veelgestelde vragen</a><a href="support.html">Ondersteuning</a><a href="privacy.html">Privacy</a><a href="https://github.com/SyntheticDiz/CommissieWijzer/issues">GitHub Issues</a></nav><small>© 2026 CommissieWijzer · In beoordeling bij Apple</small></footer>
 </body>
 </html>
