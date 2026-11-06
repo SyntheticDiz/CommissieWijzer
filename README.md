@@ -71,7 +71,7 @@ De `store`-modus vereist een Mac App Distribution-identiteit, een Mac Installer 
 
 ## App Store
 
-De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). De nieuwe Mac- en iPad-versie is **1.1.2 (7)**, met eigen commissies, lokale analysemeldingen en de uitgelijnde werkveld-/PDF-kaarten. De ondertekende Mac-build is op 6 november 2026 naar Apple geüpload en verwerkt; de eerdere Mac-inzending is uit review gehaald om de nieuwe build te kunnen indienen. De iPad-upload en beide nieuwe indieningen worden voorbereid. De bestaande Apple-teksten en vrijgavekeuzes blijven behouden: Mac handmatig, iPad automatisch na goedkeuring.
+De metadata en review-informatie staan in [AppStore](AppStore/Listing.md). De Mac- en iPad-versie **1.1.2 (7)**, met eigen commissies, lokale analysemeldingen en de uitgelijnde werkveld-/PDF-kaarten, zijn op 6 november 2026 geüpload en ingediend bij Apple. Beide platforms staan op **Waiting for Review**. De eerdere Mac-inzending is vervangen door de nieuwe build. De bestaande Apple-teksten en vrijgavekeuzes zijn behouden: Mac handmatig, iPad automatisch na goedkeuring. De nieuwe versies zijn hiermee nog niet goedgekeurd.
 
 - Website: <https://syntheticdiz.github.io/CommissieWijzer/>
 - Ondersteuning: <https://syntheticdiz.github.io/CommissieWijzer/support.html>
@@ -93,7 +93,7 @@ De simulatorbuild vereist een team-ID en wordt ad-hoc ondertekend, zodat iPadOS 
 
 `device` controleert een Release-build voor een echte iPad zonder ondertekening. Voor installatie op een apparaat of distributie is Apple-ondertekening nodig. Voor een ondertekend archief: stel lokaal `CW_DEVELOPMENT_TEAM` in en voer `bash build-ipad.sh archive` uit. Standaard gebruikt Xcode automatische ondertekening. Met `CW_IPAD_PROVISIONING_PROFILE` kies je expliciet een reeds geïnstalleerd iOS App Store-profiel en een bestaand Apple Distribution-certificaat. Bewaar account- en ondertekeningsgegevens buiten versiebeheer. De bestaande Mac-build en het ingediende Mac-pakket worden hiermee niet vervangen.
 
-Beide platforms gebruiken bundle-ID `nl.commissiewijzer.app` en hetzelfde App Store Connect-record. De iPad-versie **1.0.1 (3)** is inmiddels **Ready for Distribution**. De eerdere ontwikkelbuild 1.0.1 (4) is niet aan die inzending gekoppeld. Voor de update naar **1.1.2 (7)** staat een nieuwe iPad-versie klaar in App Store Connect; de definitieve upload en indiening worden voorbereid. Een upload of indiening betekent nog geen goedkeuring van de nieuwe versie.
+Beide platforms gebruiken bundle-ID `nl.commissiewijzer.app` en hetzelfde App Store Connect-record. De iPad-versie **1.0.1 (3)** is inmiddels **Ready for Distribution**. De eerdere ontwikkelbuild 1.0.1 (4) is niet aan die inzending gekoppeld. De update **1.1.2 (7)** is op 6 november 2026 ingediend en staat op **Waiting for Review**; automatische vrijgave na goedkeuring is behouden.
 
 Werkdocumenten (`.spdfwork`, formaat 1) zijn op beide apparaten te openen, inclusief de oorspronkelijke pdf, notities, selectie, leespositie en bewaarde resultaten. Op iPad wordt een geopend werkdocument naar lokale appopslag gekopieerd; recente documenten verwijzen naar die lokale werkkopie. Bewaren via Bestanden exporteert een overdraagbare kopie. Latere lokale wijzigingen werken een eerder geëxporteerde kopie niet automatisch bij: bewaar opnieuw voordat je het bestand naar de Mac overzet. Er is geen automatische synchronisatie of samenvoeging tussen apparaten. Kies zelf een locatie in Bestanden; een door de gebruiker gekozen cloudprovider valt onder die provider.
 
