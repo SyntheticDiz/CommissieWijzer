@@ -4,6 +4,46 @@ cd "$(dirname "$0")"
 python3 scripts/generate-ipad-project.py
 mode="${1:-simulator}"
 derived_data="${CW_IPAD_DERIVED_DATA:-.build/ipad}"
+CW_ENABLE_ICLOUD="${CW_ENABLE_ICLOUD:-0}"
+if [[ "$CW_ENABLE_ICLOUD" != 0 && "$CW_ENABLE_ICLOUD" != 1 ]]; then
+  echo 'Set CW_ENABLE_ICLOUD to 0 or 1.' >&2
+  exit 2
+fi
+if [[ "$CW_ENABLE_ICLOUD" == 1 && "$mode" != archive ]]; then
+  echo 'CloudKit requires an archive signed with a validated Development or Production profile.' >&2
+  exit 2
+fi
+if [[ "$mode" == archive && "$CW_ENABLE_ICLOUD" != 1 ]]; then
+  echo 'A 1.2.0 iPad distribution archive must include CloudKit. Set CW_ENABLE_ICLOUD=1 and provide a matching profile.' >&2
+  exit 2
+fi
+cloud_entitlements=()
+cloud_build_settings=()
+cloud_profile_uuid=""
+prepare_icloud_entitlements() {
+  CW_ICLOUD_ENVIRONMENT="${CW_ICLOUD_ENVIRONMENT:-Production}"
+  local environment="$CW_ICLOUD_ENVIRONMENT"
+  local profile="${CW_IPAD_ICLOUD_PROFILE:-}"
+  : "${CW_DEVELOPMENT_TEAM:?Set CW_DEVELOPMENT_TEAM to your Apple Developer team ID for a CloudKit build}"
+  : "${profile:?Set CW_IPAD_ICLOUD_PROFILE to the matching iCloud-enabled provisioning profile file}"
+  local profile_args=(--icloud "$environment" --ios)
+  if [[ "$environment" == Development ]]; then
+    profile_args+=(--allow-development)
+  elif [[ "$environment" != Production ]]; then
+    echo 'CW_ICLOUD_ENVIRONMENT must be Development or Production.' >&2
+    exit 2
+  fi
+  local entitlements="$(pwd -P)/.build/ipad-icloud-entitlements.plist"
+  mkdir -p "$(dirname "$entitlements")"
+  python3 scripts/store-entitlements.py "$profile" "$CW_DEVELOPMENT_TEAM" "$entitlements" "${profile_args[@]}"
+  cloud_profile_uuid="$(security cms -D -i "$profile" | python3 -c 'import plistlib,sys; print(plistlib.loads(sys.stdin.buffer.read()).get("UUID", ""))')"
+  if [[ -z "$cloud_profile_uuid" ]]; then
+    echo 'The validated iCloud provisioning profile has no UUID.' >&2
+    exit 1
+  fi
+  cloud_entitlements=("CODE_SIGN_ENTITLEMENTS=$entitlements")
+  cloud_build_settings=(CW_CLOUDKIT_ENABLED=YES "CW_CLOUDKIT_ENVIRONMENT=$environment")
+}
 case "$mode" in
   simulator)
     : "${CW_DEVELOPMENT_TEAM:?Set CW_DEVELOPMENT_TEAM to your Apple Developer team ID for a simulator build with working Keychain access}"
@@ -19,6 +59,9 @@ case "$mode" in
     ;;
   archive)
     : "${CW_DEVELOPMENT_TEAM:?Set CW_DEVELOPMENT_TEAM to your Apple Developer team ID}"
+    if [[ "$CW_ENABLE_ICLOUD" == 1 ]]; then
+      prepare_icloud_entitlements
+    fi
     project_dir="$(pwd -P)"
     home_dir="$(cd "$HOME" && pwd -P)"
     archive_path="${CW_IPAD_ARCHIVE_PATH:-dist/CommissieWijzer-iPad.xcarchive}"
@@ -38,6 +81,15 @@ case "$mode" in
       signing_args=(CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Distribution'
         "PROVISIONING_PROFILE_SPECIFIER=$CW_IPAD_PROVISIONING_PROFILE")
     fi
+    if [[ -n "$cloud_profile_uuid" ]]; then
+      if [[ "$CW_ICLOUD_ENVIRONMENT" == Development ]]; then
+        signing_args=(CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Development'
+          "PROVISIONING_PROFILE_SPECIFIER=$cloud_profile_uuid")
+      else
+        signing_args=(CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Distribution'
+          "PROVISIONING_PROFILE_SPECIFIER=$cloud_profile_uuid")
+      fi
+    fi
     xcodebuild -project iPadOS/CommissieWijzer.xcodeproj -scheme CommissieWijzer-iPad \
       -configuration Release -destination 'generic/platform=iOS' \
       -archivePath "$archive_path" DEVELOPMENT_TEAM="$CW_DEVELOPMENT_TEAM" \
@@ -47,6 +99,7 @@ case "$mode" in
       ENABLE_TESTABILITY=NO \
       DEPLOYMENT_POSTPROCESSING=YES STRIP_INSTALLED_PRODUCT=YES \
       STRIP_STYLE=debugging COPY_PHASE_STRIP=YES \
+      "${cloud_entitlements[@]}" "${cloud_build_settings[@]}" \
       "${signing_args[@]}" archive
     ;;
   *) echo 'Usage: bash build-ipad.sh [simulator|device|archive]' >&2; exit 2 ;;

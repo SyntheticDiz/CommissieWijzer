@@ -1,38 +1,29 @@
-# App Review notes — CommissieWijzer 1.0.1 (build 2)
+# App Review Notes — macOS 1.2.0 (8)
 
-## Purpose
+CommissieWijzer is a Dutch-language app for reading and preparing municipal council and committee papers. It shows analysis beside the original PDF in resizable panes. AI output is guidance, not fact; verify it against the source. The app has no political affiliation.
 
-CommissieWijzer is a macOS reading and preparation tool for Dutch municipal council and committee papers. It displays a PDF with summaries, findings, notes, local search, and cited source passages. Committee views include SOD, LO, and BES. Programme comparison is optional and uses a programme selected by the user.
+Requires macOS 14+. Apple Intelligence needs compatible hardware and macOS 26+; chart image explanation needs macOS 27+ and an available model. PDF reading, local search, notes, saved work, and export need no AI account.
 
-The app has no political-party affiliation and does not endorse a party or position. AI-generated analysis is guidance for review, not a statement of fact. Check conclusions against the original PDF.
+## Review path
 
-The interface is in Dutch. The app requires macOS 14 or later. Apple Intelligence requires compatible hardware and macOS 26 or later. Opening a searchable PDF, local search, notes, saving work, and PDF export do not require an AI account.
+Open the attached fictional selectable-text `Sample.pdf` with **Pdf toevoegen…**. Review the analysis, drag the divider, and open a cited source passage. Try local search, add a note or selected passage, optionally compare a user-selected programme, then export or save and reopen a `.spdfwork` file. Reopening saved work does not start an AI request.
 
-## Suggested review path
+## Optional personal iCloud library
 
-1. Open the attached fictional sample PDF with selectable text using **Pdf toevoegen…**. The three accepted screenshots show a fictional municipal proposal and reviewer note; they contain no personal information.
-2. Inspect the overview and findings beside the PDF. Open a finding’s cited source passage and compare it with the surrounding text.
-3. Try local search, add a note or selected passage, and optionally select a programme for comparison.
-4. Export a summary or selected findings. Save and reopen a `.spdfwork` work document. Reopening saved work does not start a new AI request.
+iCloud is off by default. Sign in to iCloud on the device, enable iCloud in the app settings, then explicitly add a fictional dossier to the iCloud library. Open the library on a second device using the same Apple Account to retrieve it. The entire work document is stored in that account’s private CloudKit database. Committee profiles have a separate opt-in. Sync does not initiate AI requests, and disabling it does not erase existing copies. An Apple Account is not required to use the local workspace.
 
-Image-only scans may need a searchable text layer. Check table values and extracted text against the PDF.
+## Committees and notifications
 
-## Optional ChatGPT sign-in and network entitlement
+Committee profiles are stored locally. Included profiles are editable examples. A profile has a name, topics, and optional points of attention. Work documents retain a snapshot of the selected profile; later local edits do not change existing work. Importing a profile does not automatically replace the local list. With ChatGPT, the chosen committee name, topics, and points of attention are sent with the requested analysis.
 
-To review the optional ChatGPT sign-in, open **Settings → AI provider**, choose **ChatGPT · online**, then select **Continue with ChatGPT**. Complete authorization in the default browser and return to the app. A reviewer must use their own eligible ChatGPT account; no review credentials are supplied.
+**Settings → Notifications** controls local completion notifications. The system requests permission when an analysis starts or the user explicitly enables notifications. Messages contain no document name or contents; disabled system notifications prevent delivery.
 
-The `com.apple.security.network.server` entitlement is used only for this OAuth callback. During sign-in, the app starts a temporary TCP listener bound exclusively to IPv4 loopback (`127.0.0.1`) on an operating-system-assigned ephemeral port. It registers that exact port with the `/auth/callback` path as the OAuth redirect URI. The app opens the authorization request in the default browser, validates the returned state and authorization response, exchanges the code using PKCE, and validates the ID token including its nonce. The listener stops after the callback, when sign-in is cancelled, or after five minutes. It does not accept remote connections and is not used as a general network service.
+## Optional ChatGPT and OAuth callback
 
-## Analysis and source checking
+In **Settings → AI provider**, choose **ChatGPT · online → Continue with ChatGPT**. Sign in with the reviewer’s own eligible ChatGPT account; no credentials are supplied. Account access and usage limits are determined by OpenAI.
 
-A local Apple Intelligence analysis of the fictional sample completed during release checks. In that example, the overview described a proposed decision as though it had already been adopted. Reviewers should verify the summary against the cited passage and the full PDF. Source quotations remain available for that check; the app does not claim that every generated summary is error-free.
+The Mac `com.apple.security.network.server` entitlement is used only for OAuth. Sign-in starts a temporary TCP listener bound exclusively to `127.0.0.1` on an OS-assigned ephemeral port and registers that port with `/auth/callback` as the redirect URI. Authorization opens in the default browser. The app validates state and the response, exchanges the code with PKCE, and validates the ID token nonce. The listener stops after callback, cancellation, or five minutes. It accepts no remote connections and is not a general network service.
 
-Apple Intelligence runs locally when available. There is no cloud fallback when it is unavailable.
+When ChatGPT is selected, only excerpts needed for the requested task, and a user-selected programme if comparing, are sent to OpenAI. The app does not read ChatGPT conversations or switch providers automatically. Apple Intelligence runs locally with no cloud fallback. The optional glossary can query Dutch Wikipedia; an AI explanation may send the term and limited context to the selected provider.
 
-ChatGPT is an optional online provider. No review account or credentials are supplied. If a reviewer signs in with their own eligible account and chooses ChatGPT, the app sends the document passages needed for the requested task directly to OpenAI. A user-selected programme may also be sent for comparison. The app does not read ChatGPT conversations and does not silently switch providers.
-
-The optional online glossary can query Dutch Wikipedia. If the user requests an AI explanation, the selected provider may receive the term, limited document context, and retrieved source text.
-
-## Release status
-
-Build 1.0.1 (2) was initially submitted on 30 October 2026 at 21:41 (Europe/Amsterdam). After an automated rejection under guideline 2.4.5 concerning the `com.apple.security.network.server` entitlement, the reviewer was sent the explanation above and the same build was resubmitted on 31 October 2026 at 11:10 (Europe/Amsterdam). App Store Connect currently shows **Waiting for Review**, with two messages on the submission. The privacy questionnaire is published, the age rating is 4+, and release is set to manual after approval.
+Release preference: manual release after approval.

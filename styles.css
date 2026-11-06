@@ -607,3 +607,9 @@ html.js .app-capture.reveal { transform: none; transition: opacity 1100ms ease-i
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   html.js .reveal { opacity: 1; transform: none; }
 }
+
+
+/* Visible personal iCloud setup steps on the product page. */
+.icloud-workflow { margin: 18px auto 0; max-width: 920px; text-align: left; }
+.icloud-workflow article { padding: 15px; }
+.icloud-workflow a { color: #9dc4ff; text-underline-offset: 3px; }

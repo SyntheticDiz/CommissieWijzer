@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PatchNotesView: View {
     @Environment(\.dismiss) private var dismiss
-    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.2" }
+    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0" }
 
     private struct Release: Identifiable {
         let version: String
@@ -12,6 +12,11 @@ struct PatchNotesView: View {
     }
     // Newest release first; retain the previous release notes.
     private let releases: [Release] = [
+        .init(version: "1.2.0", date: "6 november 2026", changes: [
+            "Optionele iCloud-bibliotheek voor bewust gekozen dossiers op Mac en iPad, met de oorspronkelijke PDF, bewaarde analyses, selecties, notities en leespositie. Lokaal werken blijft de standaard.",
+            "Kies afzonderlijk of je eigen commissieprofielen meegaan. Dossiers openen en synchroniseren starten geen nieuwe AI-analyse; ChatGPT-inloggegevens blijven op het apparaat.",
+            "Bij gelijktijdige wijzigingen blijft je eerdere versie als aparte kopie behouden. Zonder verbinding blijven lokale gegevens beschikbaar en worden wijzigingen later opnieuw gesynchroniseerd."
+        ]),
         .init(version: "1.1.2", date: "6 november 2026", changes: [
             "Het analysewerkveld en de originele PDF staan in twee grote, netjes uitgelijnde kaarten met gelijke binnenmarges en herkenbare kleinere inhoudskaarten.",
             "Tabs en PDF-bediening horen bij hun eigen leesdeel. De verstelbare verdeling, bronacties, selecties, chat en overige functies blijven beschikbaar op Mac en iPad."

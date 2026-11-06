@@ -51,6 +51,7 @@ private actor ChatGPTProgramProgressPhase {
 
 @MainActor
 final class SimpleWorkspace: ObservableObject {
+    let cloudWindowID = UUID()
 #if os(iOS)
     var presentationContext: AppPresentationContext?
 #endif
@@ -191,12 +192,15 @@ final class SimpleWorkspace: ObservableObject {
     private var queuedCommitteeReview: (purpose: MeetingPurpose, model: String, documentID: UUID)?
     private var autoCommitteePurposeAfterBase: MeetingPurpose?
     private var importTaskActive = false
-    private(set) var revisionToken = UUID()
+    @Published private(set) var revisionToken = UUID()
+    @Published private(set) var cloudDossierID: UUID?
+    @Published private(set) var cloudBaseRevision: String?
     @Published private(set) var hasUnsavedChanges = true
     private var savedRevisionToken: UUID?
     private(set) var openedWorkdocumentURL: URL?
     private var openedWorkdocumentAccessURL: URL?
     private var holdsOpenedWorkdocumentAccess = false
+    private var cloudCheckoutOpenGeneration = UUID()
     private var terminationReadingPage: Int?
     private var terminationViewState: WorkspaceViewState?
     private var terminationAutosaveInProgress = false
@@ -293,6 +297,9 @@ final class SimpleWorkspace: ObservableObject {
         try archive.write(url)
     }
     func markDirty() { revisionToken = UUID(); hasUnsavedChanges = true }
+    func bindCloudDossier(_ id: UUID?, baseRevision: String? = nil) {
+        cloudDossierID = id; cloudBaseRevision = baseRevision
+    }
     func markSaved(_ capturedRevision: UUID) {
         if revisionToken == capturedRevision { savedRevisionToken = capturedRevision; hasUnsavedChanges = false }
     }
@@ -333,6 +340,52 @@ final class SimpleWorkspace: ObservableObject {
         }
         status = "Werkdocument automatisch bewaard: " + url.lastPathComponent
         recordRecentWorkspace(url)
+    }
+
+    /// Durably queue the latest linked dossier snapshot before app suspension or
+    /// termination. This only archives saved analysis and never invokes AI.
+    func persistCloudWorkIfNeeded(using cloud: CloudSyncController) async throws {
+        guard cloudDossierID != nil, cloud.enabled,
+              document != nil, hasUnsavedChanges else { return }
+        guard canStartAnalysis, !busy, !committeeReviewBusy, tableAnalysisID == nil, !exporting else {
+            throw AppError(message: "De iCloud-kopie kan nog niet worden bijgewerkt zolang verwerking bezig is.")
+        }
+        while true {
+            try Task.checkCancellation()
+            guard cloud.enabled, cloudDossierID != nil else {
+                throw AppError(message: "De iCloud-synchronisatie is gestopt voordat de lokale wijzigingen waren bewaard.")
+            }
+            guard canStartAnalysis, !busy, !committeeReviewBusy, tableAnalysisID == nil, !exporting else {
+                throw AppError(message: "De iCloud-kopie kan nog niet worden bijgewerkt zolang verwerking bezig is.")
+            }
+
+            let capturedDocumentID = documentID
+            let capturedRevision = revisionToken
+            let capturedActivationID = cloud.activationID
+            guard let dossierID = cloudDossierID else {
+                throw AppError(message: "De koppeling met de iCloud-kopie is gewijzigd.")
+            }
+            let capturedBaseRevision = cloudBaseRevision
+            let snapshot = try archive(readingPage: terminationReadingPage ?? page,
+                                       viewState: terminationViewState)
+            guard let saved = await cloud.upload(snapshot, dossierID: dossierID,
+                                                 baseRevision: capturedBaseRevision) else {
+                throw AppError(message: cloud.error ?? "De laatste wijzigingen konden niet in de iCloud-wachtrij worden bewaard.")
+            }
+
+            guard documentID == capturedDocumentID,
+                  cloud.activationID == capturedActivationID,
+                  cloud.enabled,
+                  cloudDossierID == dossierID else {
+                throw AppError(message: "Het actieve dossier of iCloud-account is gewijzigd. De lokale wijzigingen zijn behouden.")
+            }
+            if cloudBaseRevision != capturedBaseRevision { continue }
+            cloudDossierID = saved.id
+            cloudBaseRevision = saved.revision
+            cloud.markWorkspaceUploaded(cloudWindowID, revision: capturedRevision)
+            if !isOpenedWorkdocument { markSaved(capturedRevision) }
+            if revisionToken == capturedRevision { return }
+        }
     }
 
     private func adoptAccess(to url: URL, alreadyStarted access: Bool) {
@@ -1240,6 +1293,7 @@ final class SimpleWorkspace: ObservableObject {
     @Published var documentID = UUID() {
         didSet {
             committeePresentationCache.clear()
+            if oldValue != documentID { cloudDossierID = nil; cloudBaseRevision = nil }
             if oldValue != documentID, activeAnalysisCompletionRun?.documentID != documentID {
                 invalidateAnalysisCompletionRun()
             }
@@ -1987,6 +2041,7 @@ final class SimpleWorkspace: ObservableObject {
             annotations = SavedWork.read([String: PointAnnotation].self, key: "annotations-" + selectionDocumentKey) ?? [:]
         }
         documentID = UUID(); chatGPTModelSwitchToken = UUID(); analysisPhase = nil; analysisModel = nil; isSwitchingChatGPTModel = false
+        cloudDossierID = nil
         status = "Indeling opgeslagen. Start de analyse opnieuw."
     }
 
@@ -2158,6 +2213,55 @@ final class SimpleWorkspace: ObservableObject {
     func restore(_ saved: WorkspaceArchive, persist: Bool = true) throws {
         try restore(saved, persist: persist, prevalidated: false)
     }
+
+    /// Open a validated cloud checkout as an ordinary local `.spdfwork` copy.
+    /// Each open gets a fresh path so it cannot overwrite the cloud cache or a
+    /// previously opened working copy. No analysis is started.
+    func openCloudCheckout(_ checkout: CloudCheckout, using cloud: CloudSyncController) async throws {
+        guard canStartAnalysis, !exporting else {
+            throw AppError(message: "Wacht tot de huidige verwerking klaar is voordat je dit dossier opent.")
+        }
+        try checkout.archive.validate()
+        let expectedDocumentID = documentID
+        let capturedActivationID = cloud.activationID
+        let operationID = UUID()
+        cloudCheckoutOpenGeneration = operationID
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("CommissieWijzer/CloudWorkdocuments", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let localURL = directory.appendingPathComponent("dossier-\(UUID().uuidString).spdfwork")
+        exporting = true
+        status = "Dossier lokaal openen…"
+        defer {
+            if cloudCheckoutOpenGeneration == operationID { exporting = false }
+        }
+        do {
+            let snapshot = checkout.archive
+            try await Task.detached(priority: .userInitiated) { try snapshot.write(localURL) }.value
+        } catch {
+            try? FileManager.default.removeItem(at: localURL)
+            throw error
+        }
+        guard cloudCheckoutOpenGeneration == operationID, documentID == expectedDocumentID,
+              cloud.activationID == capturedActivationID,
+              exporting, !busy, !committeeReviewBusy, !isSwitchingChatGPTModel else {
+            try? FileManager.default.removeItem(at: localURL)
+            throw AppError(message: "Het huidige dossier is gewijzigd voordat de lokale kopie klaarstond.")
+        }
+        exporting = false
+        do {
+            try restore(checkout.archive, persist: true, prevalidated: true)
+            adoptAccess(to: localURL, alreadyStarted: false)
+            if cloud.enabled, cloud.activationID == capturedActivationID {
+                bindCloudDossier(checkout.dossierID, baseRevision: checkout.revision)
+            }
+            recordRecentWorkspace(localURL)
+        } catch {
+            try? FileManager.default.removeItem(at: localURL)
+            throw error
+        }
+    }
+
     private func restore(_ saved: WorkspaceArchive, persist: Bool, prevalidated: Bool) throws {
         guard canStartAnalysis else { throw AppError(message: "Wacht tot de huidige verwerking klaar is.") }
         if !prevalidated { try saved.validate() }
@@ -2212,6 +2316,7 @@ final class SimpleWorkspace: ObservableObject {
             retryParameters = (job.model, job.context, job.selection, job.compare, job.targeted)
         } else { retryParameters = nil }
         page = min(max(1, saved.page), saved.pages.count); navigationID = UUID(); documentID = UUID()
+        cloudDossierID = nil
         terminationReadingPage = page; terminationViewState = saved.viewState
         chatGPTModelSwitchToken = UUID(); analysisPhase = nil; isSwitchingChatGPTModel = false
         processingName = saved.name; canSwitchCurrentAnalysisWorkflow = false

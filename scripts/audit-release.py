@@ -10,8 +10,10 @@ import tempfile
 from pathlib import Path
 
 BUNDLE_ID = "nl.commissiewijzer.app"
-VERSION = "1.1.2"
-BUILD = "7"
+ICLOUD_CONTAINER_ID = "iCloud.nl.commissiewijzer.app"
+ICLOUD_ENVIRONMENTS = {"Development", "Production"}
+VERSION = "1.2.0"
+BUILD = "8"
 MINIMUM_SYSTEM = "14.0"
 
 
@@ -35,10 +37,39 @@ def fail_if(failures: list[str], condition: bool, message: str) -> None:
         failures.append(message)
 
 
+def authorized_string(value, expected: str) -> bool:
+    """Check scalar or array profile authorization, including Apple's wildcard."""
+    if isinstance(value, str):
+        return value in {expected, "*"}
+    return (isinstance(value, list) and all(isinstance(item, str) for item in value)
+            and (expected in value or "*" in value))
+
+
+def authorized_environment(value, expected: str) -> bool:
+    if isinstance(value, str):
+        environments = {value}
+    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+        environments = set(value)
+    else:
+        return False
+    return bool(environments) and environments.issubset(ICLOUD_ENVIRONMENTS) and expected in environments
+
+
+def valid_environment_authorization(value) -> bool:
+    if isinstance(value, str):
+        environments = {value}
+    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+        environments = set(value)
+    else:
+        return False
+    return bool(environments) and environments.issubset(ICLOUD_ENVIRONMENTS)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("app", type=Path)
-    parser.add_argument("--mode", choices=("preview", "store"), required=True)
+    parser.add_argument("--mode", choices=("preview", "development", "local-production", "store"), required=True)
+    parser.add_argument("--icloud", action="store_true", help="require profile-authorized CloudKit entitlements")
     args = parser.parse_args()
     app = args.app.resolve()
     failures: list[str] = []
@@ -63,6 +94,12 @@ def main() -> int:
     }
     for key, value in expected.items():
         fail_if(failures, info.get(key) != value, f"Incorrect {key}.")
+    cloudkit_enabled = args.icloud and args.mode in {"development", "local-production", "store"}
+    fail_if(failures, info.get("CWCloudKitEnabled") is not cloudkit_enabled,
+            "CWCloudKitEnabled must match the selected profile-validated build mode.")
+    expected_cloud_environment = ("Development" if args.mode == "development" else "Production") if cloudkit_enabled else "Disabled"
+    fail_if(failures, info.get("CWCloudKitEnvironment") != expected_cloud_environment,
+            f"CWCloudKitEnvironment must be {expected_cloud_environment} for this build.")
     for key in ("CFBundleIconName", "CFBundleIcons", "CFBundleIcons~mac"):
         fail_if(failures, key in info, f"Unexpected alternate bundle icon selector {key}.")
     type_declarations = info.get("UTExportedTypeDeclarations", [])
@@ -123,7 +160,7 @@ def main() -> int:
 
     try:
         entitlements_data = subprocess.check_output(
-            ["codesign", "-d", "--entitlements", ":-", str(app)], stderr=subprocess.DEVNULL
+            ["codesign", "-d", "--entitlements", "-", "--xml", str(app)], stderr=subprocess.DEVNULL
         )
         entitlements = plistlib.loads(entitlements_data)
     except (OSError, subprocess.CalledProcessError, plistlib.InvalidFileException) as error:
@@ -133,12 +170,13 @@ def main() -> int:
                 "com.apple.security.files.bookmarks.app-scope", "com.apple.security.network.client",
                 "com.apple.security.network.server"):
         fail_if(failures, entitlements.get(key) is not True, f"Required sandbox entitlement {key} is missing.")
-    fail_if(failures, entitlements.get("com.apple.security.get-task-allow") is True,
-            "The distribution signature must not enable debugging.")
+    if args.mode != "development":
+        fail_if(failures, entitlements.get("com.apple.security.get-task-allow") is True,
+                "The distribution signature must not enable debugging.")
 
     profile_path = app / "Contents" / "embedded.provisionprofile"
-    if args.mode == "store":
-        fail_if(failures, not profile_path.is_file(), "Store app provisioning profile is missing.")
+    if args.mode in {"development", "local-production", "store"}:
+        fail_if(failures, not profile_path.is_file(), "Signed app provisioning profile is missing.")
         fail_if(failures, entitlements.get("com.apple.application-identifier") is None,
                 "Store application identifier entitlement is missing.")
         fail_if(failures, entitlements.get("com.apple.developer.team-identifier") is None,
@@ -155,8 +193,37 @@ def main() -> int:
                 fail_if(failures, app_identifier != profile_entitlements.get("com.apple.application-identifier", profile_entitlements.get("application-identifier")),
                         "Signed app identifier does not match the embedded profile.")
                 fail_if(failures, team not in profile.get("TeamIdentifier", []), "Signed team does not match the embedded profile.")
-                fail_if(failures, bool(profile.get("ProvisionedDevices")) or bool(profile.get("ProvisionsAllDevices")),
-                        "Embedded profile is not an App Store distribution profile.")
+                app_cloud_containers = entitlements.get("com.apple.developer.icloud-container-identifiers", [])
+                app_cloud_services = entitlements.get("com.apple.developer.icloud-services", [])
+                app_cloud_environment = entitlements.get("com.apple.developer.icloud-container-environment")
+                profile_cloud_containers = profile_entitlements.get("com.apple.developer.icloud-container-identifiers", [])
+                profile_cloud_services = profile_entitlements.get("com.apple.developer.icloud-services", [])
+                profile_cloud_environment = profile_entitlements.get("com.apple.developer.icloud-container-environment")
+                if args.icloud:
+                    fail_if(failures, not isinstance(profile_cloud_containers, list)
+                            or any(not isinstance(item, str) for item in profile_cloud_containers)
+                            or ICLOUD_CONTAINER_ID not in profile_cloud_containers,
+                            f"CloudKit release profile does not authorize {ICLOUD_CONTAINER_ID}; enable the app ID capability and regenerate the profile.")
+                    fail_if(failures, not authorized_string(profile_cloud_services, "CloudKit"),
+                            "CloudKit release profile does not authorize the CloudKit service; enable it for the app ID and regenerate the profile.")
+                    fail_if(failures, not valid_environment_authorization(profile_cloud_environment),
+                            "CloudKit release profile has no recognized iCloud environment.")
+                    expected_profile_environment = "Development" if args.mode == "development" else "Production"
+                    fail_if(failures, not authorized_environment(profile_cloud_environment, expected_profile_environment),
+                            f"CloudKit {args.mode} builds must use the {expected_profile_environment} environment.")
+                    fail_if(failures, app_cloud_containers != [ICLOUD_CONTAINER_ID]
+                            or app_cloud_services != ["CloudKit"]
+                            or app_cloud_environment != expected_profile_environment,
+                            "Signed CloudKit entitlements do not match the least-privilege profile-authorized container, service, and environment.")
+                else:
+                    fail_if(failures, bool(app_cloud_containers or app_cloud_services or app_cloud_environment),
+                            "CloudKit entitlements are present in a build that did not opt in with CW_ENABLE_ICLOUD=1.")
+                if args.mode == "store":
+                    fail_if(failures, bool(profile.get("ProvisionedDevices")) or bool(profile.get("ProvisionsAllDevices")),
+                            "Embedded profile is not an App Store distribution profile.")
+                else:
+                    fail_if(failures, not profile.get("ProvisionedDevices") or bool(profile.get("ProvisionsAllDevices")),
+                            "Embedded profile is not a registered-device development profile.")
                 expiry = profile.get("ExpirationDate")
                 if isinstance(expiry, datetime.datetime):
                     if expiry.tzinfo is None:
@@ -166,11 +233,14 @@ def main() -> int:
                     failures.append("Embedded provisioning profile has no expiration date.")
             except (OSError, subprocess.CalledProcessError, plistlib.InvalidFileException) as error:
                 failures.append(f"Could not inspect embedded provisioning profile: {error}")
-        try:
-            architectures = set(subprocess.check_output(["lipo", "-archs", str(executable)], text=True).split())
-            fail_if(failures, not {"arm64", "x86_64"}.issubset(architectures), "Store executable must be universal arm64 and x86_64.")
-        except (OSError, subprocess.CalledProcessError) as error:
-            failures.append(f"Could not inspect store executable architectures: {error}")
+        if args.mode == "store":
+            try:
+                architectures = set(subprocess.check_output(["lipo", "-archs", str(executable)], text=True).split())
+                fail_if(failures, not {"arm64", "x86_64"}.issubset(architectures), "Store executable must be universal arm64 and x86_64.")
+            except (OSError, subprocess.CalledProcessError) as error:
+                failures.append(f"Could not inspect store executable architectures: {error}")
+    elif args.icloud:
+        failures.append("CloudKit entitlements require a profile-validated Development or Store build.")
 
     for path in (app, *app.rglob("*")):
         try:

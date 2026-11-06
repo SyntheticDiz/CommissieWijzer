@@ -1,10 +1,10 @@
 # Privacybeleid — CommissieWijzer
 
-Laatst bijgewerkt: 6 november 2026. Dit document beschrijft de Mac- en iPad-implementatie, inclusief eigen commissies in ontwikkelversie 1.1.2. De eerder ingediende builds worden hierdoor niet vervangen.
+Laatst bijgewerkt: 6 november 2026. Dit document beschrijft de Mac- en iPad-implementatie, inclusief optionele iCloud-synchronisatie vanaf versie 1.2.0.
 
 ## In het kort
 
-CommissieWijzer heeft geen eigen gebruikersaccount, backend, telemetrie, advertenties, analytics of tracking. Pdf’s, werkdocumenten, notities, voorkeuren, analysecache en diagnostische bestanden worden in lokale appopslag bewaard. Op iPad maakt de app bij openen een lokale werkkopie van een werkdocument. Bewaren via Bestanden maakt een afzonderlijke exportkopie; er is geen automatische synchronisatie. Je kiest zelf een locatie, eventueel bij een cloudprovider die je gebruikt. Een online provider of externe woordenlijst is optioneel; daarvoor wordt de benodigde inhoud rechtstreeks naar de betreffende dienst gestuurd.
+CommissieWijzer heeft geen eigen gebruikersaccount, backend, telemetrie, advertenties, analytics of tracking. Pdf’s, werkdocumenten, notities, voorkeuren, analysecache en diagnostische bestanden worden in lokale appopslag bewaard. Optionele iCloud-synchronisatie staat standaard uit. Als je die inschakelt en een dossier toevoegt, bewaart de app ook een kopie in je eigen iCloud-account bij Apple. Commissieprofielen hebben een afzonderlijke keuze voor synchronisatie. Op iPad maakt een gewone bestandsimport een lokale werkkopie; bewaren via Bestanden maakt een afzonderlijke exportkopie. Je kiest zelf een locatie, eventueel bij een cloudprovider die je gebruikt. Een online AI-provider of externe woordenlijst is optioneel; daarvoor wordt de benodigde inhoud rechtstreeks naar de betreffende dienst gestuurd.
 
 ## Lokaal op Mac en iPad
 
@@ -15,7 +15,17 @@ De app bewaart lokaal op beide platforms:
 - voorkeuren, eigen commissieprofielen (naam, onderwerpen en aandachtspunten) en lokale cachebestanden;
 - begrensde diagnostiek voor ChatGPT-verbindingsproblemen, zoals de foutcategorie, HTTP-status, beperkte technische foutcodes, een OpenAI-request-ID, wachttijd en appversie.
 
-De lokale ChatGPT-diagnostiek bewaart geen documentinhoud, prompts, antwoordtekst, tokens, wachtwoorden of volledige serverresponses. Op Mac staan appgegevens in lokale appopslag en kies je zelf waar werkdocumenten en exports worden opgeslagen. Op iPad staan appgegevens in lokale appopslag. Een geopend werkdocument wordt daar als lokale werkkopie bewaard; bewaren via Bestanden maakt een overdraagbare kopie op de locatie die jij kiest. Wijzigingen aan de werkkopie werken een eerdere export niet automatisch bij: exporteer opnieuw om de bijgewerkte versie over te zetten. CommissieWijzer synchroniseert of voegt werk tussen apparaten niet samen. Een gekozen cloudlocatie valt voor opslag en synchronisatie onder de betreffende provider.
+De lokale ChatGPT-diagnostiek bewaart geen documentinhoud, prompts, antwoordtekst, tokens, wachtwoorden of volledige serverresponses. Op Mac staan appgegevens in lokale appopslag en kies je zelf waar werkdocumenten en exports worden opgeslagen. Op iPad staan appgegevens in lokale appopslag. Een geopend werkdocument wordt daar als lokale werkkopie bewaard; bewaren via Bestanden maakt een overdraagbare kopie op de locatie die jij kiest. Wijzigingen aan de werkkopie werken een eerdere export niet automatisch bij: exporteer opnieuw om de bijgewerkte versie over te zetten. De optionele iCloud-bibliotheek staat los van deze bestandskopieën. Een andere gekozen cloudlocatie valt voor opslag en synchronisatie onder de betreffende provider.
+
+## Optionele iCloud-synchronisatie
+
+iCloud is een afzonderlijke, optionele opslagfunctie. De app gebruikt daarvoor Apples CloudKit en de private opslag van je aangemelde Apple-account. Persoonlijke synchronisatie werkt tussen je eigen apparaten met hetzelfde Apple-account; er is geen openbaar dossierregister en deze versie deelt geen dossiers met andere personen.
+
+Alleen dossiers die je zelf toevoegt worden gesynchroniseerd. Dat betreft de oorspronkelijke pdf en de inhoud van het werkdocument: beschikbare analyses, citaten, selecties, notities, opgeslagen gesprekken en andere bewaarde uitkomsten, commissieomschrijvingen en leespositie. Bij afzonderlijk ingeschakelde synchronisatie van commissies worden ook de naam, onderwerpen en aanvullende aandachtspunten van je persoonlijke commissieprofielen bij Apple opgeslagen. De app gebruikt een technische CloudKit-accountidentifier om lokale kopieën per Apple-account gescheiden te houden; ze vraagt hiervoor geen Apple-wachtwoord.
+
+ChatGPT-inloggegevens, OAuth-tokens, lokale diagnostiek, apparaatgebonden meldingsinstellingen en exportmappen worden niet in de iCloud-bibliotheek opgenomen. Synchronisatie start geen AI-analyse en verstuurt op zichzelf niets naar OpenAI. De keuze voor een online AI-provider blijft afzonderlijk.
+
+Gedownloade kopieën blijven lokaal beschikbaar. iCloud uitschakelen stopt nieuwe synchronisatiewerkzaamheden; het verwijdert geen bestaande lokale of iCloud-kopieën. Een reeds verzonden bewerking kan bij Apple nog worden afgerond. Stoppen met synchroniseren van een dossier verwijdert evenmin de bestaande cloudkopie. Synchronisatie is geen onafhankelijke reservekopie: bewaar desgewenst ook zelf een export. De verwerking, beveiliging, opslagruimte en beschikbaarheid van iCloud vallen onder Apples voorwaarden en jouw Apple-accountinstellingen. De app doet geen afzonderlijke belofte dat alle iCloud-gegevens end-to-end versleuteld zijn.
 
 ## Lokale meldingen
 

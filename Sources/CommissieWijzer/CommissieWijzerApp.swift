@@ -44,11 +44,15 @@ extension Notification.Name {
     }
     static func autosaveOpenedWorkdocuments() async -> [String] {
         workspaces = workspaces.filter { $0.value.value != nil }
-        let eligible = workspaces.values.compactMap(\.value).filter {
-            $0.document != nil && $0.hasUnsavedChanges && $0.isOpenedWorkdocument
-        }
+        let eligible = workspaces.values.compactMap(\.value).filter { $0.document != nil && $0.hasUnsavedChanges }
         var failures: [String] = []
         for workspace in eligible {
+            do { try await workspace.persistCloudWorkIfNeeded(using: .shared) }
+            catch {
+                let name = workspace.document?.name ?? "Werkdocument"
+                failures.append("iCloud · \(name): \(error.localizedDescription)")
+            }
+            guard workspace.document != nil, workspace.hasUnsavedChanges, workspace.isOpenedWorkdocument else { continue }
             do { try await workspace.autosaveOpenedWorkdocument() }
             catch {
                 let name = workspace.openedWorkdocumentURL?.lastPathComponent ?? "Werkdocument"

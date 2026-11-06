@@ -21,6 +21,7 @@ struct AppSettingsView: View {
 
     @State private var appleStatus = ""
     @ObservedObject private var completionNotifications = AnalysisCompletionNotifications.shared
+    @ObservedObject private var cloudSync = CloudSyncController.shared
 
     private func checkApple() { appleStatus = AppleAIService.unavailability() ?? "Beschikbaar · Nederlands ondersteund · Volledig lokaal" }
 
@@ -59,6 +60,7 @@ struct AppSettingsView: View {
             }
             Text(UIStrings.text("Alleen de bediening verandert van taal. Samenvattingen, aandachtspunten en AI-antwoorden blijven Nederlands.")).font(.caption).foregroundStyle(.secondary)
             ChatGPTSettingsView()
+            CloudSyncSettingsView(cloud: cloudSync)
             notificationSettings
             Label(UIStrings.text("Apple Intelligence"), systemImage: "sparkles").font(.headline)
             GroupBox(UIStrings.text("Apple Intelligence op deze Mac")) {
@@ -149,6 +151,7 @@ struct AppSettingsView: View {
         .task {
             checkApple()
             await completionNotifications.refreshAuthorization()
+            await cloudSync.activateIfNeeded()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }

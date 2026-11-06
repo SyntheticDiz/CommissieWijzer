@@ -47,6 +47,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CWCloudKitEnabled</key>
+	<string>$(CW_CLOUDKIT_ENABLED)</string>
+	<key>CWCloudKitEnvironment</key>
+	<string>$(CW_CLOUDKIT_ENVIRONMENT)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

@@ -208,7 +208,9 @@ struct WorkspaceArchive: Codable, Sendable {
         value.savedSelectionSummaries = value.savedSelectionSummaries.map { $0.filter { SavedSelectionSummary.validate($0, pageCount: value.pages.count) } }
         return value
     }
-    func write(_ url: URL) throws {
+    /// Shared by ordinary file saves and optional cloud snapshots. Both paths
+    /// must reject invalid saved supplements and preserve the same format.
+    func validatedForWriting() throws -> Self {
         try validate()
         if let threads = savedChatThreads,
            !threads.allSatisfy({ SavedChatThread.validate($0, pageCount: pages.count) }) {
@@ -223,6 +225,10 @@ struct WorkspaceArchive: Codable, Sendable {
         }
         var safeCopy = self
         safeCopy.committeeReviews = safeCopy.committeeReviews.map { Self.validCommitteeReviews($0, pages: safeCopy.pages) }
+        return safeCopy
+    }
+    func write(_ url: URL) throws {
+        let safeCopy = try validatedForWriting()
         let data = try JSONEncoder().encode(safeCopy)
         guard data.count <= 250_000_000 else { throw AppError(message: "Dit werkdocument is te groot om te bewaren.") }
         try data.write(to: url, options: .atomic)

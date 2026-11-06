@@ -20,6 +20,7 @@ private enum PendingWorkspaceAction {
     case openWorkspace
     case openExternalWorkspace(URL)
     case openRecentWorkspace(RecentWorkspaceDocuments.Entry)
+    case openCloudArchive(CloudCheckout)
     case relocateRecentWorkspace(RecentWorkspaceDocuments.Entry)
     case returnToImport
     case closeWindow
@@ -54,6 +55,7 @@ private struct PaneToolsHeightPreferenceKey: PreferenceKey {
 struct SimpleView: View {
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @StateObject private var workspace: SimpleWorkspace
+    @ObservedObject private var cloudSync = CloudSyncController.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 #if os(iOS)
@@ -106,6 +108,9 @@ struct SimpleView: View {
     @State private var pendingTableID: String?
     @State private var showingExport = false
     @State private var showingSettings = false
+    @State private var showingCloudLibrary = false
+    @State private var pendingCloudCheckout: (CloudDossier, CloudCheckout)?
+    @State private var showingCloudUploadConfirmation = false
     @State private var showingCommitteeManager = false
     @State private var showingTutorial = false
     @State private var showingChartArea = false
@@ -232,6 +237,17 @@ struct SimpleView: View {
             if let document = workspace.document { GlossaryView(document: document, initialSearch: glossarySearch) { showPDFPage($0) } }
         }
         .sheet(isPresented: $showingSettings, onDismiss: handleSettingsDismiss) { AppSettingsView() }
+        .sheet(isPresented: $showingCloudLibrary, onDismiss: {
+            if let (_, checkout) = pendingCloudCheckout {
+                pendingCloudCheckout = nil
+                requestWorkspaceAction(.openCloudArchive(checkout))
+            }
+        }) {
+            CloudLibraryView(cloud: cloudSync, open: { dossier, checkout in
+                pendingCloudCheckout = (dossier, checkout)
+                showingCloudLibrary = false
+            })
+        }
         .sheet(isPresented: $showingCommitteeManager) {
             CommitteeManagerView(savedPurposes: workspace.availableMeetingPurposes)
         }
@@ -331,6 +347,7 @@ struct SimpleView: View {
             savedViewState = viewState
             workspace.updateTerminationSnapshot(readingPage: workspace.page, viewState: viewState)
         }
+        .onChange(of: cloudSync.activationID) { _, _ in workspace.bindCloudDossier(nil) }
         .onChange(of: section) { _, _ in trackViewStateChange() }
         .onChange(of: pointsMode) { _, _ in trackViewStateChange() }
         .onChange(of: committeeShowAll) { _, _ in trackViewStateChange() }
@@ -353,15 +370,25 @@ struct SimpleView: View {
             workspace.updateTerminationSnapshot(readingPage: page, viewState: viewState)
             workspace.markDirty()
         }
+        .onChange(of: workspace.revisionToken) { _, revision in scheduleCloudSave(revision) }
+        .onChange(of: workspace.busy) { wasBusy, isBusy in if wasBusy && !isBusy { scheduleCloudSave(workspace.revisionToken) } }
+        .onChange(of: workspace.canStartAnalysis) { _, ready in if ready { scheduleCloudSave(workspace.revisionToken) } }
+        .onChange(of: workspace.tableAnalysisID) { _, id in if id == nil { scheduleCloudSave(workspace.revisionToken) } }
+        .onChange(of: workspace.committeeReviewBusy) { wasBusy, isBusy in if wasBusy && !isBusy { scheduleCloudSave(workspace.revisionToken) } }
     }
 
     private var eventObservedContent: some View {
         stateObservedContent
-        .onAppear { handleAppear() }
+        .onAppear { handleAppear(); cloudSync.setWindowActive(workspace.cloudWindowID, scenePhase == .active) }
+        .task { await cloudSync.activateIfNeeded() }
+        .onDisappear { cloudSync.setWindowActive(workspace.cloudWindowID, false) }
         .onChange(of: scenePhase) { _, phase in
+            cloudSync.setWindowActive(workspace.cloudWindowID, phase == .active)
             #if os(iOS)
             guard phase == .background else { return }
             iPadBackgroundExecution.perform {
+                do { try await workspace.persistCloudWorkIfNeeded(using: cloudSync) }
+                catch { workspace.error = "iCloud-kopie automatisch bewaren is niet gelukt: " + error.localizedDescription }
                 if workspace.document != nil && workspace.hasUnsavedChanges && workspace.isOpenedWorkdocument {
                     do { try await workspace.autosaveOpenedWorkdocument() }
                     catch { workspace.error = "Werkdocument automatisch bewaren is niet gelukt: " + error.localizedDescription }
@@ -406,6 +433,12 @@ struct SimpleView: View {
         .alert(UIStrings.text("Melding"), isPresented: errorAlertBinding) {
             Button(UIStrings.text("OK")) { workspace.error = nil }
         } message: { Text(UIStrings.text(workspace.error ?? "")) }
+        .alert(UIStrings.text("Synchroniseer dit dossier?"), isPresented: $showingCloudUploadConfirmation) {
+            Button(UIStrings.text("Synchroniseer naar iCloud")) { startCloudSync() }
+            Button(UIStrings.text("Annuleer"), role: .cancel) { }
+        } message: {
+            Text(UIStrings.text("De volledige dossierinhoud met pdf, bewaarde analyse, selectie, notities en leespositie wordt naar je iCloud-account geüpload. Dit start geen AI-analyse."))
+        }
         .confirmationDialog(UIStrings.text("Niet-bewaarde wijzigingen"), isPresented: pendingActionDialogBinding, titleVisibility: .visible) {
             Button(UIStrings.text("Bewaar en ga door")) { saveThenContinue() }
                 .disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting || workspace.document == nil)
@@ -483,6 +516,8 @@ struct SimpleView: View {
                 .dropDestination(for: URL.self) { urls, _ in pendingImportPurpose = importPurpose; requestWorkspaceAction(.importPDF(urls)); return true } isTargeted: { targeted = $0 }
             Button(UIStrings.text("Werkdocument openen…"), systemImage: "folder") { requestWorkspaceAction(.openWorkspace) }
                 .buttonStyle(QuietActionStyle()).disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting)
+            Button(UIStrings.text("iCloud-bibliotheek"), systemImage: "icloud") { showingCloudLibrary = true }
+                .buttonStyle(QuietActionStyle())
             if !recentDocuments.entries.isEmpty { recentWorkspaces }
             if workspace.busy { Text(UIStrings.text("Verwerking stoppen…")).font(.callout).foregroundStyle(.secondary) }
             if workspace.document != nil {
@@ -545,6 +580,7 @@ struct SimpleView: View {
                         }.disabled(workspace.busy)
                         Button(UIStrings.text("Werkdocument openen…")) { requestWorkspaceAction(.openWorkspace) }
                         Button(UIStrings.text("Werkdocument bewaren…")) { saveWorkspace() }.disabled(workspace.document == nil)
+                        cloudFileActions
                         Button(UIStrings.text("Vergelijk punten"), systemImage: "rectangle.split.2x1") { showingComparison = true }
                             .disabled(workspace.busy || workspace.organizedInsights.count < 2)
                     }
@@ -580,6 +616,7 @@ struct SimpleView: View {
             Menu {
                 Button(UIStrings.text("Werkdocument openen…")) { requestWorkspaceAction(.openWorkspace) }
                 Button(UIStrings.text("Werkdocument bewaren…")) { saveWorkspace() }.disabled(workspace.document == nil)
+                cloudFileActions
             } label: {
                 let dirty = workspace.document != nil && workspace.hasUnsavedChanges
                 HStack(spacing: 6) {
@@ -1144,37 +1181,46 @@ struct SimpleView: View {
     }
 
     private var workbenchTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
                 ForEach(WorkbenchSection.allCases, id: \.self) { destination in
-                    Button {
-                        chatPresentation = nil
-                        section = destination
-                        if destination == .selection { pointsMode = .mine; pointsExpanded = true }
-                        if destination == .points { if pointsMode == .mine { pointsMode = .featured }; pointsExpanded = true; if let first = workspace.featuredInsightGroups.first { openGroups.insert(first.id) } }
-                        if destination == .search { searchFocusRequest += 1 }
-                        if destination == .tables { pendingTableID = lastTableID }
-                    } label: {
-                        Text(workbenchTabTitle(destination)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                            .font(.callout.weight(section == destination ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
-                            .foregroundStyle(section == destination ? Color.primary : Color.secondary)
-                            .background(section == destination ? AppTheme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 9))
-                            .overlay {
-                                if section == destination {
-                                    RoundedRectangle(cornerRadius: 9).strokeBorder(AppTheme.border.opacity(0.55), lineWidth: 1).allowsHitTesting(false)
-                                }
-                            }
-                            .overlay(alignment: .bottom) {
-                                if section == destination { Capsule().fill(AppTheme.accent).frame(height: 2).padding(.horizontal, 12).padding(.bottom, 1).accessibilityHidden(true) }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(section == destination ? .isSelected : [])
-                    .accessibilityValue(section == destination ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
+                    workbenchTabButton(destination)
                 }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
+
+            Menu {
+                ForEach(WorkbenchSection.allCases, id: \.self) { destination in
+                    Button { selectWorkbenchSection(destination) } label: {
+                        if section == destination {
+                            Label(workbenchTabTitle(destination), systemImage: "checkmark")
+                        } else {
+                            Text(workbenchTabTitle(destination))
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(workbenchTabTitle(section))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 9))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9)
+                        .strokeBorder(AppTheme.border.opacity(0.55), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
         }
         .fixedSize(horizontal: false, vertical: true)
         .background(GeometryReader { proxy in
@@ -1183,6 +1229,39 @@ struct SimpleView: View {
         .frame(maxWidth: .infinity)
         .frame(height: paneToolsHeight)
         .accessibilityLabel(UIStrings.text("Werkveld"))
+    }
+
+    private func workbenchTabButton(_ destination: WorkbenchSection) -> some View {
+        Button { selectWorkbenchSection(destination) } label: {
+            Text(workbenchTabTitle(destination)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                .font(.callout.weight(section == destination ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
+                .foregroundStyle(section == destination ? Color.primary : Color.secondary)
+                .background(section == destination ? AppTheme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                .overlay {
+                    if section == destination {
+                        RoundedRectangle(cornerRadius: 9).strokeBorder(AppTheme.border.opacity(0.55), lineWidth: 1).allowsHitTesting(false)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    if section == destination { Capsule().fill(AppTheme.accent).frame(height: 2).padding(.horizontal, 12).padding(.bottom, 1).accessibilityHidden(true) }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(section == destination ? .isSelected : [])
+        .accessibilityValue(section == destination ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
+    }
+
+    private func selectWorkbenchSection(_ destination: WorkbenchSection) {
+        chatPresentation = nil
+        section = destination
+        if destination == .selection { pointsMode = .mine; pointsExpanded = true }
+        if destination == .points {
+            if pointsMode == .mine { pointsMode = .featured }
+            pointsExpanded = true
+            if let first = workspace.featuredInsightGroups.first { openGroups.insert(first.id) }
+        }
+        if destination == .search { searchFocusRequest += 1 }
+        if destination == .tables { pendingTableID = lastTableID }
     }
 
     private func paneHeading(_ title: String, subtitle: String, symbol: String, identifier: String) -> some View {
@@ -1614,6 +1693,15 @@ struct SimpleView: View {
         case .openWorkspace: workspace.openWorkspace()
         case .openExternalWorkspace(let url): workspace.openWorkspace(at: url)
         case .openRecentWorkspace(let entry): workspace.openRecentWorkspace(entry)
+        case .openCloudArchive(let checkout):
+            let expectedDocumentID = workspace.documentID
+            let expectedActivationID = cloudSync.activationID
+            Task { @MainActor in
+                guard workspace.documentID == expectedDocumentID,
+                      cloudSync.activationID == expectedActivationID else { return }
+                do { try await workspace.openCloudCheckout(checkout, using: cloudSync) }
+                catch { workspace.error = error.localizedDescription }
+            }
         case .relocateRecentWorkspace(let entry): workspace.relocateRecentWorkspace(entry)
         case .returnToImport: workspace.returnToImport()
         case .closeWindow:
@@ -1685,11 +1773,69 @@ struct SimpleView: View {
         }
     }
 
+    @ViewBuilder private var cloudFileActions: some View {
+        Button(UIStrings.text("Synchroniseer dit dossier via iCloud…"), systemImage: "icloud.and.arrow.up") {
+            showingCloudUploadConfirmation = true
+        }.disabled(!cloudSync.isReady || workspace.document == nil)
+        if let id = workspace.cloudDossierID {
+            let pending = cloudSync.dossiers.first(where: { $0.id == id })?.hasLocalChanges == true
+            Label(UIStrings.text(pending ? "iCloud: wijzigingen wachten" : "Verbonden met iCloud"), systemImage: pending ? "icloud.and.arrow.up" : "checkmark.icloud")
+            Button(UIStrings.text("Stop nieuwe wijzigingen te synchroniseren")) { workspace.bindCloudDossier(nil) }
+        }
+        Button(UIStrings.text("iCloud-bibliotheek"), systemImage: "icloud") { showingCloudLibrary = true }
+    }
+
+    private func scheduleCloudSave(_ revision: UUID) {
+        guard cloudSync.enabled, workspace.cloudDossierID != nil,
+              !workspace.busy, !workspace.committeeReviewBusy, !workspace.exporting,
+              workspace.document != nil else { return }
+        let expectedDocumentID = workspace.documentID
+        let expectedActivationID = cloudSync.activationID
+        cloudSync.scheduleUpload(workspaceID: workspace.cloudWindowID, archive: { [weak workspace] in
+            guard let workspace, workspace.documentID == expectedDocumentID,
+                  !workspace.busy, !workspace.committeeReviewBusy, !workspace.exporting else { return nil }
+            return try? workspace.archive(readingPage: workspace.page, viewState: self.viewState)
+        }, binding: { [weak workspace] in
+            guard let workspace, workspace.documentID == expectedDocumentID,
+                  cloudSync.activationID == expectedActivationID else { return nil }
+            guard let dossierID = workspace.cloudDossierID else { return nil }
+            return (dossierID, workspace.cloudBaseRevision)
+        }, revision: revision) { item in
+            guard workspace.documentID == expectedDocumentID, cloudSync.activationID == expectedActivationID else { return }
+            workspace.bindCloudDossier(item.id, baseRevision: item.revision)
+            if !workspace.isOpenedWorkdocument { workspace.markSaved(revision) }
+            if workspace.revisionToken != revision { scheduleCloudSave(workspace.revisionToken) }
+        }
+    }
+
+    private func startCloudSync() {
+        guard workspace.document != nil, cloudSync.enabled, cloudSync.isReady else { return }
+        do {
+            let snapshot = try workspace.archive(readingPage: workspace.page, viewState: viewState)
+            let id = workspace.cloudDossierID ?? UUID()
+            workspace.bindCloudDossier(id, baseRevision: workspace.cloudBaseRevision)
+            let revision = workspace.revisionToken
+            let documentID = workspace.documentID
+            let workspaceID = workspace.cloudWindowID
+            let baseRevision = workspace.cloudBaseRevision
+            let activationID = cloudSync.activationID
+            Task {
+                if let dossier = await cloudSync.upload(snapshot, dossierID: id, baseRevision: baseRevision),
+                   workspace.documentID == documentID, cloudSync.activationID == activationID {
+                    workspace.bindCloudDossier(dossier.id, baseRevision: dossier.revision)
+                    cloudSync.markWorkspaceUploaded(workspaceID, revision: revision)
+                    if !workspace.isOpenedWorkdocument { workspace.markSaved(revision) }
+                }
+                scheduleCloudSave(workspace.revisionToken)
+            }
+        } catch { workspace.error = error.localizedDescription }
+    }
+
     private var isWorkspaceFileModalPresented: Bool {
         workspace.showsChatGPTModelSwitch || showingFocus || showingLayout || showingGlossary ||
         showingSettings || showingTutorial || showingChartArea || selectedChart != nil ||
         showingSavedExtras || showingExport || showingComparison || showingImportPurpose || importing ||
-        pendingActionDialogPresented || workspace.error != nil
+        pendingActionDialogPresented || showingCloudLibrary || showingCloudUploadConfirmation || workspace.error != nil
     }
 
     private var workspaceFileMenuActions: WorkspaceFileMenuActions {

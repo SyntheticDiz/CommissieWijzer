@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate the deterministic iPad project from the shared sources. No dependencies."""
 from pathlib import Path
-import hashlib,json,plistlib
+import hashlib,json,plistlib,os
 root=Path(__file__).resolve().parents[1]
 def uid(s):return hashlib.sha1(s.encode()).hexdigest()[:24].upper()
 def q(s):return json.dumps(str(s))
@@ -35,7 +35,7 @@ for kind in ['Debug','Release']:
  opts={'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'26.0','CLANG_ENABLE_MODULES':'YES','SWIFT_VERSION':'5.0','ONLY_ACTIVE_ARCH':'YES' if kind=='Debug' else 'NO','SWIFT_STRICT_CONCURRENCY':'targeted','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'$(inherited) DEBUG' if kind=='Debug' else '$(inherited)','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if kind=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if kind=='Debug' else 'dwarf-with-dsym'}
  settings=' '.join(f'{k} = {q(v)};' for k,v in opts.items())
  projectconfigs.append(obj('proj'+kind,f'isa = XCBuildConfiguration; name = {kind}; buildSettings = {{ {settings} }};'))
- opts={'PRODUCT_NAME':'CommissieWijzer','PRODUCT_BUNDLE_IDENTIFIER':'nl.commissiewijzer.app','INFOPLIST_FILE':'Info.plist','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','TARGETED_DEVICE_FAMILY':'2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD':'NO','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'1.1.2','CURRENT_PROJECT_VERSION':'7','SWIFT_EMIT_LOC_STRINGS':'YES','ENABLE_PREVIEWS':'YES','ENABLE_TESTABILITY':'YES','PRODUCT_MODULE_NAME':'CommissieWijzer','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks'}
+ opts={'PRODUCT_NAME':'CommissieWijzer','PRODUCT_BUNDLE_IDENTIFIER':'nl.commissiewijzer.app','INFOPLIST_FILE':'Info.plist','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','TARGETED_DEVICE_FAMILY':'2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD':'NO','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'1.2.0','CURRENT_PROJECT_VERSION':'8','CW_CLOUDKIT_ENABLED':'NO','CW_CLOUDKIT_ENVIRONMENT':'Disabled','SWIFT_EMIT_LOC_STRINGS':'YES','ENABLE_PREVIEWS':'YES','ENABLE_TESTABILITY':'YES','PRODUCT_MODULE_NAME':'CommissieWijzer','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks'}
  settings=' '.join(f'{k} = {q(v)};' for k,v in opts.items())
  targetconfigs.append(obj('target'+kind,f'isa = XCBuildConfiguration; name = {kind}; buildSettings = {{ {settings} }};'))
 pcl=obj('projectconfig',f'isa = XCConfigurationList; buildConfigurations = ({",".join(projectconfigs)}); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
@@ -92,12 +92,24 @@ store_screenshots_scheme=store_screenshots_scheme.replace(
     'allowLocationSimulation="YES"><BuildableProductRunnable',
     'allowLocationSimulation="YES"><EnvironmentVariables><EnvironmentVariable key="CW_CAPTURE_STORE_SCREENSHOTS" value="1" isEnabled="YES"/></EnvironmentVariables><BuildableProductRunnable')
 (root/'iPadOS/CommissieWijzer.xcodeproj/xcshareddata/xcschemes/CommissieWijzer-StoreScreenshots.xcscheme').write_text(store_screenshots_scheme)
-info={'CFBundleDevelopmentRegion':'nl','CFBundleDisplayName':'CommissieWijzer','CFBundleExecutable':'$(EXECUTABLE_NAME)','CFBundleIdentifier':'$(PRODUCT_BUNDLE_IDENTIFIER)','CFBundleInfoDictionaryVersion':'6.0','CFBundleName':'$(PRODUCT_NAME)','CFBundlePackageType':'APPL','CFBundleShortVersionString':'$(MARKETING_VERSION)','CFBundleVersion':'$(CURRENT_PROJECT_VERSION)','LSRequiresIPhoneOS':True,'UIApplicationSupportsIndirectInputEvents':True,'UIUserInterfaceStyle':'Dark','UILaunchScreen':{},'UIApplicationSceneManifest':{'UIApplicationSupportsMultipleScenes':True},'UISupportedInterfaceOrientations~ipad':['UIInterfaceOrientationPortrait','UIInterfaceOrientationPortraitUpsideDown','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'],'UIFileSharingEnabled':True,'LSSupportsOpeningDocumentsInPlace':True,'UISupportsDocumentBrowser':True,'CFBundleDocumentTypes':[{'CFBundleTypeName':'CommissieWijzer-werkdocument','CFBundleTypeRole':'Editor','LSHandlerRank':'Owner','LSItemContentTypes':['nl.commissiewijzer.app.work']},{'CFBundleTypeName':'PDF-document','CFBundleTypeRole':'Viewer','LSHandlerRank':'Alternate','LSItemContentTypes':['com.adobe.pdf']}],'UTExportedTypeDeclarations':[{'UTTypeIdentifier':'nl.commissiewijzer.app.work','UTTypeDescription':'CommissieWijzer work document','UTTypeConformsTo':['public.data'],'UTTypeTagSpecification':{'public.filename-extension':['spdfwork']}}],'ITSAppUsesNonExemptEncryption':False}
+info={'CFBundleDevelopmentRegion':'nl','CFBundleDisplayName':'CommissieWijzer','CFBundleExecutable':'$(EXECUTABLE_NAME)','CFBundleIdentifier':'$(PRODUCT_BUNDLE_IDENTIFIER)','CFBundleInfoDictionaryVersion':'6.0','CFBundleName':'$(PRODUCT_NAME)','CFBundlePackageType':'APPL','CFBundleShortVersionString':'$(MARKETING_VERSION)','CFBundleVersion':'$(CURRENT_PROJECT_VERSION)','CWCloudKitEnabled':'$(CW_CLOUDKIT_ENABLED)','CWCloudKitEnvironment':'$(CW_CLOUDKIT_ENVIRONMENT)','LSRequiresIPhoneOS':True,'UIApplicationSupportsIndirectInputEvents':True,'UIUserInterfaceStyle':'Dark','UILaunchScreen':{},'UIApplicationSceneManifest':{'UIApplicationSupportsMultipleScenes':True},'UISupportedInterfaceOrientations~ipad':['UIInterfaceOrientationPortrait','UIInterfaceOrientationPortraitUpsideDown','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'],'UIFileSharingEnabled':True,'LSSupportsOpeningDocumentsInPlace':True,'UISupportsDocumentBrowser':True,'CFBundleDocumentTypes':[{'CFBundleTypeName':'CommissieWijzer-werkdocument','CFBundleTypeRole':'Editor','LSHandlerRank':'Owner','LSItemContentTypes':['nl.commissiewijzer.app.work']},{'CFBundleTypeName':'PDF-document','CFBundleTypeRole':'Viewer','LSHandlerRank':'Alternate','LSItemContentTypes':['com.adobe.pdf']}],'UTExportedTypeDeclarations':[{'UTTypeIdentifier':'nl.commissiewijzer.app.work','UTTypeDescription':'CommissieWijzer work document','UTTypeConformsTo':['public.data'],'UTTypeTagSpecification':{'public.filename-extension':['spdfwork']}}],'ITSAppUsesNonExemptEncryption':False}
 (root/'iPadOS/Info.plist').write_bytes(plistlib.dumps(info))
+# CloudKit entitlements are generated as explicit opt-in inputs only. Build scripts
+# select one after validating the matching profile; ordinary previews use none.
+for environment in ('Development', 'Production'):
+    cloud={'com.apple.developer.icloud-container-identifiers':['iCloud.nl.commissiewijzer.app'],
+           'com.apple.developer.icloud-services':['CloudKit'],
+           'com.apple.developer.icloud-container-environment':environment}
+    (root/f'iPadOS/CommissieWijzer.iCloud-{environment}.entitlements').write_bytes(plistlib.dumps(cloud,sort_keys=True))
 (root/'iPadOS/Assets.xcassets/Contents.json').write_text(json.dumps({'info':{'author':'xcode','version':1}},indent=2)+'\n')
 (root/'iPadOS/Assets.xcassets/AppIcon.appiconset/Contents.json').write_text(json.dumps({'images':[{'filename':'AppIcon.png','idiom':'universal','platform':'ios','size':'1024x1024'}],'info':{'author':'xcode','version':1}},indent=2)+'\n')
 import subprocess
-subprocess.run(['swift',str(root/'scripts/prepare-ipad-icon.swift'),str(root/'Assets/CommissieWijzer.png'),str(root/'iPadOS/Assets.xcassets/AppIcon.appiconset/AppIcon.png')],check=True)
+module_cache=root/'.build'/'swift-module-cache'
+module_cache.mkdir(parents=True,exist_ok=True)
+swift_env=os.environ.copy()
+swift_env.setdefault('CLANG_MODULE_CACHE_PATH',str(module_cache))
+swift_env.setdefault('SWIFT_MODULECACHE_PATH',str(module_cache))
+subprocess.run(['swift',str(root/'scripts/prepare-ipad-icon.swift'),str(root/'Assets/CommissieWijzer.png'),str(root/'iPadOS/Assets.xcassets/AppIcon.appiconset/AppIcon.png')],check=True,env=swift_env)
 (root/'iPadOS/Assets.xcassets/CWBrand.imageset').mkdir(exist_ok=True)
 import shutil
 shutil.copyfile(root/'iPadOS/Assets.xcassets/AppIcon.appiconset/AppIcon.png',root/'iPadOS/Assets.xcassets/CWBrand.imageset/CWBrand.png')

@@ -1,20 +1,32 @@
-# App Review notes — iPadOS 1.0.1 (3)
+# App Review Notes — iPadOS 1.2.0 (8)
 
-CommissieWijzer — iPadOS 1.0.1 (3)
+CommissieWijzer is the Dutch-language iPad app for reading and preparing municipal council and committee papers. It shows analysis beside the original PDF in resizable panes; in narrow windows, use **Werkveld / Originele pdf**. Verify AI output against the source.
 
-This is the native iPad version of CommissieWijzer under the existing app record and bundle identifier. It uses the same reading, analysis, search, notes, source checking, programme comparison, chat, PDF export and portable workdocument workflows as the Mac app, with touch controls and the same dark UI. iPadOS 26+ is required; local Apple Intelligence needs supported hardware and an available system model. Image-based chart explanation additionally requires iPadOS 27 and an available model.
+Requires iPadOS 26+. Local Apple Intelligence needs supported hardware and an available system model; chart image explanation needs iPadOS 27+ and an available model.
 
-REVIEW PATH
-Open the attached fictional selectable-text Sample.pdf using Pdf toevoegen…. The workbench and original PDF appear side by side in a wide window. In a narrow window use Werkveld / Originele pdf. Check an analysis against the PDF and open its source passage. Try local search, notes, selected passages and PDF export through Files. Save a .spdfwork file and reopen it; reopening saved work never starts a new AI request. The same file format opens on Mac and iPad. The iPad keeps a local working copy; Files export creates a transferable copy, with no automatic cross-device synchronization.
+## Review path
 
-Local PDF reading, search, notes, saved work and PDF export need no sign-in. AI output is an aid, and may misinterpret or omit information. The source PDF and user judgement remain authoritative. Image-only scans may need a searchable text layer; check OCR and tables against the original.
+Open the attached fictional selectable-text `Sample.pdf` with **Pdf toevoegen…**. In a wide window, drag the divider and open a cited source passage. In a narrow window, switch panes. Try local search, notes, selected passages, PDF export through Files, then save and reopen a `.spdfwork` file. Reopening does not start an AI request. The iPad keeps a local working copy; Files export creates a transferable copy.
 
-OPTIONAL CHATGPT
-In Instellingen / Settings choose ChatGPT · online under AI-provider, then Continue with ChatGPT. Authorization opens in the system Safari view inside the app so the temporary loopback callback can complete while the app stays in the foreground. The listener binds only to 127.0.0.1 on an ephemeral port, validates Host/path/state, uses PKCE S256 and validates the ID token including nonce, and stops after completion, cancellation, failure or five minutes. It provides no LAN/public server or file sharing. No Mac-only network entitlement is included in this iPad app.
+## Optional personal iCloud library
 
-An eligible reviewer-owned ChatGPT account is needed for optional online AI. No account credentials are provided. The user-selected task sends necessary document excerpts and optional programme text directly to OpenAI. Tokens remain in the device Keychain and never enter workdocuments. ChatGPT conversation history is not accessed. The optional glossary may query Dutch Wikipedia and the selected AI provider for explanations. Local Apple Intelligence has no automatic cloud fallback.
+iCloud is off by default. Sign in to iCloud on the device, enable iCloud in the app settings, then explicitly add a fictional dossier to the iCloud library. Open the library on a second device using the same Apple Account to retrieve it. The entire work document is stored in that account’s private CloudKit database. Committee profiles have a separate opt-in. Sync does not initiate AI requests, and disabling it does not erase existing copies. An Apple Account is not required to use the local workspace.
 
-The app is free and open source, with no own account, backend, analytics, ads or tracking. Documents and notes are stored locally; users may explicitly export copies to a Files provider of their choice.
+## Committees and notifications
+
+Committee profiles are stored locally. Included profiles are editable examples. A profile has a name, topics, and optional points of attention. Work documents retain a snapshot of the selected profile; later local edits do not change existing work. Importing a profile does not automatically replace the local list. With ChatGPT, the chosen committee name, topics, and points of attention are sent with the requested analysis.
+
+**Instellingen → Meldingen** controls local completion notifications. iPadOS requests permission when an analysis starts or the user explicitly enables notifications. Messages contain no document name or contents. iPadOS may suspend analysis in the background; a notification is sent only after the analysis completes. System notification settings can prevent delivery.
+
+## Optional ChatGPT and OAuth callback
+
+In **Instellingen → AI-provider**, choose **ChatGPT · online → Continue with ChatGPT**. Authorization opens in the in-app system Safari view to keep the app in the foreground. Sign in with the reviewer’s own eligible ChatGPT account; no credentials are supplied. Account access and usage limits are determined by OpenAI.
+
+Sign-in starts a temporary listener bound only to `127.0.0.1` on an OS-assigned ephemeral port and registers that port with `/auth/callback` as the redirect URI. The app validates Host, path, state, and response; exchanges the code with PKCE S256; and validates the ID token nonce. The listener stops after completion, cancellation, failure, or five minutes. It accepts no remote connections and is not a general network service. The iPad app does not include the Mac `com.apple.security.network.server` entitlement.
+
+When ChatGPT is selected, only excerpts needed for the requested task, and a user-selected programme if comparing, are sent to OpenAI. Tokens stay in Keychain and are not included in work documents. The app does not read ChatGPT conversations or switch providers automatically. Apple Intelligence runs locally with no cloud fallback. The optional glossary can query Dutch Wikipedia; an AI explanation may send the term and limited context to the selected provider.
+
+Release preference: automatic release after approval.
 
 Privacy: https://syntheticdiz.github.io/CommissieWijzer/privacy.html
 Source: https://github.com/SyntheticDiz/CommissieWijzer

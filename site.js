@@ -240,7 +240,7 @@
     export: {
       kicker: "BEWAREN · PDF-EXPORT",
       title: "Neem je selectie mee.",
-      copy: "Bewaar een overdraagbaar werkdocument op je Mac of iPad, of exporteer een samenvatting of selectie als pdf. Er is geen automatische synchronisatie; controleer de inhoud voordat je deelt.",
+      copy: "Bewaar een werkdocument of exporteer een pdf. Vanaf versie 1.2.0 kun je optioneel per dossier persoonlijke iCloud-synchronisatie inschakelen. Eerdere versies gebruiken handmatige overdracht via Bestanden; controleer de inhoud voordat je deelt.",
       href: "WebsiteAssets/v1.1.2/mac-export.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met het exportscherm en de geselecteerde onderdelen Mijn selectie en Bronnenbijlage.",
       caption: "Echte appweergave · gekozen onderdelen voor pdf-export.",
