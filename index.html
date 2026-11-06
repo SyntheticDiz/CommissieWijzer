@@ -78,16 +78,28 @@
           <div class="demo-layout">
             <div class="story-list" role="group" aria-label="Stappen in de werkwijze">
               <article class="story-step is-current" data-story-step="0" id="stap-open">
-                <span class="story-number">01</span><div><p class="eyebrow">DOCUMENTPUNTEN</p><h3>Open het stuk en begin bij de punten.</h3><p>De echte appweergave toont aandachtspunten links en de oorspronkelijke fictieve voorbeeld-pdf rechts.</p></div>
+                <span class="story-number">01</span><div><p class="eyebrow">OPENEN · PDF IMPORTEREN</p><h3>Open het raadsstuk als pdf.</h3><p>Kies een pdf op je Mac. CommissieWijzer opent het raadsstuk in je werkruimte.</p></div>
               </article>
-              <article class="story-step" data-story-step="1" id="stap-bron">
-                <span class="story-number">02</span><div><p class="eyebrow">BRONPASSAGE</p><h3>Volg een punt terug naar de bron.</h3><p>Open de gekoppelde passage in de pdf. Lees de volledige context en controleer zelf bedragen, voorwaarden en besluitstatus.</p></div>
+              <article class="story-step" data-story-step="1" id="stap-aandachtspunten">
+                <span class="story-number">02</span><div><p class="eyebrow">AANDACHTSPUNTEN · COMMISSIE</p><h3>Bekijk wat bij jouw commissie past.</h3><p>Verken de analyse en kies de commissie waarvoor je je voorbereidt.</p></div>
               </article>
-              <article class="story-step" data-story-step="2" id="stap-selectie">
-                <span class="story-number">03</span><div><p class="eyebrow">MIJN SELECTIE</p><h3>Bewaar je eigen selectie en notitie.</h3><p>De echte appweergave laat zien hoe een punt, persoonlijke controle en voorbereidingsnotitie bij elkaar staan.</p></div>
+              <article class="story-step" data-story-step="2" id="stap-bron">
+                <span class="story-number">03</span><div><p class="eyebrow">BRON CONTROLEREN</p><h3>Volg een punt terug naar de bron.</h3><p>Open de gekoppelde passage. Lees de context en controleer de aandachtspunten in de oorspronkelijke pdf.</p></div>
               </article>
-              <article class="story-step" data-story-step="3" id="stap-zoeken">
-                <span class="story-number">04</span><div><p class="eyebrow">LOKAAL ZOEKEN</p><h3>Vind tekst en eigen notities terug.</h3><p>Zoek lokaal in de pdf, beschikbare resultaten en notities. Een resultaat verwijst terug naar de relevante pagina.</p></div>
+              <article class="story-step" data-story-step="3" id="stap-programma">
+                <span class="story-number">04</span><div><p class="eyebrow">OPTIONEEL · PARTIJPROGRAMMA</p><h3>Vergelijk desgewenst met je programma.</h3><p>Importeer desgewenst je partijprogramma en onderzoek welke aandachtspunten aansluiten bij de doelen van je fractie.</p></div>
+              </article>
+              <article class="story-step" data-story-step="4" id="stap-zoeken">
+                <span class="story-number">05</span><div><p class="eyebrow">VERDIEPEN · LOKAAL ZOEKEN</p><h3>Zoek verder in het stuk en je notities.</h3><p>Stel een vraag via de documentchat of zoek een begrip terug. Hier zie je hoe lokaal zoeken je naar de relevante pagina brengt.</p></div>
+              </article>
+              <article class="story-step" data-story-step="5" id="stap-selectie">
+                <span class="story-number">06</span><div><p class="eyebrow">SELECTIE · EIGEN NOTITIES</p><h3>Maak je voorbereiding persoonlijk.</h3><p>Selecteer relevante punten en voeg eigen notities en vergadervragen toe.</p></div>
+              </article>
+              <article class="story-step" data-story-step="6" id="stap-bewaren">
+                <span class="story-number">07</span><div><p class="eyebrow">BEWAREN · EXPORTEREN</p><h3>Bewaar je werk of kies een pdf-export.</h3><p>Bewaar je voorbereiding als werkdocument. Kies vervolgens de onderdelen die je met bronverwijzingen wilt exporteren.</p></div>
+              </article>
+              <article class="story-step" data-story-step="7" id="stap-eindresultaat">
+                <span class="story-number">08</span><div><p class="eyebrow">EINDRESULTAAT · VERGADERNOTITIE</p><h3>Neem een controleerbare voorbereiding mee.</h3><p>Bekijk de echte pdf-export van het fictieve voorbeeld. Je selectie, eigen notitie en bronnen staan bij elkaar voor de vergadering.</p></div>
               </article>
             </div>
 
@@ -99,14 +111,18 @@
                   <img id="demo-capture-next" width="2560" height="1680" alt="" aria-hidden="true" decoding="async">
                 </div>
                 <figcaption id="capture-caption"><span id="demo-caption-text">Documentpunten naast de originele voorbeeld-pdf.</span><a id="full-shot-link" href="WebsiteAssets/documentpunten.jpg" target="_blank" rel="noopener">Bekijk volledige appweergave <span aria-hidden="true">↗</span></a></figcaption>
-                <noscript><p class="capture-noscript">De foto toont de echte app. De vier stappen staan in de tekst ernaast.</p></noscript>
+                <noscript><p class="capture-noscript">De foto toont de echte app. De acht stappen staan in de tekst ernaast.</p></noscript>
               </figure>
               <div class="demo-controls">
                 <div class="demo-progress" role="group" aria-label="Kies een appbeeld">
-                  <button type="button" class="progress-step is-active" aria-pressed="true" data-demo-step="0"><span>01</span><b>Documentpunten</b></button>
-                  <button type="button" class="progress-step" aria-pressed="false" data-demo-step="1"><span>02</span><b>Bron</b></button>
-                  <button type="button" class="progress-step" aria-pressed="false" data-demo-step="2"><span>03</span><b>Notitie</b></button>
-                  <button type="button" class="progress-step" aria-pressed="false" data-demo-step="3"><span>04</span><b>Zoeken</b></button>
+                  <button type="button" class="progress-step is-active" aria-label="01 Open raadsstuk of importeer pdf" title="Open raadsstuk of importeer pdf" aria-pressed="true" data-demo-step="0"><span>01</span><b>Open</b></button>
+                  <button type="button" class="progress-step" aria-label="02 Bekijk aandachtspunten voor de commissie" title="Bekijk aandachtspunten voor de commissie" aria-pressed="false" data-demo-step="1"><span>02</span><b>Punten</b></button>
+                  <button type="button" class="progress-step" aria-label="03 Controleer de bron" title="Controleer de bron" aria-pressed="false" data-demo-step="2"><span>03</span><b>Bron</b></button>
+                  <button type="button" class="progress-step" aria-label="04 Vergelijk een partijprogramma" title="Vergelijk een partijprogramma" aria-pressed="false" data-demo-step="3"><span>04</span><b>Programma</b></button>
+                  <button type="button" class="progress-step" aria-label="05 Verdiep met chat of zoeken" title="Verdiep met chat of zoeken" aria-pressed="false" data-demo-step="4"><span>05</span><b>Zoeken</b></button>
+                  <button type="button" class="progress-step" aria-label="06 Maak een selectie en voeg notities toe" title="Maak een selectie en voeg notities toe" aria-pressed="false" data-demo-step="5"><span>06</span><b>Selectie</b></button>
+                  <button type="button" class="progress-step" aria-label="07 Bewaar of exporteer" title="Bewaar of exporteer" aria-pressed="false" data-demo-step="6"><span>07</span><b>Bewaar</b></button>
+                  <button type="button" class="progress-step" aria-label="08 Bekijk het eindresultaat: vergadernotitie" title="Bekijk het eindresultaat: vergadernotitie" aria-pressed="false" data-demo-step="7"><span>08</span><b>Notitie</b></button>
                 </div>
                 <button type="button" class="play-control" id="play-demo" aria-pressed="false" aria-label="Speel appbeelden automatisch af"><span aria-hidden="true">▶</span><span class="play-label">Speel stappen</span></button>
               </div>

@@ -12,19 +12,37 @@
   const story = [
     {
       src: "WebsiteAssets/documentpunten.jpg",
-      alt: "Echte schermafbeelding van CommissieWijzer: documentpunten links en de fictieve voorbeeld-pdf rechts.",
-      caption: "Documentpunten naast de originele voorbeeld-pdf.",
+      alt: "Echte schermafbeelding van CommissieWijzer nadat de fictieve voorbeeld-pdf is geopend; documentpunten staan links.",
+      caption: "Het geopende raadsstuk in de werkruimte.",
+      href: "WebsiteAssets/documentpunten.jpg"
+    },
+    {
+      src: "WebsiteAssets/documentpunten.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast de fictieve voorbeeld-pdf.",
+      caption: "Aandachtspunten naast de oorspronkelijke pdf.",
       href: "WebsiteAssets/documentpunten.jpg"
     },
     {
       src: "WebsiteAssets/bronpassage.jpg",
       fallbackSrc: "WebsiteAssets/documentpunten.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met de gevonden bronpassage uit het fictieve raadsvoorstel.",
-      caption: "De gevonden bronpassage in context; echte appweergave.",
+      caption: "De gekoppelde bronpassage in context.",
       href: "WebsiteAssets/bronpassage.jpg",
       fallbackAlt: "Echte appweergave met documentpunten en de fictieve voorbeeld-pdf; de aparte bronpassage-opname wordt niet geladen.",
-      fallbackCaption: "Echte appweergave met het document en de gekoppelde punten.",
+      fallbackCaption: "Documentpunten naast de fictieve voorbeeld-pdf.",
       fallbackHref: "WebsiteAssets/documentpunten.jpg"
+    },
+    {
+      src: "WebsiteAssets/documentpunten.jpg",
+      alt: "Echte schermafbeelding met documentpunten naast de fictieve voorbeeld-pdf.",
+      caption: "Begin bij de aandachtspunten voor je eigen afweging.",
+      href: "WebsiteAssets/documentpunten.jpg"
+    },
+    {
+      src: "WebsiteAssets/lokaal-zoeken.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief raadsvoorstel.",
+      caption: "Zoek een begrip terug en volg de paginaverwijzing.",
+      href: "WebsiteAssets/lokaal-zoeken.jpg"
     },
     {
       src: "WebsiteAssets/selectie-notities.jpg",
@@ -33,10 +51,16 @@
       href: "WebsiteAssets/selectie-notities.jpg"
     },
     {
-      src: "WebsiteAssets/lokaal-zoeken.jpg",
-      alt: "Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief raadsvoorstel.",
-      caption: "Zoekresultaten in de echte app.",
-      href: "WebsiteAssets/lokaal-zoeken.jpg"
+      src: "WebsiteAssets/exporteren.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met de gekozen onderdelen voor pdf-export.",
+      caption: "Kies de onderdelen voor je pdf-export.",
+      href: "WebsiteAssets/exporteren.jpg"
+    },
+    {
+      src: "WebsiteAssets/vergadernotitie.jpg",
+      alt: "Eerste pagina van de echte pdf-export met een geselecteerd punt, eigen notitie en bronverwijzing bij het fictieve raadsvoorstel.",
+      caption: "De geëxporteerde vergadernotitie met eigen notitie en bronverwijzingen.",
+      href: "WebsiteAssets/vergadernotitie.pdf"
     }
   ];
 
@@ -102,6 +126,9 @@
       }
       caption.textContent = item.caption;
       fullShotLink.href = item.href;
+      fullShotLink.textContent = item.href.endsWith(".pdf")
+        ? "Bekijk vergadernotitie (pdf) ↗"
+        : "Bekijk volledige appweergave ↗";
     };
     incoming.onerror = () => {
       if (token !== storyRequest) return;

@@ -13,3 +13,8 @@ De opnamen komen rechtstreeks uit de native AppKit-weergaven van de app. De gede
 De website toont alle beelden gecentreerd in een vast kader van 32:21. Alleen de transparantie verandert tijdens de zachte overgang van 1,1 seconde; de beelden zoomen of verschuiven niet. De achtergrond van de website blijft donker; de oorspronkelijke documentkleur binnen de echte appopnamen blijft intact. Bij verminderde beweging vervalt de animatie.
 
 `werkruimte.jpg` is dezelfde oorspronkelijke opname als `selectie-notities.jpg` en blijft beschikbaar voor bestaande verwijzingen.
+
+
+## Vergadernotitie
+
+`vergadernotitie.pdf` is op 6 november 2026 rechtstreeks geëxporteerd uit CommissieWijzer met het fictieve raadsvoorstel en de fictieve voorbereidingsnotitie. De export bevat de selectie, eigen notitie en bronnenbijlage. `vergadernotitie.jpg` is de gerenderde eerste pagina van die pdf. De acht dia’s gebruiken de beschikbare echte appbeelden. Voor de toelichting op partijprogrammavergelijking wordt het bestaande documentpuntenbeeld gebruikt.
