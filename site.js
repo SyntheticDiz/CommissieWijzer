@@ -369,6 +369,7 @@
     let wheelQuietTimer = 0;
     let wheelLocked = false;
     let touch = null;
+    const storyScreenIndex = screens.findIndex(screen => screen.id === "werkwijze");
     function nearestScreenIndex() {
       let nearest = 0;
       for (let i = 1; i < screens.length; i++) {
@@ -389,7 +390,11 @@
     }
     function navigate(index) {
       index = Math.max(0, Math.min(screens.length - 1, index));
-      if (index === nearestScreenIndex()) return false;
+      const current = nearestScreenIndex();
+      if (index === current) return false;
+      if (index === storyScreenIndex) {
+        setStep(index > current ? 0 : story.length - 1, "navigation");
+      }
       transitionUntil = performance.now() + 760;
       const screen = screens[index];
       screen.scrollIntoView({ behavior: motionPreference.matches ? "instant" : "smooth", block: "start" });
@@ -398,6 +403,13 @@
     }
     function move(direction) {
       const current = nearestScreenIndex();
+      const nextStep = selectedStep + direction;
+      if (current === storyScreenIndex && nextStep >= 0 && nextStep < story.length) {
+        stopPlayback();
+        setStep(nextStep, "gesture");
+        transitionUntil = performance.now() + 760;
+        return true;
+      }
       const next = current + direction;
       if (next < 0 || next >= screens.length) return false;
       return navigate(next);

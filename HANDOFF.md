@@ -63,7 +63,7 @@ De website wordt gepubliceerd via de `main`-branch en de bestaande GitHub Pages-
 
 ## Donkere productwebsite
 
-De landingspagina toont zeven schermvullende secties. De sectie-ID’s zijn de doelen van de navigatie en de chevrons. `home-screens.css` bepaalt de schermhoogte en houdt de chevron buiten het leesgedeelte. `site.js` verwerkt verticale scroll- en veeggebaren. Bij vergroting of weinig leesruimte kan de inhoud binnen een sectie scrollen.
+De landingspagina toont zeven schermvullende secties. De sectie-ID’s zijn de doelen van de navigatie en de chevrons. `home-screens.css` bepaalt de schermhoogte en houdt de chevron buiten het leesgedeelte. `site.js` verwerkt verticale scroll- en veeggebaren. Bij vergroting of weinig leesruimte kan de inhoud binnen een sectie scrollen. Binnen het appvoorbeeld doorlopen scroll-, veeg- en toetsenbordgebaren eerst de vier dia’s, in beide richtingen. Na de laatste dia gaat een volgend gebaar naar het volgende scherm. Bij binnenkomst via scrollen wordt de eerste dia (omlaag) of laatste dia (omhoog) gekozen.
 
 De website is opnieuw opgebouwd als een productverhaal met grote typografie, uitsluitend donkere oppervlakken en blauwe accenten uit het CW-icoon. De vierstapspresentatie gebruikt uitsluitend echte native appbeelden: documentpunten naast de pdf, de passageweergave, eigen selectie met notitie en lokaal zoeken. Het functieoverzicht toont dezelfde echte appbeelden en de echte inhoudskeuze voor pdf-export. Het raadsvoorstel en de voorbeeldnotitie zijn volledig fictief. De website verwerkt geen documenten en voert geen AI-analyse uit. Er wordt geen appbediening nagebouwd.
 
