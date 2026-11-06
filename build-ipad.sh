@@ -19,6 +19,20 @@ case "$mode" in
     ;;
   archive)
     : "${CW_DEVELOPMENT_TEAM:?Set CW_DEVELOPMENT_TEAM to your Apple Developer team ID}"
+    project_dir="$(pwd -P)"
+    home_dir="$(cd "$HOME" && pwd -P)"
+    archive_path="${CW_IPAD_ARCHIVE_PATH:-dist/CommissieWijzer-iPad.xcarchive}"
+    mkdir -p "$(dirname "$archive_path")"
+
+    # Keep source paths out of the shipped executable/debug metadata without
+    # writing machine-specific paths into the generated Xcode project.
+    swift_prefix_flags='$(inherited)'
+    swift_prefix_flags+=" -file-prefix-map \"$project_dir=/CommissieWijzer\""
+    swift_prefix_flags+=" -file-prefix-map \"$home_dir=/Developer\""
+    clang_prefix_flags='$(inherited)'
+    clang_prefix_flags+=" -ffile-prefix-map=\"$project_dir=/CommissieWijzer\""
+    clang_prefix_flags+=" -ffile-prefix-map=\"$home_dir=/Developer\""
+
     signing_args=(CODE_SIGN_STYLE=Automatic)
     if [[ -n "${CW_IPAD_PROVISIONING_PROFILE:-}" ]]; then
       signing_args=(CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Distribution'
@@ -26,7 +40,13 @@ case "$mode" in
     fi
     xcodebuild -project iPadOS/CommissieWijzer.xcodeproj -scheme CommissieWijzer-iPad \
       -configuration Release -destination 'generic/platform=iOS' \
-      -archivePath dist/CommissieWijzer-iPad.xcarchive DEVELOPMENT_TEAM="$CW_DEVELOPMENT_TEAM" \
+      -archivePath "$archive_path" DEVELOPMENT_TEAM="$CW_DEVELOPMENT_TEAM" \
+      "OTHER_SWIFT_FLAGS=$swift_prefix_flags" \
+      "OTHER_CFLAGS=$clang_prefix_flags" \
+      "OTHER_CPLUSPLUSFLAGS=$clang_prefix_flags" \
+      ENABLE_TESTABILITY=NO \
+      DEPLOYMENT_POSTPROCESSING=YES STRIP_INSTALLED_PRODUCT=YES \
+      STRIP_STYLE=debugging COPY_PHASE_STRIP=YES \
       "${signing_args[@]}" archive
     ;;
   *) echo 'Usage: bash build-ipad.sh [simulator|device|archive]' >&2; exit 2 ;;

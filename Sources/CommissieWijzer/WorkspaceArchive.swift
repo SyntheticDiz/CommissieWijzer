@@ -78,6 +78,9 @@ struct WorkspaceArchive: Codable, Sendable {
     var analysisCompletedPages: [Int]? = nil
     var chosenPassages: [ChosenPassage]? = nil
     var meetingPurpose: MeetingPurpose? = nil
+    /// Committee definitions known to this document. Kept alongside the
+    /// reviews so saved work remains readable after the global library changes.
+    var committeeCatalog: [MeetingPurpose]? = nil
     var committeeReviews: [CommitteeAssessmentService.Review]? = nil
     var savedChatThreads: [SavedChatThread]? = nil
     var savedChartAnalyses: [SavedChartAnalysis]? = nil
@@ -104,6 +107,14 @@ struct WorkspaceArchive: Codable, Sendable {
             throw AppError(message: "Dit werkdocument is ongeldig of gebruikt een niet-ondersteunde versie.")
         }
         if let job { _ = try PageScope.parse(job.selection, count: pages.count) }
+        if let committeeCatalog {
+            guard committeeCatalog.allSatisfy({ $0 != .raad }),
+                  Set(committeeCatalog.map { LocalCache.key([$0.rawValue] + $0.analysisCacheComponents) }).count == committeeCatalog.count else {
+                throw AppError(message: "De commissielijst in dit werkdocument is ongeldig.")
+            }
+            do { try committeeCatalog.compactMap(\.committee).forEach { try $0.validate() } }
+            catch { throw AppError(message: "De commissielijst in dit werkdocument is ongeldig.") }
+        }
         // Commission reviews are optional derived records. Their current input
         // keys can become stale across OS or prompt-version changes, so they do
         // not invalidate the underlying workdocument; restore filters bad sources.
@@ -112,6 +123,7 @@ struct WorkspaceArchive: Codable, Sendable {
         let passages = PassageEngine.passages(pages)
         return reviews.filter { review in
             guard !review.inputKey.isEmpty else { return false }
+            if let definition = review.purpose.committee, (try? definition.validate()) == nil { return false }
             if review.purpose == .raad { return review.entries.isEmpty && review.complete }
             guard review.entries.count == passages.count else { return false }
             for (passage, assessment) in zip(passages, review.entries) {

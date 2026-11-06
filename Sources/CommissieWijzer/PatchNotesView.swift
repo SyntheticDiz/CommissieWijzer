@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PatchNotesView: View {
     @Environment(\.dismiss) private var dismiss
-    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.1" }
+    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.2" }
 
     private struct Release: Identifiable {
         let version: String
@@ -12,6 +12,19 @@ struct PatchNotesView: View {
     }
     // Newest release first; retain the previous release notes.
     private let releases: [Release] = [
+        .init(version: "1.1.2", date: "6 november 2026", changes: [
+            "Het analysewerkveld en de originele PDF staan in twee grote, netjes uitgelijnde kaarten met gelijke binnenmarges en herkenbare kleinere inhoudskaarten.",
+            "Tabs en PDF-bediening horen bij hun eigen leesdeel. De verstelbare verdeling, bronacties, selecties, chat en overige functies blijven beschikbaar op Mac en iPad."
+        ]),
+        .init(version: "1.1.1", date: "6 november 2026", changes: [
+            "Ontvang op Mac en iPad een lokale melding zodra je analyse klaar is. Bij de eerste analyse vraagt het systeem toestemming voor meldingen.",
+            "Beheer de meldingen in Instellingen. De melding bevat geen documentinhoud; geannuleerde analyses geven geen klaar-melding."
+        ]),
+        .init(version: "1.1.0", date: "6 november 2026", changes: [
+            "Maak eigen commissies met een naam, onderwerpen en aanvullende aandachtspunten. Pas de voorbeelden aan de indeling van jouw gemeente aan.",
+            "Gebruik je commissies bij documentanalyse, onderwerpfilters en pdf-export. De algemene raadsanalyse blijft beschikbaar.",
+            "Bewaar commissie-indelingen lokaal en neem ze mee in werkdocumenten. Eerdere analyses en notities blijven behouden wanneer je een commissie wijzigt of verwijdert."
+        ]),
         .init(version: "1.0.1", date: "30 oktober 2026", changes: [
             "De analysemethode op het welkomstscherm staat nu compact en gecentreerd boven de PDF-import. De bestaande keuze en analysewerking blijven gelijk.",
             "Nieuw zakelijk CW-monogram als app-icoon, in dezelfde rustige vormentaal als Foliance."

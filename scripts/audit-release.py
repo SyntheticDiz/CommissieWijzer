@@ -10,8 +10,8 @@ import tempfile
 from pathlib import Path
 
 BUNDLE_ID = "nl.commissiewijzer.app"
-VERSION = "1.0.1"
-BUILD = "2"
+VERSION = "1.1.2"
+BUILD = "7"
 MINIMUM_SYSTEM = "14.0"
 
 

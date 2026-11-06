@@ -19,6 +19,7 @@ enum AppTheme {
     #endif
     static let background = adaptive(.init(red: 0.94, green: 0.95, blue: 0.97, alpha: 1), .init(red: 0.09, green: 0.11, blue: 0.14, alpha: 1))
     static let surface = adaptive(.init(white: 1, alpha: 1), .init(red: 0.15, green: 0.18, blue: 0.22, alpha: 1))
+    static let paneSurface = adaptive(.init(red: 0.97, green: 0.98, blue: 0.99, alpha: 1), .init(red: 0.12, green: 0.14, blue: 0.17, alpha: 1))
     static let border = adaptive(.init(red: 0.84, green: 0.86, blue: 0.89, alpha: 1), .init(red: 0.25, green: 0.29, blue: 0.34, alpha: 1))
     static let selection = adaptive(.init(red: 0.98, green: 0.94, blue: 0.95, alpha: 1), .init(red: 0.23, green: 0.15, blue: 0.18, alpha: 1))
     static let accent = adaptive(.init(red: 0.67, green: 0.12, blue: 0.20, alpha: 1), .init(red: 0.96, green: 0.57, blue: 0.62, alpha: 1))
@@ -55,4 +56,17 @@ private struct ReadingSurface: ViewModifier {
 }
 extension View {
     func readingSurface() -> some View { modifier(ReadingSurface()) }
+    func workbenchPaneSurface() -> some View { modifier(WorkbenchPaneSurface()) }
+}
+
+private struct WorkbenchPaneSurface: ViewModifier {
+    @Environment(\.colorSchemeContrast) private var contrast
+    func body(content: Content) -> some View {
+        content.background(AppTheme.paneSurface, in: RoundedRectangle(cornerRadius: 22))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22)
+                    .strokeBorder(contrast == .increased ? Color.primary.opacity(0.6) : AppTheme.border.opacity(0.8), lineWidth: 1)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+    }
 }

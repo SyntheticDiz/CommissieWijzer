@@ -165,6 +165,7 @@ struct CommissieWijzerApp: App {
     init() {
         ForkSetup.migrate()
         AppleAISettings.migrate()
+        AnalysisCompletionNotifications.shared.installDelegate()
     }
     var body: some Scene {
         WindowGroup("CommissieWijzer") {
@@ -196,6 +197,7 @@ struct CommissieWijzerApp: App {
     init() {
         ForkSetup.migrate()
         AppleAISettings.migrate()
+        AnalysisCompletionNotifications.shared.installDelegate()
     }
 
     var body: some Scene {

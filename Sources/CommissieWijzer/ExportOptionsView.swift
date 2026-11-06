@@ -24,7 +24,7 @@ struct ExportOptionsView: View {
     @State private var choices = ExportConfiguration.read()
     @State private var preset: ExportPreset?
     @State private var customizationExpanded = false
-    @State private var validatedCommitteePurposes: Set<String> = []
+    @State private var validatedCommitteePurposes: [MeetingPurpose] = []
     @State private var eligibilityGeneration = UUID()
     @State private var eligibilityTask: Task<Void, Never>?
     @State private var glossary: [ExportGlossaryItem] = []
@@ -65,17 +65,17 @@ struct ExportOptionsView: View {
                                                             notice: "", context: "", neutralAnalysis: false)
     }
     private var eligibleCommitteePurposes: [MeetingPurpose] {
-        MeetingPurpose.allCases.filter { validatedCommitteePurposes.contains($0.rawValue) }
+        validatedCommitteePurposes
     }
     private var scopeChoice: ExportScopeChoice {
-        if let purpose = choices.committeePurpose { return .committee(purpose.rawValue) }
+        if let purpose = choices.committeePurpose { return .committee(purpose) }
         return choices.selectedPoints ? .mySelection : .fullDocument
     }
     private var scopeTitle: String {
         switch scopeChoice {
         case .fullDocument: UIStrings.text("Hele document")
         case .mySelection: UIStrings.text("Mijn selectie")
-        case .committee(let rawValue): UIStrings.text("Commissie: \(eligibleCommitteePurposes.first { $0.rawValue == rawValue }?.title ?? rawValue)")
+        case .committee(let purpose): UIStrings.text("Commissie: \(committeeOptionTitle(purpose))")
         }
     }
     private var committeeScopeUnavailable: Bool {
@@ -107,6 +107,16 @@ struct ExportOptionsView: View {
             case .sources: c.sources ? "Bronnenbijlage" : nil
             }
         }
+    }
+
+    private func committeeOptionTitle(_ purpose: MeetingPurpose) -> String {
+        let sameName = eligibleCommitteePurposes.filter { $0.title == purpose.title }
+        guard sameName.count > 1 else { return purpose.title }
+        let sameProfile = sameName.filter { $0.profileID == purpose.profileID }
+        if sameProfile.count > 1, let definition = purpose.committee {
+            return "\(purpose.title) · versie \(definition.revision)"
+        }
+        return "\(purpose.title) · \(purpose.profileID)"
     }
     private var scopeDescription: String {
         if let preset { return UIStrings.text(preset.scopeDescription) }
@@ -141,7 +151,7 @@ struct ExportOptionsView: View {
                 Text(UIStrings.text("Hele document")).tag(ExportScopeChoice.fullDocument)
                 Text(UIStrings.text("Mijn selectie")).tag(ExportScopeChoice.mySelection)
                 ForEach(eligibleCommitteePurposes, id: \.self) { purpose in
-                    Text(UIStrings.text("Commissie: \(purpose.title)")).tag(ExportScopeChoice.committee(purpose.rawValue))
+                    Text(UIStrings.text("Commissie: \(committeeOptionTitle(purpose))")).tag(ExportScopeChoice.committee(purpose))
                 }
             }
             #if os(macOS)
@@ -376,8 +386,7 @@ struct ExportOptionsView: View {
             preset = .fullDossier
         case .mySelection:
             choices = ExportPreset.selectedWithSources.configuration()
-        case .committee(let purposeID):
-            guard let purpose = MeetingPurpose(rawValue: purposeID) else { return }
+        case .committee(let purpose):
             var value = ExportConfiguration()
             value.committeePurpose = purpose
             value.summary = false
@@ -476,14 +485,14 @@ struct ExportOptionsView: View {
         let documentID = workspace.documentID
         let revisionToken = workspace.revisionToken
         eligibilityTask = Task { @MainActor in
-            let validator = Task.detached(priority: .userInitiated) { () -> [String]? in
-                var purposes: [String] = []
+            let validator = Task.detached(priority: .userInitiated) { () -> [MeetingPurpose]? in
+                var purposes: [MeetingPurpose] = []
                 for review in reviews {
                     guard !Task.isCancelled else { return nil }
                     if review.purpose != .raad,
                        CommitteeAssessmentService.validateSources(review, pages: pages) {
                         guard !Task.isCancelled else { return nil }
-                        purposes.append(review.purpose.rawValue)
+                        purposes.append(review.purpose)
                     }
                 }
                 guard !Task.isCancelled else { return nil }
@@ -497,8 +506,17 @@ struct ExportOptionsView: View {
                   workspace.revisionToken == revisionToken,
                   eligibilityGeneration == generation else { return }
             eligibilityTask = nil
-            validatedCommitteePurposes = Set(purposes)
-            if let purpose = choices.committeePurpose, !validatedCommitteePurposes.contains(purpose.rawValue) {
+            var seen = Set<String>()
+            validatedCommitteePurposes = purposes.filter { purpose in
+                seen.insert(LocalCache.key([purpose.rawValue] + purpose.analysisCacheComponents)).inserted
+            }.sorted {
+                $0.title == $1.title ? $0.rawValue < $1.rawValue : $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+            if let purpose = choices.committeePurpose,
+               !validatedCommitteePurposes.contains(where: {
+                   $0.rawValue == purpose.rawValue &&
+                       $0.analysisCacheComponents == purpose.analysisCacheComponents
+               }) {
                 choices.committeePurpose = nil
                 choices.selectedPoints = false
                 preset = ExportPreset.matching(choices)

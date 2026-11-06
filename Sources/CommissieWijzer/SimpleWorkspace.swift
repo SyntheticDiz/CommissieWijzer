@@ -58,6 +58,16 @@ final class SimpleWorkspace: ObservableObject {
     typealias WarningUpdate = @Sendable (Int) async -> Void
     typealias ProgressUpdate = @Sendable (Int, Int) async -> Void
     typealias CommitteeProgressUpdate = @Sendable (CommitteeAssessmentService.Review, Int, Int) async -> Void
+    typealias AnalysisNotificationPrepare = @MainActor () -> Void
+    typealias AnalysisNotificationPost = @MainActor (UUID, AnalysisCompletionOutcome) async -> Void
+    typealias AnalysisNotificationCancel = @MainActor (UUID) -> Void
+
+    private struct AnalysisCompletionRun: Equatable {
+        let id: UUID
+        let generation: UUID
+        let documentID: UUID
+    }
+
     var summarizeDocument = SummaryService.generate
     var collectHighlights = KeyPointService.generate
     var generateCommitteeReview = CommitteeAssessmentService.generate
@@ -148,6 +158,21 @@ final class SimpleWorkspace: ObservableObject {
     @Published private(set) var committeeReviews: [String: CommitteeAssessmentService.Review] = [:] {
         didSet { committeeReviewRevision = UUID() }
     }
+    /// Immutable committee snapshots retained by the active document.
+    /// The global library is merged at read time, but library edits never
+    /// mutate a purpose already selected or used by a saved review.
+    @Published private(set) var committeeCatalog: [MeetingPurpose] = []
+    private let committeeLibrary: CommitteeLibrary
+    private var committeeLibrarySubscription: AnyCancellable?
+    var availableMeetingPurposes: [MeetingPurpose] {
+        var values: [MeetingPurpose] = [.raad]
+        values.append(contentsOf: committeeLibrary.committees)
+        values.append(contentsOf: committeeCatalog)
+        values.append(contentsOf: committeeReviews.values.map(\.purpose))
+        if meetingPurpose != .raad { values.append(meetingPurpose) }
+        var seen = Set<String>()
+        return values.filter { seen.insert(Self.committeePurposeSnapshotKey($0)).inserted }
+    }
     @Published private(set) var committeeReviewBusy = false
     @Published private(set) var committeeReviewStatus = ""
     @Published private(set) var committeeReviewError: String?
@@ -175,6 +200,95 @@ final class SimpleWorkspace: ObservableObject {
     private var terminationReadingPage: Int?
     private var terminationViewState: WorkspaceViewState?
     private var terminationAutosaveInProgress = false
+    private let prepareAnalysisNotification: AnalysisNotificationPrepare
+    private let postAnalysisNotification: AnalysisNotificationPost
+    private let cancelAnalysisNotification: AnalysisNotificationCancel
+    private var activeAnalysisCompletionRun: AnalysisCompletionRun?
+
+    init(committeeLibrary: CommitteeLibrary? = nil,
+         prepareAnalysisNotification: @escaping AnalysisNotificationPrepare = {
+             AnalysisCompletionNotifications.shared.prepareForAnalysis()
+         },
+         postAnalysisNotification: @escaping AnalysisNotificationPost = { id, outcome in
+             await AnalysisCompletionNotifications.shared.postCompletion(id: id, outcome: outcome)
+         },
+         cancelAnalysisNotification: @escaping AnalysisNotificationCancel = { id in
+             AnalysisCompletionNotifications.shared.cancel(id: id)
+         }) {
+        let library = committeeLibrary ?? .shared
+        self.committeeLibrary = library
+        self.prepareAnalysisNotification = prepareAnalysisNotification
+        self.postAnalysisNotification = postAnalysisNotification
+        self.cancelAnalysisNotification = cancelAnalysisNotification
+        committeeLibrarySubscription = library.$committees.dropFirst().sink { [weak self] committees in
+            self?.captureCommitteeLibrarySnapshot(committees)
+        }
+    }
+
+    private func captureCommitteeLibrarySnapshot(_ committees: [MeetingPurpose]) {
+        objectWillChange.send()
+        guard document != nil else { return }
+        var seen = Set(committeeCatalog.map(Self.committeePurposeSnapshotKey))
+        let additions = committees.filter { $0 != .raad && seen.insert(Self.committeePurposeSnapshotKey($0)).inserted }
+        guard !additions.isEmpty else { return }
+        committeeCatalog.append(contentsOf: additions)
+        markDirty()
+    }
+
+    private func beginAnalysisCompletionRun(documentID: UUID? = nil,
+                                            prepareImmediately: Bool) -> AnalysisCompletionRun {
+        invalidateAnalysisCompletionRun()
+        let run = AnalysisCompletionRun(id: UUID(), generation: UUID(), documentID: documentID ?? self.documentID)
+        activeAnalysisCompletionRun = run
+        if prepareImmediately { prepareAnalysisNotification() }
+        return run
+    }
+
+    private func prepareAnalysisNotification(for run: AnalysisCompletionRun) {
+        guard activeAnalysisCompletionRun == run else { return }
+        prepareAnalysisNotification()
+    }
+
+    private func invalidateAnalysisCompletionRun(_ expected: AnalysisCompletionRun? = nil) {
+        guard let active = activeAnalysisCompletionRun,
+              expected == nil || expected == active else { return }
+        activeAnalysisCompletionRun = nil
+        cancelAnalysisNotification(active.id)
+    }
+
+    private func finishAnalysisCompletionRun(_ run: AnalysisCompletionRun?, outcome: AnalysisCompletionOutcome) {
+        guard let run, activeAnalysisCompletionRun == run, documentID == run.documentID else { return }
+        guard outcome == .completed || outcome == .completedWithWarnings else {
+            invalidateAnalysisCompletionRun(run)
+            return
+        }
+        Task { @MainActor [weak self] in
+            guard let self, self.activeAnalysisCompletionRun == run,
+                  self.documentID == run.documentID else { return }
+            await self.postAnalysisNotification(run.id, outcome)
+            if self.activeAnalysisCompletionRun == run { self.activeAnalysisCompletionRun = nil }
+        }
+    }
+
+    private func documentAnalysisOutcome(cancelled: Bool = Task.isCancelled) -> AnalysisCompletionOutcome {
+        if cancelled { return .cancelled }
+        if error != nil || chatGPTFailed || analysisState == .failed || analysisState == .incomplete || analysisState == .cancelled {
+            return .failed
+        }
+        if summaryError != nil || !analysisIssues.isEmpty || !keyPointIssues.isEmpty ||
+            !citationWarning.isEmpty || analysisState == .needsProgram ||
+            analysisState == .unconfirmed {
+            return .completedWithWarnings
+        }
+        return .completed
+    }
+
+    /// Retain newly available definitions in this document. Capturing a profile
+    /// never starts or repeats an AI request.
+    func captureCurrentCommitteeLibrary() {
+        captureCommitteeLibrarySnapshot(committeeLibrary.committees)
+    }
+
     var workspaceArchiveWriter: @Sendable (WorkspaceArchive, URL) throws -> Void = { archive, url in
         try archive.write(url)
     }
@@ -242,11 +356,21 @@ final class SimpleWorkspace: ObservableObject {
     private static func committeeReviewKey(_ review: CommitteeAssessmentService.Review) -> String {
         "\(review.purpose.rawValue)\u{1f}\(review.model)\u{1f}\(review.inputKey)"
     }
+    private static func committeePurposeSnapshotKey(_ purpose: MeetingPurpose) -> String {
+        LocalCache.key([purpose.rawValue] + purpose.analysisCacheComponents)
+    }
     private func publishCommitteeReviewHistory(_ reviews: [CommitteeAssessmentService.Review]) {
         committeeReviewHistory = Dictionary(reviews.map { (Self.committeeReviewKey($0), $0) }, uniquingKeysWith: { _, latest in latest })
         var latestByPurpose: [String: CommitteeAssessmentService.Review] = [:]
         for review in reviews { latestByPurpose[review.purpose.rawValue] = review }
         committeeReviews = latestByPurpose
+    }
+    private func retainedCommitteeCatalog() -> [MeetingPurpose] {
+        var values = committeeCatalog + committeeLibrary.committees
+        values.append(contentsOf: committeeReviews.values.map(\.purpose))
+        if meetingPurpose != .raad { values.append(meetingPurpose) }
+        var seen = Set<String>()
+        return values.filter { $0 != .raad && seen.insert(Self.committeePurposeSnapshotKey($0)).inserted }
     }
     private func runImportCommitteeReview(pages: [String], purpose: MeetingPurpose, model: String, expectedDocumentID: UUID) async -> Bool {
         guard purpose != .raad else { return true }
@@ -380,6 +504,10 @@ final class SimpleWorkspace: ObservableObject {
         guard meetingPurpose != purpose else { return }
         let wasReviewing = committeeReviewBusy
         meetingPurpose = purpose
+        if purpose.committee != nil,
+           !committeeCatalog.contains(where: { $0.rawValue == purpose.rawValue && $0.analysisCacheComponents == purpose.analysisCacheComponents }) {
+            committeeCatalog.append(purpose)
+        }
         committeeReviewError = nil
         committeeReviewStatus = ""
         committeeReviewCompleted = committeeReviews[purpose.rawValue]?.entries.count ?? 0
@@ -413,26 +541,32 @@ final class SimpleWorkspace: ObservableObject {
         canStartCommitteeReview && meetingPurpose != .raad && baseAnalysisSucceeded
     }
     func startCommitteeReview(model requestedModel: String? = nil) {
-        guard !importTaskActive else { return }
+        _ = startCommitteeReview(model: requestedModel, inheritedCompletionRun: nil)
+    }
+
+    @discardableResult
+    private func startCommitteeReview(model requestedModel: String?,
+                                      inheritedCompletionRun: AnalysisCompletionRun?) -> Bool {
+        guard !importTaskActive else { return false }
         guard meetingPurpose != .raad else {
             committeeReviewStatus = "Raad gebruikt de bestaande analyse."
             committeeReviewError = nil
-            return
+            return false
         }
         let model = requestedModel ?? AIConfiguration.selectedModel
         guard !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             committeeReviewError = "Kies eerst een AI-model voor de commissiebeoordeling."
             committeeReviewStatus = "Commissiebeoordeling niet gestart."
-            return
+            return false
         }
         if committeeReviewBusy {
-            guard committeeReviewRunningPurpose != meetingPurpose || committeeReviewRunningModel != model else { return }
+            guard committeeReviewRunningPurpose != meetingPurpose || committeeReviewRunningModel != model else { return false }
             let queued = (meetingPurpose, model, documentID)
-            stopCommitteeReview()
+            stopCommitteeReview(invalidateNotification: false)
             queuedCommitteeReview = queued
-            return
+            return false
         }
-        guard canStartCommitteeReview, let document else { return }
+        guard canStartCommitteeReview, let document else { return false }
         let purpose = meetingPurpose
         let pages = document.pages
         let previousReview = committeeReviews[purpose.rawValue]
@@ -442,6 +576,10 @@ final class SimpleWorkspace: ObservableObject {
         let measurement = analysisMeasurement ?? AnalysisMetrics.Recorder(
             model: model, operation: shouldResume ? "committee-resume" : "committee-review")
         let expectedDocumentID = documentID
+        let notificationRun = inheritedCompletionRun ?? beginAnalysisCompletionRun(prepareImmediately: false)
+        let ownsNotificationRun = inheritedCompletionRun == nil
+        var didInvokeAI = false
+        var notificationOutcome: AnalysisCompletionOutcome = .failed
         let runID = UUID()
         let generation = UUID()
         committeeReviewTaskID = runID
@@ -480,10 +618,21 @@ final class SimpleWorkspace: ObservableObject {
                        self.hasAutomaticLegacyCategorizationWork(in: review) {
                         self.automaticallyCategorizeLegacyReview(review, model: followup.model)
                     }
+                    var handedOffNotification = false
                     if let queued = self.queuedCommitteeReview {
                         self.queuedCommitteeReview = nil
                         if queued.documentID == self.documentID, queued.purpose == self.meetingPurpose {
-                            Task { @MainActor [weak self] in self?.startCommitteeReview(model: queued.model) }
+                            handedOffNotification = self.startCommitteeReview(
+                                model: queued.model, inheritedCompletionRun: notificationRun)
+                        }
+                    }
+                    if !handedOffNotification {
+                        if Task.isCancelled {
+                            self.invalidateAnalysisCompletionRun(notificationRun)
+                        } else if inheritedCompletionRun != nil || (ownsNotificationRun && didInvokeAI) {
+                            self.finishAnalysisCompletionRun(notificationRun, outcome: notificationOutcome)
+                        } else {
+                            self.invalidateAnalysisCompletionRun(notificationRun)
                         }
                     }
                 }
@@ -501,6 +650,9 @@ final class SimpleWorkspace: ObservableObject {
                     self.committeeReviewCompleted = existing.entries.count
                     self.committeeReviewTotal = existing.entries.count
                     self.committeeReviewStatus = "Commissiebeoordeling al beschikbaar."
+                    if inheritedCompletionRun != nil {
+                        notificationOutcome = self.documentAnalysisOutcome(cancelled: false)
+                    }
                     return
                 }
                 let update: CommitteeProgressUpdate = { snapshot, completed, total in
@@ -519,6 +671,8 @@ final class SimpleWorkspace: ObservableObject {
                     }
                 }
                 let review: CommitteeAssessmentService.Review
+                didInvokeAI = true
+                if ownsNotificationRun { self.prepareAnalysisNotification(for: notificationRun) }
                 if shouldResume, let previousReview {
                     review = try await AnalysisMetrics.withPhase("committee", recorder: measurement) {
                         try await resumer(pages, purpose, model, previousReview, update)
@@ -542,6 +696,8 @@ final class SimpleWorkspace: ObservableObject {
                 self.committeeReviewTotal = review.entries.count
                 self.committeeReviewStatus = review.complete ? "Commissiebeoordeling afgerond." : "Commissiebeoordeling gedeeltelijk afgerond."
                 measurementOutcome = review.complete ? "completed" : "incomplete"
+                notificationOutcome = review.complete && review.issues.isEmpty
+                    ? .completed : .completedWithWarnings
                 self.markDirty()
                 if shouldResume, review.complete {
                     automaticCategorizationAfterResume = (purpose, expectedDocumentID, Self.committeeReviewKey(review), model)
@@ -557,6 +713,7 @@ final class SimpleWorkspace: ObservableObject {
                 }
             }
         }
+        return true
     }
     var generateCommitteeCategories: (CommitteeAssessmentService.Review, [String], String, @escaping CommitteeCategorizationService.Progress) async throws -> CommitteeAssessmentService.Review = {
         try await CommitteeCategorizationService.categorize(review: $0, pages: $1, model: $2, progress: $3)
@@ -643,8 +800,9 @@ final class SimpleWorkspace: ObservableObject {
             }
         }
     }
-    func stopCommitteeReview() {
+    func stopCommitteeReview(invalidateNotification: Bool = true) {
         guard committeeReviewBusy else { return }
+        if invalidateNotification { invalidateAnalysisCompletionRun() }
         queuedCommitteeReview = nil
         committeeReviewGeneration = UUID()
         committeeReviewStatus = "Commissiebeoordeling annuleren…"
@@ -887,13 +1045,14 @@ final class SimpleWorkspace: ObservableObject {
                 self.progress.begin(phases: later.count, chatGPT: true)
                 self.beginMeasurement(model: nextModel, operation: "model-switch-\(phase.rawValue)")
                 let newJob = self.lastJob!
+                let notificationRun = self.activeAnalysisCompletionRun
                 let replacementTask = Task { [weak self] in
                     guard let self else { return }
                     defer {
                         self.preservingResultsDuringModelSwitch = false
                         self.analysisPhase = nil
                         self.canSwitchCurrentAnalysisWorkflow = false
-                        self.finishProcessing()
+                        self.finishProcessing(notificationRun: notificationRun)
                     }
                     for currentPhase in later {
                         guard !Task.isCancelled, !self.chatGPTFailed,
@@ -969,6 +1128,7 @@ final class SimpleWorkspace: ObservableObject {
         let phaseModels = [needsAnalysis ? job.model : nil, needsSummary ? summaryModelForRetry : nil,
                            needsHighlights ? highlightsModelForRetry : nil].compactMap { $0 }
         guard !phaseModels.isEmpty else { return }
+        let notificationRun = beginAnalysisCompletionRun(prepareImmediately: true)
         markDirty()
         error = nil; chatGPTFailed = false
         canSwitchCurrentAnalysisWorkflow = false
@@ -977,7 +1137,7 @@ final class SimpleWorkspace: ObservableObject {
         beginMeasurement(model: phaseModels[0], operation: "resume")
         preservingResultsDuringModelSwitch = true
         task = Task {
-            defer { preservingResultsDuringModelSwitch = false; analysisPhase = nil; finishProcessing() }
+            defer { preservingResultsDuringModelSwitch = false; analysisPhase = nil; finishProcessing(notificationRun: notificationRun) }
             if needsAnalysis && !Task.isCancelled && !chatGPTFailed {
                 analysisPhase = .points
                 await runAnalysis(document: document, model: job.model, context: job.context,
@@ -1062,19 +1222,28 @@ final class SimpleWorkspace: ObservableObject {
     }
     func retryHighlights(model: String = AIConfiguration.selectedModel) {
         guard canStartAnalysis, let document else { return }
+        let notificationRun = beginAnalysisCompletionRun(prepareImmediately: true)
         let saved = highlightsRetry ?? (document.pages, model, "Hele document")
         error = nil; chatGPTFailed = false
         canSwitchCurrentAnalysisWorkflow = false
         busy = true; progress.begin(phases: 1, chatGPT: AIConfiguration.isChatGPT(saved.1))
         beginMeasurement(model: saved.1, operation: "retry-highlights")
-        task = Task { defer { analysisPhase = nil; finishProcessing() }; await makeHighlights(pages: saved.0, model: saved.1, scope: saved.2) }
+        task = Task {
+            defer { analysisPhase = nil; finishProcessing(notificationRun: notificationRun) }
+            await makeHighlights(pages: saved.0, model: saved.1, scope: saved.2)
+        }
     }
     var loadProgram: () throws -> PartyProgram? = { try PartyProgram.load() }
     var compareDocument: ([String], String, String, PartyProgram, @escaping PointsUpdate, @escaping WarningUpdate, @escaping ProgressUpdate) async throws -> [Insight] = { pages, model, context, program, update, warning, progress in
         try await AIService.analyzeLocal(pages: pages, model: model, context: context, program: program, update: update, warning: warning, progress: progress)
     }
     @Published var documentID = UUID() {
-        didSet { committeePresentationCache.clear() }
+        didSet {
+            committeePresentationCache.clear()
+            if oldValue != documentID, activeAnalysisCompletionRun?.documentID != documentID {
+                invalidateAnalysisCompletionRun()
+            }
+        }
     }
     @Published var summaryScope = "Hele document"
     @Published var focus = UserDefaults.standard.string(forKey: "savedProgramFocus") ?? UserDefaults.standard.string(forKey: "committeeContext") ?? ""
@@ -1098,12 +1267,13 @@ final class SimpleWorkspace: ObservableObject {
     var summaryRetryModel: String? { summaryRetry?.model }
     func retrySummary() {
         guard canStartAnalysis, let saved = summaryRetry else { return }
+        let notificationRun = beginAnalysisCompletionRun(prepareImmediately: true)
         error = nil; chatGPTFailed = false
         canSwitchCurrentAnalysisWorkflow = false
         busy = true; progress.begin(phases: 1, chatGPT: AIConfiguration.isChatGPT(saved.model))
         beginMeasurement(model: saved.model, operation: "retry-summary")
         task = Task {
-            defer { analysisPhase = nil; finishProcessing() }
+            defer { analysisPhase = nil; finishProcessing(notificationRun: notificationRun) }
             await makeSummary(pages: saved.pages, model: saved.model)
         }
     }
@@ -1193,7 +1363,8 @@ final class SimpleWorkspace: ObservableObject {
         processingPresented = true
     }
 
-    private func finishProcessing() {
+    private func finishProcessing(notificationRun: AnalysisCompletionRun? = nil,
+                                  notificationOutcome: AnalysisCompletionOutcome? = nil) {
         if let measurement = analysisMeasurement {
             let incomplete = error != nil || summaryError != nil || committeeReviewError != nil ||
                 !analysisIssues.isEmpty || !keyPointIssues.isEmpty || analysisState == .needsProgram
@@ -1205,9 +1376,17 @@ final class SimpleWorkspace: ObservableObject {
         busy = false
         if Task.isCancelled { autoCommitteePurposeAfterBase = nil }
         if Task.isCancelled, showsWelcome, document == nil { returnToImport(); return }
+        var handedOffNotification = false
         if let purpose = autoCommitteePurposeAfterBase {
             autoCommitteePurposeAfterBase = nil
-            if meetingPurpose == purpose, canAutoStartCommitteeReview { startCommitteeReview(model: activeModel) }
+            if meetingPurpose == purpose, canAutoStartCommitteeReview {
+                handedOffNotification = startCommitteeReview(model: activeModel,
+                                                              inheritedCompletionRun: notificationRun)
+            }
+        }
+        if !handedOffNotification, let notificationRun {
+            finishAnalysisCompletionRun(notificationRun,
+                                        outcome: notificationOutcome ?? documentAnalysisOutcome())
         }
         guard processingPresented, !Task.isCancelled else { return }
         processingMessage = error ?? (completionDetails.isEmpty ? nil : completionDetails)
@@ -1232,6 +1411,7 @@ final class SimpleWorkspace: ObservableObject {
     }
 
     func returnToImport() {
+        invalidateAnalysisCompletionRun()
         if committeeReviewBusy { stopCommitteeReview() }
         chatGPTModelSwitchToken = UUID()
         analysisPhase = nil
@@ -1263,6 +1443,7 @@ final class SimpleWorkspace: ObservableObject {
         insights = []; tables = []; keyPoints = []; passageQuestions = [:]; chosenPassages = []
         savedChatThreads = []; savedChartAnalyses = []; savedSelectionSummaries = []
         meetingPurpose = .raad
+        committeeCatalog = []
         committeeReviewHistory = [:]; committeeReviews = [:]
         committeeReviewError = nil; committeeReviewStatus = ""
         committeeReviewCompleted = 0; committeeReviewTotal = 0
@@ -1279,6 +1460,7 @@ final class SimpleWorkspace: ObservableObject {
 
     func newDocument() {
         guard canStartAnalysis else { return }
+        invalidateAnalysisCompletionRun()
         // Keep the current result available until a replacement PDF is successfully imported.
         showsWelcome = true
         status = "Kies een pdf om te beginnen."
@@ -1306,13 +1488,14 @@ final class SimpleWorkspace: ObservableObject {
         beginProcessing(name: url.lastPathComponent)
         beginMeasurement(model: model ?? "none", operation: "import")
         importTaskActive = true
+        var notificationRun: AnalysisCompletionRun?
         task = Task {
             defer {
                 importProgressID = nil
                 importTaskActive = false
                 analysisPhase = nil
                 canSwitchCurrentAnalysisWorkflow = false
-                finishProcessing()
+                finishProcessing(notificationRun: notificationRun)
             }
             do {
                 if let previousCommitteeReview { await previousCommitteeReview.value }
@@ -1341,6 +1524,8 @@ final class SimpleWorkspace: ObservableObject {
                 savedChatThreads = []; savedChartAnalyses = []; savedSelectionSummaries = []
                 keyPoints = []; keyPointIssues = ""; keyPointsReady = false
                 meetingPurpose = importPurpose
+                committeeCatalog = committeeLibrary.committees.filter { $0 != .raad }
+                if importPurpose != .raad { committeeCatalog.append(importPurpose) }
                 committeeReviewHistory = [:]; committeeReviews = [:]
                 committeeReviewError = nil; committeeReviewStatus = ""
                 committeeReviewCompleted = 0; committeeReviewTotal = 0
@@ -1366,6 +1551,9 @@ final class SimpleWorkspace: ObservableObject {
                 self.focus = UserDefaults.standard.string(forKey: "savedProgramFocus") ?? UserDefaults.standard.string(forKey: "committeeContext") ?? ""
                 refreshProgram()
                 document = loaded; citationWarning = ""; insights = []; analyzed = false; page = 1; navigationID = UUID()
+                if model != nil {
+                    notificationRun = beginAnalysisCompletionRun(prepareImmediately: true)
+                }
                 terminationReadingPage = 1; terminationViewState = nil
                 let empty = loaded.pages.filter { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
                 status = "\(loaded.pages.count) pagina’s" + (empty > 0 ? " · \(empty) pagina’s zonder leesbare tekst" : "")
@@ -1424,6 +1612,7 @@ final class SimpleWorkspace: ObservableObject {
         let needsHighlights = !resumeOnly || highlightsInputKey != inputKey
         let phases = [needsSummary, needsAnalysis, needsHighlights].filter { $0 }.count
         guard phases > 0 else { status = "Alle onderdelen zijn al gereed."; return }
+        let notificationRun = beginAnalysisCompletionRun(prepareImmediately: true)
         requestedSelection = selection
         lastJob = job; activeModel = model; activeScope = scope; error = nil
         canSwitchCurrentAnalysisWorkflow = AIConfiguration.isChatGPT(model)
@@ -1431,7 +1620,13 @@ final class SimpleWorkspace: ObservableObject {
         busy = true; progress.begin(phases: phases, chatGPT: AIConfiguration.isChatGPT(model))
         beginMeasurement(model: model, operation: resumeOnly ? "resume" : "analyze")
         task = Task {
-            defer { analysisPhase = nil; canSwitchCurrentAnalysisWorkflow = false; finishProcessing() }
+            defer {
+                analysisPhase = nil
+                canSwitchCurrentAnalysisWorkflow = false
+                if !(Task.isCancelled && isSwitchingChatGPTModel) {
+                    finishProcessing(notificationRun: notificationRun)
+                }
+            }
             if needsAnalysis { analysisPhase = .points }
             if needsAnalysis && !Task.isCancelled && !chatGPTFailed { await runAnalysis(document: document, model: model, context: context, selection: selection, compareProgram: compareProgram, targeted: targeted) }
             if needsSummary && !Task.isCancelled && !chatGPTFailed {
@@ -1679,12 +1874,13 @@ final class SimpleWorkspace: ObservableObject {
             }
             summaryPages = selected
             summaryScope = PageScope.label(selected, count: document.pages.count)
+            let notificationRun = beginAnalysisCompletionRun(prepareImmediately: true)
             markDirty()
             canSwitchCurrentAnalysisWorkflow = false
             busy = true; progress.begin(phases: 1, chatGPT: AIConfiguration.isChatGPT(model))
             beginMeasurement(model: model, operation: "summary")
             task = Task {
-                defer { analysisPhase = nil; finishProcessing() }
+                defer { analysisPhase = nil; finishProcessing(notificationRun: notificationRun) }
                 await makeSummary(pages: pages, model: model)
             }
         } catch { self.error = error.localizedDescription }
@@ -1712,7 +1908,12 @@ final class SimpleWorkspace: ObservableObject {
         } catch { self.error = error.localizedDescription }
     }
 
-    func cancelAnalysis() { task?.cancel(); progress.resetChatGPTEstimateForCancellation(); if !analyzed { analysisState = .cancelled } }
+    func cancelAnalysis() {
+        invalidateAnalysisCompletionRun()
+        task?.cancel()
+        progress.resetChatGPTEstimateForCancellation()
+        if !analyzed { analysisState = .cancelled }
+    }
     func showPage(_ number: Int) { page = number; navigationID = UUID() }
 
     var exportContext: String {
@@ -1950,7 +2151,8 @@ final class SimpleWorkspace: ObservableObject {
             analysisModel: analysisModel, summaryRetryModel: summaryRetry?.model, highlightRetryModel: highlightsRetry?.model,
             highlightPages: highlightsRetry?.pages.enumerated().compactMap { $0.element.isEmpty ? nil : $0.offset + 1 } ?? [], summaryKey: summaryInputKey, highlightsKey: highlightsInputKey, analysisKey: analysisInputKey,
             selectionMetadata: selectionMetadata, viewState: viewState, analysisCompletedPages: analysisCompletedPages,
-            chosenPassages: chosenPassages, meetingPurpose: meetingPurpose, committeeReviews: reviews,
+            chosenPassages: chosenPassages, meetingPurpose: meetingPurpose,
+            committeeCatalog: retainedCommitteeCatalog(), committeeReviews: reviews,
             savedChatThreads: savedChatThreads, savedChartAnalyses: savedChartAnalyses, savedSelectionSummaries: savedSelectionSummaries)
     }
     func restore(_ saved: WorkspaceArchive, persist: Bool = true) throws {
@@ -1978,6 +2180,13 @@ final class SimpleWorkspace: ObservableObject {
         selectionMetadata = saved.selectionMetadata ?? .init()
         normalizeSelectionMetadata()
         meetingPurpose = saved.meetingPurpose ?? .raad
+        var restoredCatalog = saved.committeeCatalog ?? []
+        restoredCatalog.append(contentsOf: (saved.committeeReviews ?? []).map(\.purpose))
+        if meetingPurpose != .raad { restoredCatalog.append(meetingPurpose) }
+        var seenCommitteeSnapshots = Set<String>()
+        committeeCatalog = restoredCatalog.filter {
+            $0 != .raad && seenCommitteeSnapshots.insert(Self.committeePurposeSnapshotKey($0)).inserted
+        }
         let restoredCommitteeReviews = prevalidated
             ? (saved.committeeReviews ?? [])
             : WorkspaceArchive.validCommitteeReviews(saved.committeeReviews ?? [], pages: saved.pages)

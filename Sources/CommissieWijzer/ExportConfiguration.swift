@@ -107,13 +107,13 @@ enum ExportPreset: String, CaseIterable, Identifiable {
 enum ExportScopeChoice: Hashable, Identifiable {
     case fullDocument
     case mySelection
-    case committee(String)
+    case committee(MeetingPurpose)
 
     var id: String {
         switch self {
         case .fullDocument: "document"
         case .mySelection: "selection"
-        case .committee(let purpose): "committee-\(purpose)"
+        case .committee(let purpose): "committee-\(LocalCache.key([purpose.rawValue] + purpose.analysisCacheComponents))"
         }
     }
 }

@@ -137,7 +137,9 @@ enum CommitteeAssessmentService {
 
     static func inputKey(pages: [String], purpose: MeetingPurpose, model: String) -> String {
         LocalCache.key([cacheVersion, ProcessInfo.processInfo.operatingSystemVersionString,
-                        purpose.rawValue, model, AIConfiguration.workerModel(model)] + promptCacheComponents(model: model) + pages)
+                        purpose.rawValue, model, AIConfiguration.workerModel(model)] +
+                        (purpose.committee == nil ? [] : purpose.analysisCacheComponents) +
+                       promptCacheComponents(model: model) + pages)
     }
 
     static func generate(pages: [String], purpose: MeetingPurpose, model: String,
@@ -435,7 +437,9 @@ enum CommitteeAssessmentService {
     private static func entryCacheKey(_ passage: PassageEngine.Passage, purpose: MeetingPurpose,
                                       model: String, contextSources: [Insight.Source] = []) -> String {
         LocalCache.key([cacheVersion, ProcessInfo.processInfo.operatingSystemVersionString,
-                        purpose.rawValue, model] + promptCacheComponents(model: model) + [passage.id, passage.text] +
+                        purpose.rawValue, model] +
+                       (purpose.committee == nil ? [] : purpose.analysisCacheComponents) +
+                       promptCacheComponents(model: model) + [passage.id, passage.text] +
                        passage.sources.flatMap { [String($0.page), $0.quote] } +
                        contextSources.flatMap { [String($0.page), $0.quote] })
     }

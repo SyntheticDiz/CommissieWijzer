@@ -1,6 +1,6 @@
 # Privacybeleid — CommissieWijzer
 
-Laatst bijgewerkt: 31 oktober 2026. Dit document beschrijft de huidige Mac- en iPad-implementatie. De App Privacy-vragenlijst voor de Mac-versie is gepubliceerd. De iPad-versie 1.0.1 (3) is afzonderlijk ingediend en staat op Waiting for Review.
+Laatst bijgewerkt: 6 november 2026. Dit document beschrijft de Mac- en iPad-implementatie, inclusief eigen commissies in ontwikkelversie 1.1.2. De eerder ingediende builds worden hierdoor niet vervangen.
 
 ## In het kort
 
@@ -12,10 +12,14 @@ De app bewaart lokaal op beide platforms:
 
 - de pdf die je opent en een werkdocument dat je zelf opslaat;
 - de beschikbare analyse, bronverwijzingen, geselecteerde passages en notities;
-- voorkeuren en lokale cachebestanden;
+- voorkeuren, eigen commissieprofielen (naam, onderwerpen en aandachtspunten) en lokale cachebestanden;
 - begrensde diagnostiek voor ChatGPT-verbindingsproblemen, zoals de foutcategorie, HTTP-status, beperkte technische foutcodes, een OpenAI-request-ID, wachttijd en appversie.
 
 De lokale ChatGPT-diagnostiek bewaart geen documentinhoud, prompts, antwoordtekst, tokens, wachtwoorden of volledige serverresponses. Op Mac staan appgegevens in lokale appopslag en kies je zelf waar werkdocumenten en exports worden opgeslagen. Op iPad staan appgegevens in lokale appopslag. Een geopend werkdocument wordt daar als lokale werkkopie bewaard; bewaren via Bestanden maakt een overdraagbare kopie op de locatie die jij kiest. Wijzigingen aan de werkkopie werken een eerdere export niet automatisch bij: exporteer opnieuw om de bijgewerkte versie over te zetten. CommissieWijzer synchroniseert of voegt werk tussen apparaten niet samen. Een gekozen cloudlocatie valt voor opslag en synchronisatie onder de betreffende provider.
+
+## Lokale meldingen
+
+Als je toestemming geeft, toont CommissieWijzer na een afgeronde analyse een lokale systeemmelding op Mac of iPad. De melding bevat geen documentnaam, documentinhoud, commissieomschrijving of accountgegevens. De app gebruikt hiervoor geen pushserver, tracking of extra gegevensoverdracht. Je kunt meldingen in de app uitschakelen; de toestemming en presentatie beheer je daarnaast via de meldingsinstellingen van het besturingssysteem.
 
 ## Apple Intelligence
 
@@ -27,7 +31,7 @@ ChatGPT is optioneel en werkt online. Je meldt je aan via OpenAI OAuth. Op Mac o
 
 Tijdens aanmelding ontvangt de app je e-mailadres en OpenAI’s stabiele `sub`-accountidentifier uit het gecontroleerde ID-token. Een door de app gegenereerde vaste, willekeurige hostidentifier wordt met de OAuth-aanvraag meegestuurd. Bij heraanmelding kan de app een e-mailhint en bestaand ID-token als OpenAI-loginhints gebruiken. OAuth-tokens en accountgegevens worden in de lokale sleutelhanger bewaard: op Mac beschikbaar na de eerste ontgrendeling (`AfterFirstUnlock`) en op iPad alleen op dit apparaat beschikbaar wanneer het ontgrendeld is (`WhenUnlockedThisDeviceOnly`). De hostidentifier staat lokaal in appvoorkeuren.
 
-Wanneer je ChatGPT als provider kiest en een analyse start, stuurt de app de daarvoor benodigde documenttekst of passages rechtstreeks naar OpenAI. Bij programmavergelijking gaat ook het programma dat je zelf kiest mee. De online woordenlijst kan daarnaast de opgehaalde openbare tekst en relevante documentcontext naar de gekozen AI-provider sturen voor de uitleg. Je ChatGPT-account, beschikbare modellen en gebruikslimieten zijn van toepassing. OpenAI’s voorwaarden en privacybeleid gelden voor gegevens die je daarheen stuurt; CommissieWijzer beheert die verwerking niet.
+Wanneer je ChatGPT als provider kiest en een analyse start, stuurt de app de daarvoor benodigde documenttekst of passages rechtstreeks naar OpenAI. Bij een commissieanalyse gaan de naam, onderwerpen en aanvullende aandachtspunten van het gekozen commissieprofiel mee; bij programmavergelijking ook het programma dat je zelf kiest. De online woordenlijst kan daarnaast de opgehaalde openbare tekst en relevante documentcontext naar de gekozen AI-provider sturen voor de uitleg. Je ChatGPT-account, beschikbare modellen en gebruikslimieten zijn van toepassing. OpenAI’s voorwaarden en privacybeleid gelden voor gegevens die je daarheen stuurt; CommissieWijzer beheert die verwerking niet.
 
 De app leest of importeert geen ChatGPT-gesprekken. Ze gebruikt een eigen aanvraag voor de gekozen taak. Afmelden verwijdert of trekt de lokaal opgeslagen tokens in, voor zover OpenAI de intrekking bevestigt. OpenAI kan eigen retentie- en veiligheidsprocessen toepassen; lokaal opslaan door CommissieWijzer betekent niet dat gegevens die naar OpenAI zijn gestuurd daar direct worden gewist.
 
@@ -50,7 +54,7 @@ Deze vier gegevenscategorieën staan in de gepubliceerde App Privacy-vragenlijst
 | E-mailadres | OpenAI-accountadres dat via OAuth wordt teruggegeven en lokaal wordt getoond/bewaard | Appfunctionaliteit: aanmelden en accountstatus | Nee |
 | Gebruikers-ID | OpenAI `sub`-accountidentifier | Appfunctionaliteit: het aangemelde account herkennen | Nee |
 | Apparaat-ID | App-specifieke willekeurige hostidentifier | Appfunctionaliteit: OAuth-clientcontext | Nee |
-| Andere gebruikersinhoud | Documentfragmenten en een geselecteerd programma bij optionele ChatGPT-analyse | Appfunctionaliteit: de door de gebruiker gestarte analyse | Nee |
+| Andere gebruikersinhoud | Documentfragmenten, het gekozen commissieprofiel en een geselecteerd programma bij optionele ChatGPT-analyse | Appfunctionaliteit: de door de gebruiker gestarte analyse | Nee |
 
 Deze gegevens worden niet gebruikt voor advertenties of tracking. Documentinhoud wordt met OpenAI gedeeld wanneer je ChatGPT kiest voor analyse of uitleg. Diagnostische records blijven lokaal.
 

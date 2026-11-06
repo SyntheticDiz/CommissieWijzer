@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 struct AppSettingsView: View {
 #if os(iOS)
@@ -7,9 +8,11 @@ struct AppSettingsView: View {
 #endif
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingPatchNotes = false
     @State private var showingTutorial = false
     @State private var showingLicenses = false
+    @State private var showingCommitteeManager = false
     @State private var message = ""
     @State private var failed = false
     @State private var choosingFolder = false
@@ -17,6 +20,7 @@ struct AppSettingsView: View {
     @AppStorage("exportFolder") private var exportFolder = ""
 
     @State private var appleStatus = ""
+    @ObservedObject private var completionNotifications = AnalysisCompletionNotifications.shared
 
     private func checkApple() { appleStatus = AppleAIService.unavailability() ?? "Beschikbaar · Nederlands ondersteund · Volledig lokaal" }
 
@@ -55,6 +59,7 @@ struct AppSettingsView: View {
             }
             Text(UIStrings.text("Alleen de bediening verandert van taal. Samenvattingen, aandachtspunten en AI-antwoorden blijven Nederlands.")).font(.caption).foregroundStyle(.secondary)
             ChatGPTSettingsView()
+            notificationSettings
             Label(UIStrings.text("Apple Intelligence"), systemImage: "sparkles").font(.headline)
             GroupBox(UIStrings.text("Apple Intelligence op deze Mac")) {
                 VStack(alignment: .leading, spacing: 12) {
@@ -66,6 +71,15 @@ struct AppSettingsView: View {
             }
             Divider()
             Label(UIStrings.text("Analyse"), systemImage: "slider.horizontal.3").font(.headline)
+            GroupBox(UIStrings.text("Commissies")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(UIStrings.text("Pas commissieonderwerpen aan of maak een eigen profiel. Bestaande werkdocumenten behouden hun opgeslagen profiel."))
+                        .font(.callout).foregroundStyle(.secondary)
+                    Button(UIStrings.text("Commissies beheren"), systemImage: "person.3") {
+                        showingCommitteeManager = true
+                    }
+                }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
+            }
             PartyProgramSettings()
             Divider()
             Label(UIStrings.text("Weergave"), systemImage: "circle.lefthalf.filled").font(.headline)
@@ -131,7 +145,15 @@ struct AppSettingsView: View {
         .sheet(isPresented: $showingPatchNotes) { PatchNotesView() }
         .sheet(isPresented: $showingTutorial) { TutorialView() }
         .sheet(isPresented: $showingLicenses) { ThirdPartyLicensesView() }
-        .task { checkApple() }
+        .sheet(isPresented: $showingCommitteeManager) { CommitteeManagerView() }
+        .task {
+            checkApple()
+            await completionNotifications.refreshAuthorization()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await completionNotifications.refreshAuthorization() }
+        }
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
             #if os(iOS)
             switch result {
@@ -151,5 +173,54 @@ struct AppSettingsView: View {
             #endif
         }
         .buttonStyle(FocusSecondaryButtonStyle())
+    }
+
+    private var notificationSettings: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(UIStrings.text("Melding als analyse klaar is"), isOn: Binding(
+                    get: { completionNotifications.isEnabled },
+                    set: { enabled in
+                        Task {
+                            await completionNotifications.setEnabled(enabled)
+                            await completionNotifications.refreshAuthorization()
+                        }
+                    }
+                ))
+                .platformCheckboxStyle()
+
+                Text(UIStrings.text("Lokale melding zodra de documentanalyse is afgerond. Documentinhoud wordt niet in de melding getoond."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                #if os(iOS)
+                Text(UIStrings.text("iPadOS kan een analyse op de achtergrond pauzeren. De melding volgt zodra de analyse daadwerkelijk is afgerond."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #endif
+
+                if let status = completionNotifications.statusMessage {
+                    Text(UIStrings.text(status))
+                        .font(.caption)
+                        .foregroundStyle(completionNotifications.authorizationStatus == .denied ? .orange : .secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if completionNotifications.authorizationStatus == .notDetermined {
+                    Button(UIStrings.text("Sta meldingen toe"), systemImage: "bell.badge") {
+                        Task {
+                            await completionNotifications.setEnabled(true)
+                            await completionNotifications.refreshAuthorization()
+                        }
+                    }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Label(UIStrings.text("Meldingen"), systemImage: "bell.badge")
+                .font(.headline)
+        }
     }
 }

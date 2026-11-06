@@ -10,7 +10,13 @@ struct CommitteeCategory: Codable, Hashable, Sendable, Identifiable {
     static let unassignedTitle = "Nog in te delen"
 
     static func categories(for purpose: MeetingPurpose) -> [CommitteeCategory] {
-        switch purpose {
+        if let committee = purpose.committee {
+            return committee.topics.enumerated().map { index, topic in
+                CommitteeCategory(id: "topic-\(index + 1)",
+                                  title: topic, topics: [topic])
+            }
+        }
+        switch purpose.builtinCase ?? .raad {
         case .raad:
             return []
         case .bestuur:

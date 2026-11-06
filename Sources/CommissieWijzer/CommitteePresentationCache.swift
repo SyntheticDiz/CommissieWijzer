@@ -7,6 +7,7 @@ final class CommitteePresentationCache {
     private struct Key: Equatable {
         let documentID: UUID
         let purpose: MeetingPurpose
+        let purposeComponents: [String]
         let pointsRevision: UUID
         let reviewRevision: UUID
     }
@@ -19,6 +20,7 @@ final class CommitteePresentationCache {
                review: CommitteeAssessmentService.Review,
                points: [Insight]) -> CommitteePresentationSnapshot {
         let requested = Key(documentID: documentID, purpose: purpose,
+                            purposeComponents: purpose.committee == nil ? [] : purpose.analysisCacheComponents,
                             pointsRevision: pointsRevision, reviewRevision: reviewRevision)
         if key == requested, let snapshot { return snapshot }
         let built = CommitteePresentationSnapshot(review: review, points: points, purpose: purpose)

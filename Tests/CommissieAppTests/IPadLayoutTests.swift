@@ -74,6 +74,67 @@ final class IPadLayoutTests: XCTestCase {
         }
     }
 
+    func testNarrowWorkbenchRendersBothPaneChoices() async throws {
+        let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "mac-v1", withExtension: "spdfwork"))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow })
+        let originalController = window.rootViewController
+        let defaults = UserDefaults.standard
+        let previousPDFChoice = defaults.object(forKey: "showPDFPane")
+        defer {
+            window.rootViewController = originalController
+            if let previousPDFChoice { defaults.set(previousPDFChoice, forKey: "showPDFPane") }
+            else { defaults.removeObject(forKey: "showPDFPane") }
+        }
+        let output = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LayoutVerification", isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+
+        for (name, showPDF) in [("original-pdf", true), ("workbench", false)] {
+            let workspace = SimpleWorkspace()
+            try workspace.restore(WorkspaceArchive.read(fixture), persist: false)
+            defaults.set(showPDF, forKey: "showPDFPane")
+            let controller = UIHostingController(rootView: NavigationStack {
+                SimpleView(workspace: workspace)
+            }
+            .appPresentationContextHost()
+            .preferredColorScheme(.dark))
+            controller.overrideUserInterfaceStyle = .dark
+            let container = UIViewController()
+            window.rootViewController = container
+            container.addChild(controller)
+            container.view.addSubview(controller.view)
+            controller.didMove(toParent: container)
+            controller.view.autoresizingMask = []
+            controller.view.frame = CGRect(x: 0, y: 0, width: 834, height: 1210)
+            window.makeKeyAndVisible()
+            try await Task.sleep(nanoseconds: 750_000_000)
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
+
+            let pdfViews = descendants(of: controller.view).compactMap { $0 as? PDFView }
+            if showPDF {
+                XCTAssertTrue(pdfViews.contains { $0.bounds.width > 300 && $0.bounds.height > 300 },
+                              "The original PDF must fill the narrow iPad pane when selected")
+            } else {
+                XCTAssertTrue(pdfViews.allSatisfy { $0.bounds.width < 10 || $0.bounds.height < 10 },
+                              "The hidden PDF must not remain visible when the workbench is selected")
+            }
+
+            let image = UIGraphicsImageRenderer(bounds: controller.view.bounds).image { _ in
+                controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+            }
+            try XCTUnwrap(image.pngData()).write(to: output.appendingPathComponent("ipad-narrow-\(name).png"))
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "CommissieWijzer narrow iPad \(name)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            controller.willMove(toParent: nil)
+            controller.view.removeFromSuperview()
+            controller.removeFromParent()
+        }
+    }
+
     func testSettingsReadersFocusAndExportRenderInBothOrientations() async throws {
         let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "mac-v1", withExtension: "spdfwork"))
         let archive = try WorkspaceArchive.read(fixture)
@@ -86,6 +147,12 @@ final class IPadLayoutTests: XCTestCase {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         for (viewName, view) in [
             ("settings", AnyView(AppSettingsView())),
+            ("committees", AnyView(CommitteeManagerView())),
+            ("committee-editor", AnyView(CommitteeDefinitionEditor(title: "Commissie aanpassen",
+                definition: CommitteeDefinition(id: "layout-fixture", revision: "1",
+                    name: "Samenleving en gemeentelijke voorzieningen",
+                    topics: ["Jeugdzorg", "Onderwijs en toegankelijke voorzieningen", "Sport en cultuur"],
+                    attention: "Controleer de gevolgen voor bereikbaarheid en toegankelijkheid."), onSave: { _ in nil }))),
             ("passage-reader", AnyView(PassageReaderView(point: point, showSource: { _, _ in }))),
             ("focus-editor", AnyView(FocusEditor(initial: "", apply: { _ in }))),
             ("export", AnyView(ExportOptionsView(workspace: restoredWorkspace(archive), onlySelection: false))),
@@ -127,6 +194,12 @@ final class IPadLayoutTests: XCTestCase {
     }
 
     func testNarrowResponsiveScreensAtDefaultAndAccessibilityTextSizes() async throws {
+        let defaults = UserDefaults.standard
+        let previousPDFChoice = defaults.object(forKey: "showPDFPane")
+        defer {
+            if let previousPDFChoice { defaults.set(previousPDFChoice, forKey: "showPDFPane") }
+            else { defaults.removeObject(forKey: "showPDFPane") }
+        }
         let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "mac-v1", withExtension: "spdfwork"))
         let archive = try WorkspaceArchive.read(fixture)
         let workspace = restoredWorkspace(archive)
@@ -161,7 +234,14 @@ final class IPadLayoutTests: XCTestCase {
         let chart = SelectedChart(page: 1, image: chartImage)
         var views: [(String, AnyView)] = [
             ("workbench", AnyView(NavigationStack { SimpleView(workspace: workspace) }.appPresentationContextHost())),
+            ("workbench-pdf", AnyView(NavigationStack { SimpleView(workspace: restoredWorkspace(archive)) }.appPresentationContextHost())),
             ("settings", AnyView(AppSettingsView())),
+            ("committees", AnyView(CommitteeManagerView())),
+            ("committee-editor", AnyView(CommitteeDefinitionEditor(title: "Commissie aanpassen",
+                definition: CommitteeDefinition(id: "layout-fixture", revision: "1",
+                    name: "Samenleving en gemeentelijke voorzieningen",
+                    topics: ["Jeugdzorg", "Onderwijs en toegankelijke voorzieningen", "Sport en cultuur"],
+                    attention: "Controleer de gevolgen voor bereikbaarheid en toegankelijkheid."), onSave: { _ in nil }))),
             ("focus-editor", AnyView(FocusEditor(initial: "", apply: { _ in }))),
             ("export", AnyView(ExportOptionsView(workspace: workspace, onlySelection: false))),
             ("comparison", AnyView(InsightComparisonSheet(points: [point, secondPoint], showSource: { _, _, _ in }))),
@@ -193,6 +273,8 @@ final class IPadLayoutTests: XCTestCase {
         for (dynamicTypeName, dynamicType, highContrast) in [("default", DynamicTypeSize.large, false),
                                                               ("accessibility-high-contrast", DynamicTypeSize.accessibility3, true)] {
             for (viewName, view) in views {
+                if viewName == "workbench" { defaults.set(false, forKey: "showPDFPane") }
+                if viewName == "workbench-pdf" { defaults.set(true, forKey: "showPDFPane") }
                 let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
                 let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow })
                 let originalController = window.rootViewController

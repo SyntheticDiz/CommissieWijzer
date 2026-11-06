@@ -186,7 +186,16 @@ enum PDFPassageLocator {
 struct PDFControlsBar: View {
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @ObservedObject var controls: PDFControls
+    var embedded = false
+
     var body: some View {
+        Group {
+            if embedded { barContent }
+            else { barContent.modifier(GlassSurface()) }
+        }
+    }
+
+    private var barContent: some View {
         #if os(iOS)
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
@@ -203,7 +212,7 @@ struct PDFControlsBar: View {
                 HStack(spacing: 12) { zoomOutButton; fitButton; zoomInButton }
             }
         }
-        .buttonStyle(FocusToolbarActionStyle()).padding(.horizontal, 10).padding(.vertical, 8).modifier(GlassSurface())
+        .buttonStyle(FocusToolbarActionStyle()).padding(.horizontal, 10).padding(.vertical, 8)
         #else
         HStack(spacing: 12) {
             previousPageButton
@@ -213,7 +222,7 @@ struct PDFControlsBar: View {
             zoomOutButton
             fitButton
             zoomInButton
-        }.buttonStyle(FocusToolbarActionStyle()).padding(.horizontal, 18).padding(.vertical, 13).modifier(GlassSurface())
+        }.buttonStyle(FocusToolbarActionStyle()).padding(.horizontal, 18).padding(.vertical, 13)
         #endif
     }
 

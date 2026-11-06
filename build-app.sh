@@ -79,8 +79,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
     <key>CFBundleDisplayName</key><string>CommissieWijzer</string>
     <key>CFBundleIconFile</key><string>CommissieWijzer</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0.1</string>
-    <key>CFBundleVersion</key><string>2</string>
+    <key>CFBundleShortVersionString</key><string>1.1.2</string>
+    <key>CFBundleVersion</key><string>7</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
     <key>NSHumanReadableCopyright</key><string>Copyright © 2026 CommissieWijzer contributors</string>
@@ -153,7 +153,7 @@ fi
 codesign --verify --strict "$APP_DIR"
 python3 scripts/audit-release.py "$APP_DIR" --mode "$MODE"
 if [[ "$MODE" == store ]]; then
-    PKG="$PROJECT_DIR/dist/CommissieWijzer-1.0.1.pkg"
+    PKG="$PROJECT_DIR/dist/CommissieWijzer-1.1.2.pkg"
     productbuild --component "$APP_DIR" /Applications --sign "$COMMISSIEWIJZER_INSTALLER_SIGN_IDENTITY" "$PKG"
     pkgutil --check-signature "$PKG"
     printf 'Store package created; App Store Connect listing, screenshots, and final submission review are separate steps.\n'

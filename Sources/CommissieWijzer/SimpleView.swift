@@ -38,13 +38,17 @@ enum TerminationScheduler {
 private struct PlatformWorkbenchSplit<Content: View>: View {
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
-    var body: some View {
-        #if os(macOS)
-        HSplitView { content }
-        #else
-        HStack(spacing: 0) { content }
-        #endif
-    }
+    var body: some View { HStack(spacing: 0) { content } }
+}
+
+private struct PaneHeaderHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 84
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+private struct PaneToolsHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 56
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 struct SimpleView: View {
@@ -62,6 +66,7 @@ struct SimpleView: View {
     #endif
     @ObservedObject private var chatGPTAccount = ChatGPTAccount.shared
     @ObservedObject private var recentDocuments = RecentWorkspaceDocuments.shared
+    @ObservedObject private var committeeLibrary = CommitteeLibrary.shared
     @AppStorage("showPDFPane") private var showPDFPane = true
     @AppStorage("compareProgram") private var compareProgram = false
     private var sourceHighlightsCard: some View {
@@ -101,6 +106,7 @@ struct SimpleView: View {
     @State private var pendingTableID: String?
     @State private var showingExport = false
     @State private var showingSettings = false
+    @State private var showingCommitteeManager = false
     @State private var showingTutorial = false
     @State private var showingChartArea = false
     @State private var selectingChart = false
@@ -128,10 +134,10 @@ struct SimpleView: View {
     @State private var pendingActionSaveInFlight = false
     @State private var restoredNavigationID: UUID?
     @State private var pendingComparisonSource: (id: String, page: Int, quote: String)?
-    #if os(iOS)
-    @State private var iPadAnalysisFraction: CGFloat = 0.58
+    @State private var analysisPaneFraction: CGFloat = 0.5
     @State private var splitDragStartFraction: CGFloat?
-    #endif
+    @State private var paneHeaderHeight: CGFloat = 84
+    @State private var paneToolsHeight: CGFloat = 56
 
     @MainActor init(workspace: SimpleWorkspace? = nil) {
         _workspace = StateObject(wrappedValue: workspace ?? SimpleWorkspace())
@@ -226,6 +232,9 @@ struct SimpleView: View {
             if let document = workspace.document { GlossaryView(document: document, initialSearch: glossarySearch) { showPDFPage($0) } }
         }
         .sheet(isPresented: $showingSettings, onDismiss: handleSettingsDismiss) { AppSettingsView() }
+        .sheet(isPresented: $showingCommitteeManager) {
+            CommitteeManagerView(savedPurposes: workspace.availableMeetingPurposes)
+        }
         .sheet(isPresented: $showingTutorial) { TutorialView() }
         .sheet(isPresented: $showingChartArea) {
             ChartAreaView(page: pdfControls.page) { region in
@@ -408,12 +417,49 @@ struct SimpleView: View {
     }
 
     private var importPurposePicker: some View {
-        FocusMenuPicker(UIStrings.text("Voorbereiden voor"), selection: $importPurpose,
-                        selectedTitle: UIStrings.text(importPurpose.title)) {
-            ForEach(MeetingPurpose.allCases, id: \.self) { purpose in
-                Text(UIStrings.text(purpose.title)).tag(purpose)
+        HStack(spacing: 8) {
+            FocusMenuPicker(UIStrings.text("Voorbereiden voor"), selection: $importPurpose,
+                            selectedTitle: purposePickerTitle(importPurpose, options: importPurposeOptions)) {
+            ForEach(importPurposeOptions, id: \.self) { purpose in
+                Text(purposePickerTitle(purpose, options: importPurposeOptions)).tag(purpose)
             }
-        }.frame(maxWidth: 340)
+            }.frame(maxWidth: 340)
+            Button(UIStrings.text("Beheer commissies"), systemImage: "slider.horizontal.3") {
+                showingCommitteeManager = true
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(FocusQuietActionStyle())
+            .accessibilityLabel(UIStrings.text("Beheer commissies"))
+            .help(UIStrings.text("Commissies toevoegen, aanpassen of verwijderen"))
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var importPurposeOptions: [MeetingPurpose] {
+        var purposes = [.raad] + committeeLibrary.committees
+        if !purposes.contains(importPurpose) { purposes.append(importPurpose) }
+        return purposes
+    }
+
+    private func purposePickerTitle(_ purpose: MeetingPurpose, options: [MeetingPurpose]) -> String {
+        var title = purpose.committee == nil ? UIStrings.text(purpose.title) : purpose.title
+        if let snapshot = purpose.committee {
+            let isCurrent = committeeLibrary.committees.first(where: { $0.profileID == purpose.profileID })?
+                .committee?.revision == snapshot.revision
+            if !isCurrent {
+                title += " (bewaard)"
+            }
+            let sameName = options.filter { $0.title.localizedCaseInsensitiveCompare(purpose.title) == .orderedSame }
+            let sameProfileSnapshots = sameName.filter { $0.profileID == purpose.profileID }
+            if sameProfileSnapshots.count > 1 {
+                let revision = snapshot.revision
+                title += " · v\(revision.prefix(6))"
+            } else if sameName.count > 1 {
+                let suffix = purpose.profileID.split(separator: "-").first.map(String.init) ?? String(purpose.profileID.prefix(6))
+                title += " · \(suffix)"
+            }
+        }
+        return title
     }
 
     private var welcome: some View {
@@ -651,37 +697,20 @@ struct SimpleView: View {
                         pdfControls.pin(.init(id: "committee-status-\(page)-\(quote.hashValue)", page: page, quote: quote))
                     },
                     showTable: { openTable($0) }).padding(.horizontal, 24)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                    ForEach(WorkbenchSection.allCases, id: \.self) { destination in
-                        Button {
-                            chatPresentation = nil
-                            section = destination
-                            if destination == .selection { pointsMode = .mine; pointsExpanded = true }
-                            if destination == .points { if pointsMode == .mine { pointsMode = .featured }; pointsExpanded = true; if let first = workspace.featuredInsightGroups.first { openGroups.insert(first.id) } }
-                            if destination == .search { searchFocusRequest += 1 }
-                            if destination == .tables { pendingTableID = lastTableID }
-                        } label: {
-                            Text(workbenchTabTitle(destination)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                                .font(.callout.weight(section == destination ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
-                                .foregroundStyle(section == destination ? Color.primary : Color.secondary)
-                                .background(section == destination ? AppTheme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 9))
-                                .overlay {
-                                    if section == destination {
-                                        RoundedRectangle(cornerRadius: 9).strokeBorder(AppTheme.border.opacity(0.55), lineWidth: 1).allowsHitTesting(false)
-                                    }
-                                }
-                                .overlay(alignment: .bottom) {
-                                    if section == destination { Capsule().fill(AppTheme.accent).frame(height: 2).padding(.horizontal, 12).padding(.bottom, 1).accessibilityHidden(true) }
-                                }
-                        }.buttonStyle(.plain).accessibilityAddTraits(section == destination ? .isSelected : [])
-                            .accessibilityValue(section == destination ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
-                    }
-                    Spacer(minLength: 0)
-                    }.padding(.horizontal, 24)
-                    }.padding(.bottom, 6)
                 GeometryReader { layout in
+                #if os(iOS)
                 let narrow = layout.size.width < 1_000
+                #else
+                let narrow = false
+                #endif
+                let paneWidth = max(0, layout.size.width - 48)
+                let dividerWidth: CGFloat = showPDFPane && !narrow ? 14 : 0
+                let splitAvailableWidth = max(0, paneWidth - dividerWidth)
+                #if os(iOS)
+                let showsPaneHeadings = !narrow
+                #else
+                let showsPaneHeadings = true
+                #endif
                 VStack(spacing: 6) {
                     #if os(iOS)
                     if narrow {
@@ -700,6 +729,11 @@ struct SimpleView: View {
                     }
                     #endif
                 PlatformWorkbenchSplit {
+                    VStack(spacing: 0) {
+                    if showsPaneHeadings {
+                        paneHeading("Analyse en werkveld", subtitle: "AI helpt je voorbereiden. Jij beoordeelt de inhoud.", symbol: "rectangle.split.2x1", identifier: "workbench.analysisPane")
+                    }
+                    workbenchTabs
                     VStack(spacing: 12) {
                     SelectionSummaryCard(session: selectionSummary)
                     ZStack {
@@ -712,10 +746,6 @@ struct SimpleView: View {
                                               indexing: searchIndexing, open: openSearchResult)
                             }
                             if section == .overview {
-                            if !workspace.savedChatThreads.isEmpty || !workspace.savedChartAnalyses.isEmpty || !workspace.savedSelectionSummaries.isEmpty {
-                                Button(UIStrings.text("Bewaarde antwoorden"), systemImage: "clock.arrow.circlepath") { showingSavedExtras = true }
-                                    .buttonStyle(FocusSecondaryButtonStyle()).padding(.horizontal, 24)
-                            }
                             SummaryCard(workspace: workspace, model: AIConfiguration.selectedModel, showsOptions: showingAnalysisOptions,
                                         chat: { openChat(pages: $0, wholeDocument: false) }, showPage: showPDFPage)
                                 .id("summary-root")
@@ -779,14 +809,24 @@ struct SimpleView: View {
                             }
                             if pointsExpanded {
                             if section == .points {
+                                HStack(spacing: 8) {
                                 FocusMenuPicker(UIStrings.text("Voorbereiden voor"),
                                                 selection: Binding(get: { workspace.meetingPurpose }, set: { workspace.setMeetingPurpose($0) }),
-                                                selectedTitle: UIStrings.text(workspace.meetingPurpose.title)) {
-                                    ForEach(MeetingPurpose.allCases, id: \.self) { purpose in
-                                        Text(UIStrings.text(purpose.title)).tag(purpose)
+                                                selectedTitle: purposePickerTitle(workspace.meetingPurpose, options: workspace.availableMeetingPurposes)) {
+                                    ForEach(workspace.availableMeetingPurposes, id: \.self) { purpose in
+                                        Text(purposePickerTitle(purpose, options: workspace.availableMeetingPurposes)).tag(purpose)
                                     }
-                                }.frame(maxWidth: 340, alignment: .leading)
+                                }
+                                .frame(maxWidth: 340, alignment: .leading)
                                 .disabled(!workspace.canChangeMeetingPurpose)
+                                    Button(UIStrings.text("Beheer commissies"), systemImage: "slider.horizontal.3") {
+                                        showingCommitteeManager = true
+                                    }
+                                    .labelStyle(.iconOnly)
+                                    .buttonStyle(FocusQuietActionStyle())
+                                    .accessibilityLabel(UIStrings.text("Beheer commissies"))
+                                    .help(UIStrings.text("Commissies toevoegen, aanpassen of verwijderen"))
+                                }
                             }
                             ViewThatFits(in: .horizontal) {
                                 HStack { pointFilters }
@@ -909,15 +949,14 @@ struct SimpleView: View {
                             }
                             if !pdfControls.highlightNotice.isEmpty { Text(UIStrings.text(pdfControls.highlightNotice)).font(.caption).foregroundStyle(.orange) }
 
-                        }.frame(maxWidth: 820).frame(maxWidth: .infinity)
-                            .padding(.horizontal, 24).padding(.bottom, 24)
+                        }.frame(maxWidth: .infinity)
                             .background(PersistentScrollbarsAttachment())
                     }
                     #if os(macOS)
-                    .frame(minWidth: 380, idealWidth: 640)
+                    .frame(minWidth: 380, idealWidth: splitAvailableWidth * analysisPaneFraction)
                     #else
                     .frame(minWidth: 0,
-                           idealWidth: narrow && showPDFPane ? 0 : layout.size.width * 0.6,
+                           idealWidth: narrow && showPDFPane ? 0 : splitAvailableWidth * analysisPaneFraction,
                            maxWidth: narrow && showPDFPane ? 0 : .infinity,
                            maxHeight: .infinity)
                     #endif
@@ -960,29 +999,46 @@ struct SimpleView: View {
                                          close: { chatPresentation = nil })
                             .id(chat.id)
                             #if os(macOS)
-                            .frame(minWidth: 410, idealWidth: 530)
+                            .frame(minWidth: 410, idealWidth: 530, maxWidth: .infinity)
                             #else
-                            .frame(minWidth: 0, idealWidth: narrow ? layout.size.width : layout.size.width * iPadAnalysisFraction)
+                            .frame(minWidth: 0, idealWidth: narrow ? paneWidth : splitAvailableWidth * analysisPaneFraction)
                             #endif
                     }
                     }
                     }
+                    .padding(14)
+                    .frame(maxHeight: .infinity)
+                    }
+                    .frame(maxHeight: .infinity)
+                    .workbenchPaneSurface()
                     #if os(macOS)
-                    .frame(minWidth: 380, idealWidth: 640)
+                    .frame(width: analysisPaneWidth(availableWidth: splitAvailableWidth, narrow: narrow))
                     #else
-                    .frame(width: iPadAnalysisPaneWidth(availableWidth: layout.size.width - (showPDFPane && !narrow ? 14 : 0), narrow: narrow))
+                    .frame(width: analysisPaneWidth(availableWidth: splitAvailableWidth, narrow: narrow))
                     .frame(maxHeight: .infinity)
                     .allowsHitTesting(!narrow || !showPDFPane)
                     .accessibilityHidden(narrow && showPDFPane)
+                    .opacity(narrow && showPDFPane ? 0 : 1)
+                    .transformPreference(PaneHeaderHeightPreferenceKey.self) { if narrow && showPDFPane { $0 = 0 } }
+                    .transformPreference(PaneToolsHeightPreferenceKey.self) { if narrow && showPDFPane { $0 = 0 } }
                     #endif
-                    #if os(iOS)
                     if showPDFPane && !narrow {
-                        iPadSplitDivider(availableWidth: layout.size.width - 14)
+                        workbenchSplitDivider(availableWidth: splitAvailableWidth)
                     }
-                    #endif
                     if showPDFPane {
+                    VStack(spacing: 0) {
+                    if showsPaneHeadings {
+                        paneHeading("Originele PDF", subtitle: "De echte bron blijft naast je werk zichtbaar.", symbol: "doc.text", identifier: "workbench.pdfPane")
+                    }
+                    PDFControlsBar(controls: pdfControls, embedded: true)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(key: PaneToolsHeightPreferenceKey.self, value: proxy.size.height)
+                        })
+                        .frame(maxWidth: .infinity)
+                        .frame(height: paneToolsHeight)
                     PDFPreview(data: document.data, page: workspace.page, navigationID: workspace.navigationID, controls: pdfControls)
-                        .overlay(alignment: .bottom) { PDFControlsBar(controls: pdfControls).padding(20) }
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(alignment: .topLeading) {
                             GeometryReader { geometry in
                                 if !selectingChart, let selection = pdfControls.selectedText, let anchor = pdfControls.selectionAnchor {
@@ -1043,21 +1099,32 @@ struct SimpleView: View {
                                 }
                                 Button(UIStrings.text("Diagramgebied invoeren…")) { selectingChart = false; showingChartArea = true }
                             } label: { Label(UIStrings.text("Diagram"), systemImage: "chart.bar.xaxis").foregroundStyle(Color.primary) }
+                            #if os(iOS)
+                            .labelStyle(.iconOnly)
+                            #endif
                             .focusMenu().fixedSize()
                             .padding(8).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
                             .padding(12)
 
                         }
                         #if os(macOS)
-                        .frame(minWidth: 320, idealWidth: 480)
+                        .frame(minWidth: 292, idealWidth: splitAvailableWidth * (1 - analysisPaneFraction) - 28, maxWidth: .infinity)
                         #else
-                        .frame(width: narrow ? layout.size.width : max(320, layout.size.width - 14 - iPadAnalysisPaneWidth(availableWidth: layout.size.width - 14, narrow: false)))
+                        .frame(width: narrow ? max(0, paneWidth - 28) : max(292, splitAvailableWidth - analysisPaneWidth(availableWidth: splitAvailableWidth, narrow: false) - 28))
                         .frame(maxHeight: .infinity)
                         #endif
-                        .background(AppTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 22))
+                        .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 14)
+                    }
+                    .frame(maxHeight: .infinity)
+                    .workbenchPaneSurface()
+                    #if os(macOS)
+                    .frame(width: max(0, splitAvailableWidth - analysisPaneWidth(availableWidth: splitAvailableWidth, narrow: false)))
+                    #endif
                     }
                 }
+                .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 24)
+                .onPreferenceChange(PaneHeaderHeightPreferenceKey.self) { paneHeaderHeight = max(84, $0) }
+                .onPreferenceChange(PaneToolsHeightPreferenceKey.self) { paneToolsHeight = max(56, $0) }
                 }
                 }
             }
@@ -1074,6 +1141,68 @@ struct SimpleView: View {
                 #endif
             }
         }
+    }
+
+    private var workbenchTabs: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(WorkbenchSection.allCases, id: \.self) { destination in
+                    Button {
+                        chatPresentation = nil
+                        section = destination
+                        if destination == .selection { pointsMode = .mine; pointsExpanded = true }
+                        if destination == .points { if pointsMode == .mine { pointsMode = .featured }; pointsExpanded = true; if let first = workspace.featuredInsightGroups.first { openGroups.insert(first.id) } }
+                        if destination == .search { searchFocusRequest += 1 }
+                        if destination == .tables { pendingTableID = lastTableID }
+                    } label: {
+                        Text(workbenchTabTitle(destination)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                            .font(.callout.weight(section == destination ? .semibold : .regular)).padding(.horizontal, 12).padding(.vertical, 8)
+                            .foregroundStyle(section == destination ? Color.primary : Color.secondary)
+                            .background(section == destination ? AppTheme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                            .overlay {
+                                if section == destination {
+                                    RoundedRectangle(cornerRadius: 9).strokeBorder(AppTheme.border.opacity(0.55), lineWidth: 1).allowsHitTesting(false)
+                                }
+                            }
+                            .overlay(alignment: .bottom) {
+                                if section == destination { Capsule().fill(AppTheme.accent).frame(height: 2).padding(.horizontal, 12).padding(.bottom, 1).accessibilityHidden(true) }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(section == destination ? .isSelected : [])
+                    .accessibilityValue(section == destination ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: PaneToolsHeightPreferenceKey.self, value: proxy.size.height)
+        })
+        .frame(maxWidth: .infinity)
+        .frame(height: paneToolsHeight)
+        .accessibilityLabel(UIStrings.text("Werkveld"))
+    }
+
+    private func paneHeading(_ title: String, subtitle: String, symbol: String, identifier: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).foregroundStyle(AppTheme.accent).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(UIStrings.text(title)).font(.headline).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Text(UIStrings.text(subtitle)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: PaneHeaderHeightPreferenceKey.self, value: proxy.size.height)
+        })
+        .frame(maxWidth: .infinity)
+        .frame(height: paneHeaderHeight, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 
     private func workbenchTabTitle(_ destination: WorkbenchSection) -> String {
@@ -1117,46 +1246,60 @@ struct SimpleView: View {
         .accessibilityValue(selected ? UIStrings.text("Geselecteerd") : UIStrings.text("Niet geselecteerd"))
     }
 
-    #if os(iOS)
-    private func iPadAnalysisPaneWidth(availableWidth: CGFloat, narrow: Bool) -> CGFloat {
-        if narrow { return showPDFPane ? 0 : availableWidth }
-        if !showPDFPane { return availableWidth }
-        let lowerBound: CGFloat = 360
-        let upperBound = max(lowerBound, availableWidth - 320)
-        return min(upperBound, max(lowerBound, availableWidth * iPadAnalysisFraction))
+    private func minimumAnalysisPaneWidth() -> CGFloat {
+        #if os(macOS)
+        chatPresentation == nil ? 408 : 438
+        #else
+        360
+        #endif
     }
 
-    private func iPadSplitDivider(availableWidth: CGFloat) -> some View {
+    private func analysisPaneWidth(availableWidth: CGFloat, narrow: Bool) -> CGFloat {
+        if narrow { return showPDFPane ? 0 : availableWidth }
+        if !showPDFPane { return availableWidth }
+        guard availableWidth > 0 else { return 0 }
+        let lowerBound = minimumAnalysisPaneWidth()
+        let upperBound = max(lowerBound, availableWidth - 320)
+        return min(upperBound, max(lowerBound, availableWidth * analysisPaneFraction))
+    }
+
+    private func workbenchSplitDivider(availableWidth: CGFloat) -> some View {
         Rectangle()
-            .fill(AppTheme.border.opacity(0.45))
+            .fill(Color.clear)
             .frame(width: 14)
             .overlay {
                 Capsule().fill(AppTheme.border.opacity(0.8)).frame(width: 4, height: 54)
             }
             .contentShape(Rectangle())
+            .onHover { hovering in
+                #if os(macOS)
+                (hovering ? NSCursor.resizeLeftRight : NSCursor.arrow).set()
+                #endif
+            }
             .gesture(DragGesture(minimumDistance: 1)
                 .onChanged { value in
-                    let startingFraction = splitDragStartFraction ?? iPadAnalysisFraction
+                    guard availableWidth > 0 else { return }
+                    let startingFraction = splitDragStartFraction ?? analysisPaneFraction
                     splitDragStartFraction = startingFraction
-                    let minimum = 360 / availableWidth
+                    let minimum = minimumAnalysisPaneWidth() / availableWidth
                     let maximum = max(minimum, 1 - 320 / availableWidth)
-                    iPadAnalysisFraction = min(maximum, max(minimum, startingFraction + value.translation.width / availableWidth))
+                    analysisPaneFraction = min(maximum, max(minimum, startingFraction + value.translation.width / availableWidth))
                 }
                 .onEnded { _ in splitDragStartFraction = nil })
             .accessibilityElement()
             .accessibilityLabel(UIStrings.text("Breedte van werkveld en PDF aanpassen"))
-            .accessibilityValue("\(Int((iPadAnalysisPaneWidth(availableWidth: availableWidth, narrow: false) / availableWidth * 100).rounded()))% werkveld")
+            .accessibilityValue("\(Int((analysisPaneWidth(availableWidth: availableWidth, narrow: false) / max(1, availableWidth) * 100).rounded()))% " + UIStrings.text("werkveld"))
             .accessibilityAdjustableAction { direction in
-                let minimum = 360 / availableWidth
+                guard availableWidth > 0 else { return }
+                let minimum = minimumAnalysisPaneWidth() / availableWidth
                 let maximum = max(minimum, 1 - 320 / availableWidth)
                 switch direction {
-                case .increment: iPadAnalysisFraction = min(maximum, iPadAnalysisFraction + 0.04)
-                case .decrement: iPadAnalysisFraction = max(minimum, iPadAnalysisFraction - 0.04)
+                case .increment: analysisPaneFraction = min(maximum, analysisPaneFraction + 0.04)
+                case .decrement: analysisPaneFraction = max(minimum, analysisPaneFraction - 0.04)
                 @unknown default: break
                 }
             }
     }
-    #endif
 
     private var readingAgendaCard: some View {
         let entries = ReadingAgenda.entries(workspace.organizedInsights)

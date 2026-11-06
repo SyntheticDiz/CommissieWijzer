@@ -54,6 +54,7 @@ struct ExportPresentationSource: Sendable {
 /// source-content hashing just to decide whether the current sheet cache applies.
 struct ExportPresentationConfigurationKey: Hashable, Sendable {
     let committeePurpose: String?
+    let committeePurposeComponents: [String]
     let summary: Bool
     let pagePoints: Bool
     let politics: Bool
@@ -68,6 +69,9 @@ struct ExportPresentationConfigurationKey: Hashable, Sendable {
 
     init(_ value: ExportConfiguration) {
         committeePurpose = value.committeePurpose?.rawValue
+        committeePurposeComponents = value.committeePurpose.flatMap { purpose in
+            purpose.committee == nil ? nil : purpose.analysisCacheComponents
+        } ?? []
         summary = value.summary
         pagePoints = value.pagePoints
         politics = value.politics
