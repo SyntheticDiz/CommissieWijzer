@@ -58,6 +58,20 @@ html:has(.home-page) {
 .js .home-screen .story-step:not(.is-current) { display: none; }
 .home-screen .capture-frame { max-height: 43dvh; }
 .home-screen .feature-panel { padding: clamp(16px, 3vh, 36px); }
+.platform-showcase { width: min(100%, 1080px); margin-inline: auto; }
+.platform-switch { display: flex; justify-content: center; gap: 6px; margin-bottom: 16px; }
+.platform-switch button { min-width: 100px; min-height: 42px; padding: 8px 18px; color: var(--muted); background: #141922; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.platform-switch button[aria-selected="true"] { color: var(--ink); background: var(--blue-soft); border-color: rgba(123,169,232,.35); }
+.platform-panel { position: relative; height: clamp(280px, 46dvh, 540px); }
+.platform-shot { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; margin: 0; opacity: 0; pointer-events: none; transition: opacity 360ms ease; }
+.platform-shot.is-active { opacity: 1; pointer-events: auto; }
+.platform-shot[hidden] { display: none; }
+.platform-shot > img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; object-position: center; background: #151a21; border: 1px solid var(--line); border-radius: 12px; }
+.ipad-shot-pair { display: grid; grid-template-columns: 1.35fr .8fr; gap: 14px; align-items: center; }
+.ipad-shot-pair { min-height: 0; height: 100%; }
+.ipad-shot-pair img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; object-position: center; background: #151a21; border: 1px solid var(--line); border-radius: 12px; }
+.platform-shot figcaption, .platform-note { margin: 0 auto; max-width: 780px; color: var(--muted); text-align: center; font-size: .75rem; line-height: 1.55; }
+.platform-note { margin-top: 14px; }
 .closing-section .site-footer { margin-top: 24px; }
 
 @media (max-width: 700px) {
@@ -68,8 +82,14 @@ html:has(.home-page) {
   .home-screen .story-list { display: block; }
   .home-screen .story-step { padding: 10px; }
   .home-screen .feature-panel { gap: 12px; }
+  .platform-panel { height: 34dvh; }
+  .ipad-shot-pair { grid-template-columns: 1fr 1fr; gap: 6px; }
   .home-screen .feature-capture { width: min(100%, 40dvh); margin-inline: auto; }
   .screen-next { height: 50px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .platform-shot { transition: none; }
 }
 
 .intro-options > summary {

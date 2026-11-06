@@ -11,56 +11,56 @@
   const playButton = document.getElementById("play-demo");
   const story = [
     {
-      src: "WebsiteAssets/documentpunten.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-overzicht.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer nadat de fictieve voorbeeld-pdf is geopend; documentpunten staan links.",
       caption: "Het geopende raadsstuk in de werkruimte.",
-      href: "WebsiteAssets/documentpunten.jpg"
+      href: "WebsiteAssets/v1.1.2/mac-overzicht.jpg"
     },
     {
-      src: "WebsiteAssets/documentpunten.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-overzicht.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast de fictieve voorbeeld-pdf.",
       caption: "Aandachtspunten naast de oorspronkelijke pdf.",
-      href: "WebsiteAssets/documentpunten.jpg"
+      href: "WebsiteAssets/v1.1.2/mac-overzicht.jpg"
     },
     {
-      src: "WebsiteAssets/bronpassage.jpg",
-      fallbackSrc: "WebsiteAssets/documentpunten.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-bronpassage.jpg",
+      fallbackSrc: "WebsiteAssets/v1.1.2/mac-overzicht.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met de gevonden bronpassage uit het fictieve raadsvoorstel.",
       caption: "De gekoppelde bronpassage in context.",
-      href: "WebsiteAssets/bronpassage.jpg",
+      href: "WebsiteAssets/v1.1.2/mac-bronpassage.jpg",
       fallbackAlt: "Echte appweergave met documentpunten en de fictieve voorbeeld-pdf; de aparte bronpassage-opname wordt niet geladen.",
       fallbackCaption: "Documentpunten naast de fictieve voorbeeld-pdf.",
-      fallbackHref: "WebsiteAssets/documentpunten.jpg"
+      fallbackHref: "WebsiteAssets/v1.1.2/mac-overzicht.jpg"
     },
     {
-      src: "WebsiteAssets/documentpunten.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-overzicht.jpg",
       alt: "Echte schermafbeelding met documentpunten naast de fictieve voorbeeld-pdf.",
       caption: "Begin bij de aandachtspunten voor je eigen afweging.",
-      href: "WebsiteAssets/documentpunten.jpg"
+      href: "WebsiteAssets/v1.1.2/mac-overzicht.jpg"
     },
     {
-      src: "WebsiteAssets/lokaal-zoeken.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-zoeken.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief raadsvoorstel.",
       caption: "Zoek een begrip terug en volg de paginaverwijzing.",
-      href: "WebsiteAssets/lokaal-zoeken.jpg"
+      href: "WebsiteAssets/v1.1.2/mac-zoeken.jpg"
     },
     {
-      src: "WebsiteAssets/selectie-notities.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-notities.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met Mijn selectie en een voorbeeldnotitie bij een fictief raadsvoorstel.",
       caption: "Mijn selectie en voorbeeldnotitie in de echte app.",
-      href: "WebsiteAssets/selectie-notities.jpg"
+      href: "WebsiteAssets/v1.1.2/mac-notities.jpg"
     },
     {
-      src: "WebsiteAssets/exporteren.jpg",
+      src: "WebsiteAssets/v1.1.2/mac-export.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met de gekozen onderdelen voor pdf-export.",
       caption: "Kies de onderdelen voor je pdf-export.",
-      href: "WebsiteAssets/exporteren.jpg"
+      href: "WebsiteAssets/v1.1.2/mac-export.jpg"
     },
     {
-      src: "WebsiteAssets/vergadernotitie.jpg",
+      src: "WebsiteAssets/v1.1.2/vergadernotitie.jpg",
       alt: "Eerste pagina van de echte pdf-export met een geselecteerd punt, eigen notitie en bronverwijzing bij het fictieve raadsvoorstel.",
       caption: "De geëxporteerde vergadernotitie met eigen notitie en bronverwijzingen.",
-      href: "WebsiteAssets/vergadernotitie.pdf"
+      href: "WebsiteAssets/v1.1.2/vergadernotitie.pdf"
     }
   ];
 
@@ -198,11 +198,11 @@
   if (sourceCapture && sourceLink) {
     sourceCapture.onerror = () => {
       sourceCapture.onerror = null;
-      sourceCapture.src = "WebsiteAssets/documentpunten.jpg";
+      sourceCapture.src = "WebsiteAssets/v1.1.2/mac-overzicht.jpg";
       sourceCapture.width = 2560;
       sourceCapture.height = 1680;
-      sourceCapture.alt = "Echte schermafbeelding van CommissieWijzer met documentpunten en de fictieve voorbeeld-pdf; de aparte bronpassage-opname wordt niet geladen.";
-      sourceLink.href = "WebsiteAssets/documentpunten.jpg";
+      sourceCapture.alt = "Echte schermafbeelding van CommissieWijzer met documentpunten en de fictieve voorbeeld-pdf.";
+      sourceLink.href = "WebsiteAssets/v1.1.2/mac-overzicht.jpg";
     };
   }
 
@@ -211,7 +211,7 @@
       kicker: "LEZEN · LOKAAL",
       title: "Zoek in de tekst die jij hebt geopend.",
       copy: "Zoeken doorzoekt lokaal de pdf-tekst en beschikbare analyse, resultaten en notities. Resultaten verwijzen terug naar de relevante pagina.",
-      href: "WebsiteAssets/lokaal-zoeken.jpg",
+      href: "WebsiteAssets/v1.1.2/mac-zoeken.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met lokale zoekresultaten in een fictief document.",
       caption: "Echte appweergave · lokaal zoeken in een fictief document.",
       link: "support.html#scan",
@@ -220,8 +220,8 @@
     notes: {
       kicker: "VOORBEREIDEN · EIGEN NOTITIES",
       title: "Zet je eigen vragen bij het stuk.",
-      copy: "Selecteer aandachtspunten en voeg je eigen notities toe. Bewaar de voorbereiding met het document op je Mac.",
-      href: "WebsiteAssets/selectie-notities.jpg",
+      copy: "Selecteer aandachtspunten en voeg je eigen notities toe. Bewaar de voorbereiding met het document op je Mac of iPad.",
+      href: "WebsiteAssets/v1.1.2/mac-notities.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met Mijn selectie en een voorbeeldnotitie bij een fictief raadsvoorstel.",
       caption: "Echte appweergave · selectie en notitie bij fictieve inhoud.",
       link: "support.html#werk",
@@ -231,7 +231,7 @@
       kicker: "OPTIONEEL · EIGEN KADER",
       title: "Vergelijk alleen als jij dat wilt.",
       copy: "Een neutrale samenvatting gebruikt geen partijprogramma. Voor vergelijking kies je zelf een programma. Dat is een analyse-instelling, geen aanbeveling of politieke aansluiting.",
-      href: "WebsiteAssets/documentpunten.jpg",
+      href: "WebsiteAssets/v1.1.2/mac-overzicht.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast een fictief raadsvoorstel.",
       caption: "Echte appweergave · de webpagina voert geen programmavergelijking uit.",
       link: "privacy.html#chatgpt",
@@ -240,14 +240,34 @@
     export: {
       kicker: "BEWAREN · PDF-EXPORT",
       title: "Neem je selectie mee.",
-      copy: "Bewaar het werkdocument op je Mac of exporteer een samenvatting of selectie als pdf. Controleer de inhoud voordat je die deelt.",
-      href: "WebsiteAssets/exporteren.jpg",
+      copy: "Bewaar een overdraagbaar werkdocument op je Mac of iPad, of exporteer een samenvatting of selectie als pdf. Er is geen automatische synchronisatie; controleer de inhoud voordat je deelt.",
+      href: "WebsiteAssets/v1.1.2/mac-export.jpg",
       alt: "Echte schermafbeelding van CommissieWijzer met het exportscherm en de geselecteerde onderdelen Mijn selectie en Bronnenbijlage.",
       caption: "Echte appweergave · gekozen onderdelen voor pdf-export.",
       width: 2560,
       height: 1680,
       link: "support.html#werk",
       linkLabel: "Meer over bewaren en exporteren"
+    },
+    committees: {
+      kicker: "INRICHTEN · EIGEN COMMISSIES",
+      title: "Werk met de onderwerpen die bij jouw commissie passen.",
+      copy: "Maak lokaal een commissie met een eigen naam en onderwerpen, en voeg desgewenst aanvullende aandachtspunten toe. Voorbeelden zijn bewerkbaar. Een wijziging wist eerder werk niet.",
+      href: "WebsiteAssets/v1.1.2/mac-commissies.jpg",
+      alt: "Echte schermafbeelding van CommissieWijzer met het beheren van commissies.",
+      caption: "Echte appweergave · eigen commissies en onderwerpen.",
+      link: "support.html#commissies",
+      linkLabel: "Meer over commissies"
+    },
+    notifications: {
+      kicker: "ANALYSE · PRIVACYVRIENDELIJKE MELDING",
+      title: "Weet wanneer de analyse klaar is.",
+      copy: "Als je systeemtoestemming geeft, ontvang je na voltooiing een melding zonder documentnaam of inhoud. iPadOS kan een analyse pauzeren wanneer de app niet actief is.",
+      href: "WebsiteAssets/v1.1.2/ipad-meldingen.png",
+      alt: "Echte schermafbeelding van CommissieWijzer met instellingen voor meldingen na een analyse.",
+      caption: "Echte iPad-appweergave · meldingskeuze in instellingen.",
+      link: "support.html#meldingen",
+      linkLabel: "Lees over meldingen"
     }
   };
   const featureTabs = [...document.querySelectorAll("[data-feature]")];
@@ -313,10 +333,10 @@
       if (token !== featureRequest) return;
       incoming.onerror = null;
       incoming.onload = null;
-      if (details.href !== "WebsiteAssets/documentpunten.jpg") {
+      if (details.href !== "WebsiteAssets/v1.1.2/mac-overzicht.jpg") {
         const fallback = {
           ...details,
-          href: "WebsiteAssets/documentpunten.jpg",
+          href: "WebsiteAssets/v1.1.2/mac-overzicht.jpg",
           alt: "Echte schermafbeelding van CommissieWijzer met documentpunten naast het fictieve raadsvoorstel.",
           caption: "Echte appweergave · documentpunten naast het fictieve raadsvoorstel.",
           width: 2560,
@@ -357,11 +377,11 @@
           }, 1200);
         });
       }
-      featureLink.href = "WebsiteAssets/documentpunten.jpg";
+      featureLink.href = "WebsiteAssets/v1.1.2/mac-overzicht.jpg";
       updateFeatureText(featureTabs.find(candidate => candidate.getAttribute("aria-selected") === "true"), details);
     };
     incoming.onerror = () => { incoming.onerror = null; };
-    incoming.src = "WebsiteAssets/documentpunten.jpg";
+    incoming.src = "WebsiteAssets/v1.1.2/mac-overzicht.jpg";
     incoming.width = 2560;
     incoming.height = 1680;
   }
@@ -377,6 +397,46 @@
       else return;
       event.preventDefault();
       selectFeature(featureTabs[next], true);
+    });
+  });
+
+  const platformTabs = [...document.querySelectorAll("[data-platform]")];
+  const platformShots = [...document.querySelectorAll("[data-platform-shot]")];
+  const platformPanel = document.getElementById("platform-panel");
+  let platformTransition = 0;
+  let platformRequest = 0;
+  function selectPlatform(tab, focus = false) {
+    const platform = tab.dataset.platform;
+    const token = ++platformRequest;
+    if (platformTransition) window.clearTimeout(platformTransition);
+    platformTabs.forEach(candidate => {
+      const selected = candidate === tab;
+      candidate.setAttribute("aria-selected", String(selected));
+      candidate.tabIndex = selected ? 0 : -1;
+    });
+    platformShots.forEach(shot => {
+      const selected = shot.dataset.platformShot === platform;
+      shot.hidden = false;
+      shot.inert = !selected;
+      shot.setAttribute("aria-hidden", String(!selected));
+      shot.classList.toggle("is-active", selected);
+    });
+    platformTransition = window.setTimeout(() => {
+      if (token !== platformRequest) return;
+      platformShots.forEach(shot => { shot.hidden = shot.dataset.platformShot !== platform; });
+      platformTransition = 0;
+    }, motionPreference.matches ? 0 : 380);
+    platformPanel?.setAttribute("aria-labelledby", tab.id);
+    if (focus) tab.focus();
+  }
+  platformTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => selectPlatform(tab));
+    tab.addEventListener("keydown", event => {
+      if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? platformTabs.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : platformTabs.length - 1)) % platformTabs.length;
+      selectPlatform(platformTabs[next], true);
     });
   });
 
