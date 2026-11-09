@@ -66,11 +66,10 @@ struct SourceBoundEvidenceView: View {
         }
         #if os(macOS)
         .frame(minWidth: 620, idealWidth: 920, minHeight: 420, idealHeight: 720)
-        .background(Color(nsColor: .windowBackgroundColor))
         #else
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(uiColor: .systemBackground))
         #endif
+        .background(AppTheme.background)
         .buttonStyle(FocusSecondaryButtonStyle())
     }
 

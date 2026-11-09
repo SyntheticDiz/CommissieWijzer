@@ -80,6 +80,7 @@ struct WorkspaceStatusBanner: View {
     let showPage: (Int) -> Void
     let showSource: (Int, String) -> Void
     let showTable: (String) -> Void
+    let showPoint: (Insight) -> Void
 
     private var sourceIssues: [WorkspaceSourceIssue] {
         WorkspaceSourceIssue.make(readings: workspace.document?.readings ?? [])
@@ -102,6 +103,9 @@ struct WorkspaceStatusBanner: View {
                     VStack(alignment: .leading, spacing: 9) {
                         statusContent
                         ProcessingStatusView(workspace: workspace)
+                        if workspace.document != nil {
+                            SourceReviewChecklistView(workspace: workspace, showPage: showPage, showTable: showTable, showPoint: showPoint)
+                        }
                         if hasDetails { details }
                     }
                     .padding(12)

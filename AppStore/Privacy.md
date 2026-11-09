@@ -57,7 +57,7 @@ De app bewaart lokale gegevens totdat jij ze verwijdert of de bijbehorende appbe
 
 ## App Privacy-vragenlijst
 
-Deze vier gegevenscategorieën staan in de gepubliceerde App Privacy-vragenlijst voor de Mac-versie. De iPad-versie is afzonderlijk ingediend en wacht op beoordeling door Apple.
+Deze vier gegevenscategorieën zijn vastgelegd voor de App Privacy-vragenlijst. Mac en iPad horen bij hetzelfde App Store-record. De laatst gecontroleerde inzendingsstatus staat afzonderlijk in [HANDOFF](../HANDOFF.md); deze privacytekst is geen actuele bevestiging van Apples beoordeling.
 
 | Gegevenstype | Voorbeeld in deze app | Doel | Tracking |
 | --- | --- | --- | --- |

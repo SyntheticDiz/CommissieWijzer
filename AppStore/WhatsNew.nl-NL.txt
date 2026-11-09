@@ -1,3 +1,9 @@
-Neem je voorbereiding mee van Mac naar iPad met de optionele iCloud-bibliotheek. Je kiest zelf welke dossiers meegaan. Open de oorspronkelijke pdf met je bewaarde analyse, selecties, notities en leespositie op je andere apparaat, zonder opnieuw te analyseren. Eigen commissieprofielen kun je apart synchroniseren. Werk je liever alleen lokaal? Dan hoef je niets te veranderen.
+Nieuw in 1.3.0:
 
-Deze update maakt de visuele kant van de app consistenter en overzichtelijker, en geeft je de mogelijkheid om zelf commissies aan te maken voor gebruik in jouw gemeente.
+• Kies uit vijf accentkleuren voor knoppen, focus en selecties.
+• Stel vergadervragen op vanuit je punten of PDF-passages. Bewaar antwoorden, bronverwijzingen en de status Nog stellen, Beantwoord of Opvolgen in je werkdocument.
+• Loop pagina’s, tabellen en analysepunten na met de checklist broncontrole.
+• Een vernieuwd beginscherm, uitklapbare recente werkdocumenten, rustige importpictogrammen en overzichtelijkere instellingen.
+• Bijgewerkte rondleiding en consistente bediening op Mac en iPad.
+
+Je optionele iCloud-bibliotheek blijft beschikbaar; lokaal werken blijft de standaard. Werk beide apparaten bij voordat je dossiers met de nieuwe vragenlijst opnieuw opslaat.

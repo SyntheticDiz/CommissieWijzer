@@ -167,24 +167,16 @@ struct ExportOptionsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if step == 0 {
-                        Picker(UIStrings.text("Voorinstelling"), selection: $preset) {
-                            Text(UIStrings.text("Aangepast")).tag(ExportPreset?.none)
-                            ForEach(ExportPreset.allCases) { option in Text(UIStrings.text(option.title)).tag(Optional(option)) }
-                        }
-                        #if os(macOS)
-                        .pickerStyle(.radioGroup)
-                        #else
-                        .pickerStyle(.menu)
-                        #endif
-                        .onChange(of: preset) { _, value in
-                            if let value {
-                                choices = value.configuration()
-                                customizationExpanded = false
-                            } else {
-                                // “Aangepast” exposes the saved choices without replacing them.
-                                customizationExpanded = true
+                        presetPicker
+                            .onChange(of: preset) { _, value in
+                                if let value {
+                                    choices = value.configuration()
+                                    customizationExpanded = false
+                                } else {
+                                    // “Aangepast” exposes the saved choices without replacing them.
+                                    customizationExpanded = true
+                                }
                             }
-                        }
                         Text(UIStrings.text(preset?.scopeDescription ?? "Kies een voorinstelling of stel de exportonderdelen zelf in."))
                             .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                         Text(UIStrings.text("Deze titel komt bovenaan de export-PDF.")).foregroundStyle(.secondary)
@@ -250,7 +242,7 @@ struct ExportOptionsView: View {
                     }
                     if !content.notice.isEmpty { Label(UIStrings.text("De analyse is onvolledig. Deze melding wordt ook opgenomen in de export.\n") + content.notice, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange) }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
-                    .background(.background, in: RoundedRectangle(cornerRadius: 16))
+                    .readingSurface()
             }.id(step).transition(stepTransition)
             }.frame(maxHeight: .infinity, alignment: .topLeading).clipped()
             Divider()
@@ -282,6 +274,7 @@ struct ExportOptionsView: View {
             #else
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             #endif
+            .background(AppTheme.background)
             .onChange(of: tutorialStep) { _, value in if let value { step = value } }
             .onChange(of: workspace.documentID) { _, _ in
                 refreshCommitteeScopeEligibility()
@@ -342,6 +335,27 @@ struct ExportOptionsView: View {
             }
         .buttonStyle(FocusSecondaryButtonStyle())
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+    }
+
+    @ViewBuilder private var presetPicker: some View {
+        #if os(macOS)
+        Picker(UIStrings.text("Voorinstelling"), selection: $preset) {
+            presetOptions
+        }
+        .pickerStyle(.radioGroup)
+        #else
+        SettingsMenuPicker(UIStrings.text("Voorinstelling"), selection: $preset,
+                           selectedTitle: UIStrings.text(preset?.title ?? "Aangepast")) {
+            presetOptions
+        }
+        #endif
+    }
+
+    @ViewBuilder private var presetOptions: some View {
+        Text(UIStrings.text("Aangepast")).tag(ExportPreset?.none)
+        ForEach(ExportPreset.allCases) { option in
+            Text(UIStrings.text(option.title)).tag(Optional(option))
+        }
     }
 
     @ViewBuilder private var stepLabels: some View {

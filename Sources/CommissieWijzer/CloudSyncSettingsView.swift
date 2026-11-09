@@ -3,8 +3,8 @@ import SwiftUI
 struct CloudSyncSettingsView: View {
     @ObservedObject var cloud: CloudSyncController
     var body: some View {
-        GroupBox(UIStrings.text("Persoonlijke iCloud-synchronisatie")) {
-            VStack(alignment: .leading, spacing: 10) {
+        SettingsCard(UIStrings.text("Persoonlijke iCloud-synchronisatie"), systemImage: "icloud") {
+            VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: Binding(
                     get: { cloud.enabled }, set: { value in Task { await cloud.setEnabled(value) } }
                 )) { Text(UIStrings.text("Synchroniseer gekozen dossiers via iCloud")).fixedSize(horizontal: false, vertical: true) }.platformCheckboxStyle()
@@ -19,7 +19,7 @@ struct CloudSyncSettingsView: View {
                 }
                 if let error = cloud.error { Text(UIStrings.text(error)).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
                 if !cloud.status.isEmpty { Text(UIStrings.text(cloud.status)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-            }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

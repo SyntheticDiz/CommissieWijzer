@@ -152,7 +152,7 @@ private struct FocusChoiceTabButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 8)
             .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
-            .background(selected && isEnabled ? AppTheme.buttonSurface : .clear,
+            .background(selected && isEnabled ? AppTheme.selection : .clear,
                         in: RoundedRectangle(cornerRadius: 7))
             .overlay {
                 if isFocused && isEnabled {
@@ -161,7 +161,8 @@ private struct FocusChoiceTabButtonStyle: ButtonStyle {
                         .allowsHitTesting(false)
                 } else if selected || contrast == .increased {
                     RoundedRectangle(cornerRadius: 7)
-                        .strokeBorder(contrast == .increased ? Color.primary.opacity(0.55) : AppTheme.border.opacity(0.65), lineWidth: 1)
+                        .strokeBorder(contrast == .increased ? Color.primary.opacity(0.68) : AppTheme.accent,
+                                      lineWidth: contrast == .increased && selected ? 2 : 1)
                         .allowsHitTesting(false)
                 }
             }

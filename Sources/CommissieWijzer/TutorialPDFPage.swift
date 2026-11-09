@@ -46,8 +46,16 @@ struct TutorialPDFPage: View {
             }
         }
         .background(.white)
+        .overlay(alignment: .bottom) {
+            GeometryReader { geometry in
+                PDFControlsBar(controls: controls)
+                    .fixedSize()
+                    .scaleEffect(min(0.82, geometry.size.width / 400))
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .frame(height: 64)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 22))
-        .overlay(alignment: .bottom) { PDFControlsBar(controls: controls).scaleEffect(0.82).padding(.bottom, 12) }
         .tutorialTarget("pdfPane")
     }
 }

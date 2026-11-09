@@ -21,26 +21,30 @@ enum AppTheme {
     static let surface = adaptive(.init(white: 1, alpha: 1), .init(red: 0.15, green: 0.18, blue: 0.22, alpha: 1))
     static let paneSurface = adaptive(.init(red: 0.97, green: 0.98, blue: 0.99, alpha: 1), .init(red: 0.12, green: 0.14, blue: 0.17, alpha: 1))
     static let border = adaptive(.init(red: 0.84, green: 0.86, blue: 0.89, alpha: 1), .init(red: 0.25, green: 0.29, blue: 0.34, alpha: 1))
-    static let selection = adaptive(.init(red: 0.98, green: 0.94, blue: 0.95, alpha: 1), .init(red: 0.23, green: 0.15, blue: 0.18, alpha: 1))
-    static let accent = adaptive(.init(red: 0.67, green: 0.12, blue: 0.20, alpha: 1), .init(red: 0.96, green: 0.57, blue: 0.62, alpha: 1))
-    static let brand = adaptive(.init(red: 0.68, green: 0.14, blue: 0.21, alpha: 1), .init(red: 0.71, green: 0.17, blue: 0.25, alpha: 1))
-    static let brandPressed = adaptive(.init(red: 0.52, green: 0.10, blue: 0.16, alpha: 1), .init(red: 0.57, green: 0.12, blue: 0.19, alpha: 1))
+    private static var currentPalette: AccentPreset { AccentPalette.shared.selected }
+    private static func color(_ rgb: (red: Double, green: Double, blue: Double)) -> Color {
+        Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+    }
+    static var selection: Color {
+        let palette = currentPalette
+        let light = palette.selectionLightRGB, dark = palette.selectionDarkRGB
+        return adaptive(.init(red: light.red, green: light.green, blue: light.blue, alpha: 1),
+                        .init(red: dark.red, green: dark.green, blue: dark.blue, alpha: 1))
+    }
+    static var accent: Color {
+        let palette = currentPalette
+        return adaptive(.init(red: palette.lightAccentRGB.red, green: palette.lightAccentRGB.green, blue: palette.lightAccentRGB.blue, alpha: 1),
+                        .init(red: palette.darkAccentRGB.red, green: palette.darkAccentRGB.green, blue: palette.darkAccentRGB.blue, alpha: 1))
+    }
+    static var primaryAction: Color { color(currentPalette.actionRGB) }
+    static var primaryActionHover: Color { color(currentPalette.actionHoverRGB) }
+    static var primaryActionPressed: Color { color(currentPalette.actionPressedRGB) }
+    static let primaryActionText = Color(red: 0.06, green: 0.10, blue: 0.14)
+    static var focusRing: Color { accent }
     static let buttonSurface = adaptive(.init(white: 1, alpha: 1), .init(red: 0.19, green: 0.22, blue: 0.27, alpha: 1))
     static let buttonHover = adaptive(.init(red: 0.88, green: 0.90, blue: 0.93, alpha: 1), .init(red: 0.27, green: 0.31, blue: 0.37, alpha: 1))
     static let buttonDisabled = adaptive(.init(red: 0.92, green: 0.93, blue: 0.95, alpha: 1), .init(red: 0.13, green: 0.15, blue: 0.18, alpha: 1))
-    static let focusRing = adaptive(.init(red: 0.10, green: 0.35, blue: 0.72, alpha: 1), .init(red: 0.42, green: 0.67, blue: 1, alpha: 1))
     static let cardRadius: CGFloat = 18
-}
-
-struct AppWordmark: View {
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "doc.text").font(.system(size: 13, weight: .black)).foregroundStyle(.white)
-                .padding(.horizontal, 7).padding(.vertical, 4)
-                .background(AppTheme.brand, in: RoundedRectangle(cornerRadius: 5))
-            Text("CommissieWijzer").font(.headline)
-        }.accessibilityElement(children: .combine)
-    }
 }
 
 /// Shared reading surface; system contrast preferences retain a visible outline.

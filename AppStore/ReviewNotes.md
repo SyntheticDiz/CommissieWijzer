@@ -1,4 +1,6 @@
-# App Review Notes — macOS 1.2.0 (8)
+# App Review Notes — macOS 1.3.0 (10)
+
+Review reference for release candidate 1.3.0 (10), submitted on 9 November 2026 and confirmed as Waiting for Review on that date. The steps below follow the interface in that build.
 
 CommissieWijzer is a Dutch-language app for reading and preparing municipal council and committee papers. It shows analysis beside the original PDF in resizable panes. AI output is guidance, not fact; verify it against the source. The app has no political affiliation.
 
@@ -16,14 +18,18 @@ iCloud is off by default. Sign in to iCloud on the device, enable iCloud in the 
 
 Committee profiles are stored locally. Included profiles are editable examples. A profile has a name, topics, and optional points of attention. Work documents retain a snapshot of the selected profile; later local edits do not change existing work. Importing a profile does not automatically replace the local list. With ChatGPT, the chosen committee name, topics, and points of attention are sent with the requested analysis.
 
-**Settings → Notifications** controls local completion notifications. The system requests permission when an analysis starts or the user explicitly enables notifications. Messages contain no document name or contents; disabled system notifications prevent delivery.
+**Settings → General → Notifications** controls local completion notifications. The system requests permission when an analysis starts or the user explicitly enables notifications. Messages contain no document name or contents; disabled system notifications prevent delivery.
+
+## Meeting questions and source review
+
+In an opened work document, use **Vragenlijst** to add a question from a selected PDF passage or analysis point, edit its answer, and set its status to **Nog stellen**, **Beantwoord**, or **Opvolgen**. Suggested questions are not saved until explicitly approved. Expand **Checklist broncontrole** to inspect unreadable or uncovered pages, analysis attention items, uncertain tables, and unchecked points; select an item to open its source. These tools do not validate AI conclusions automatically. Accent color can be changed in **Settings → General → Language and appearance**; the choice is stored locally.
 
 ## Optional ChatGPT and OAuth callback
 
-In **Settings → AI provider**, choose **ChatGPT · online → Continue with ChatGPT**. Sign in with the reviewer’s own eligible ChatGPT account; no credentials are supplied. Account access and usage limits are determined by OpenAI.
+In **Settings → AI and processing → AI provider**, choose **ChatGPT · online → Continue with ChatGPT**. Sign in with the reviewer’s own eligible ChatGPT account; no credentials are supplied. Account access and usage limits are determined by OpenAI.
 
 The Mac `com.apple.security.network.server` entitlement is used only for OAuth. Sign-in starts a temporary TCP listener bound exclusively to `127.0.0.1` on an OS-assigned ephemeral port and registers that port with `/auth/callback` as the redirect URI. Authorization opens in the default browser. The app validates state and the response, exchanges the code with PKCE, and validates the ID token nonce. The listener stops after callback, cancellation, or five minutes. It accepts no remote connections and is not a general network service.
 
 When ChatGPT is selected, only excerpts needed for the requested task, and a user-selected programme if comparing, are sent to OpenAI. The app does not read ChatGPT conversations or switch providers automatically. Apple Intelligence runs locally with no cloud fallback. The optional glossary can query Dutch Wikipedia; an AI explanation may send the term and limited context to the selected provider.
 
-Release preference: manual release after approval.
+Release preference: automatic release after approval (current App Store Connect setting observed 9 November 2026).

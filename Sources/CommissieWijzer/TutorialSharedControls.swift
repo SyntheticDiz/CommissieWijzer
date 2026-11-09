@@ -23,38 +23,6 @@ struct ProcessingModePicker: View {
     }
 }
 
-struct PDFImportCard: View {
-    let busy: Bool
-    let targeted: Bool
-    let addPDF: () -> Void
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "doc.badge.plus")
-                .font(.system(size: 36, weight: .regular))
-                .foregroundStyle(targeted ? AppTheme.accent : Color.secondary)
-            Text(UIStrings.text(busy ? "Pdf inladen…" : "Sleep je pdf hierheen")).font(.title2.bold())
-            if busy { ProgressView() }
-            else {
-                Button(UIStrings.text("Pdf toevoegen…"), systemImage: "plus") { addPDF() }
-                    .buttonStyle(FocusPrimaryButtonStyle())
-                    .tint(AppTheme.accent)
-                    .controlSize(.regular)
-            }
-            Text(UIStrings.text("Eén pdf met leesbare tekst")).font(.caption).foregroundStyle(.secondary)
-        }
-        .padding(40).frame(maxWidth: .infinity, minHeight: 260)
-        .background(targeted ? AppTheme.accent.opacity(0.08) : Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 22))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .strokeBorder(targeted ? AppTheme.accent : Color.secondary.opacity(0.2),
-                              style: targeted ? StrokeStyle(lineWidth: 2, dash: [7, 5]) : StrokeStyle(lineWidth: 1))
-        }
-        .contentShape(RoundedRectangle(cornerRadius: 22))
-        .tutorialTarget("import")
-    }
-}
-
 struct AnalysisControlRow: View {
     @ObservedObject var workspace: SimpleWorkspace
     let disabled: Bool
@@ -107,17 +75,21 @@ struct PDFSelectionActionButton: View {
     var addChosen: (() -> Void)? = nil
     var addDisabled = true
     var alreadyAdded = false
+    var draftQuestion: (() -> Void)? = nil
+    var draftDisabled = true
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 6) {
                 summarizeButton
                 if let addChosen { chosenButton(addChosen) }
+                if let draftQuestion { draftButton(draftQuestion) }
             }.accessibilityIdentifier("selection-actions-inline")
-            if let addChosen {
+            if addChosen != nil || draftQuestion != nil {
                 Menu {
                     summarizeButton
-                    chosenButton(addChosen)
+                    if let addChosen { chosenButton(addChosen) }
+                    if let draftQuestion { draftButton(draftQuestion) }
                 } label: {
                     Label(UIStrings.text(alreadyAdded ? "Opgenomen in Mijn selectie" : "Selectieacties"),
                           systemImage: alreadyAdded ? "checkmark" : "text.quote").foregroundStyle(Color.primary)
@@ -136,6 +108,12 @@ struct PDFSelectionActionButton: View {
             .disabled(disabled)
             .help(UIStrings.text(waitingForAnalysis ? "Wacht tot de analyse klaar is of stop deze eerst." : "Vat alleen de geselecteerde tekst samen"))
             .tutorialTarget("selection")
+    }
+
+    private func draftButton(_ action: @escaping () -> Void) -> some View {
+        Button(UIStrings.text("Vraag opstellen"), systemImage: "questionmark.bubble", action: action)
+            .buttonStyle(FocusSecondaryButtonStyle())
+            .disabled(draftDisabled)
     }
 
     private func chosenButton(_ action: @escaping () -> Void) -> some View {

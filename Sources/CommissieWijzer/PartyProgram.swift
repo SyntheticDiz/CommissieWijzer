@@ -50,31 +50,33 @@ struct PartyProgram: Codable, Sendable {
 }
 
 struct PartyProgramSettings: View {
+    var storageURL: URL = PartyProgram.storageURL
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @State private var program: PartyProgram?
     @State private var choosing = false
     @State private var busy = false
     @State private var message = ""
     var body: some View {
-        GroupBox(UIStrings.text("Eigen partijprogramma")) {
-            VStack(alignment: .leading, spacing: 10) {
+        SettingsCard(UIStrings.text("Eigen partijprogramma"), systemImage: "doc.text") {
+            VStack(alignment: .leading, spacing: 12) {
                 Text(UIStrings.text(program.map { "\($0.name) · \($0.pages.count) pagina’s" } ?? "Nog geen partijprogramma opgeslagen"))
                     .font(.callout).lineLimit(2)
-                HStack {
-                    Button(UIStrings.text(program == nil ? "Voeg PDF toe…" : "Vervang PDF…")) { choosing = true }.disabled(busy)
-                    if program != nil {
-                        Button(UIStrings.text("Verwijder"), role: .destructive) {
-                            do { try FileManager.default.removeItem(at: PartyProgram.storageURL); program = nil; message = "Verwijderd. Analyseer je document opnieuw." }
-                            catch { message = error.localizedDescription }
-                        }.disabled(busy)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        chooseProgram.fixedSize()
+                        removeProgram.fixedSize()
                     }
-                    if busy { ProgressView().controlSize(.small) }
+                    VStack(alignment: .leading, spacing: 8) {
+                        chooseProgram
+                        removeProgram
+                    }
                 }
-                Text(UIStrings.text("Lokaal bewaard. Bij een nieuwe AI-analyse zoekt CommissieWijzer naar overeenkomsten en spanningen met dit programma. Een selectie op tekstoverlap kan indirecte verbanden missen. PDF vereist leesbare tekst.")).font(.caption).foregroundStyle(.secondary)
+                if busy { ProgressView().controlSize(.small) }
+                Text(UIStrings.text("Lokaal bewaard. Bij een nieuwe AI-analyse zoekt CommissieWijzer naar overeenkomsten en spanningen met dit programma. Een selectie op tekstoverlap kan indirecte verbanden missen. PDF vereist leesbare tekst.")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 if !message.isEmpty { Text(UIStrings.text(message)).font(.caption) }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+            }.frame(maxWidth: .infinity, alignment: .leading)
         }
-        .task { do { program = try PartyProgram.load() } catch { message = "Partijprogramma kon niet worden geladen: \(error.localizedDescription)" } }
+        .task { do { program = try PartyProgram.load(from: storageURL) } catch { message = "Partijprogramma kon niet worden geladen: \(error.localizedDescription)" } }
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.pdf]) { result in
             switch result {
             case .failure(let error): if !ImportFailure.isCancellation(error) { message = error.localizedDescription }
@@ -86,13 +88,32 @@ struct PartyProgramSettings: View {
                         let saved = try await Task.detached(priority: .userInitiated) {
                             let pdf = try OpenPDF.read(url)
                             let saved = PartyProgram(name: pdf.name, pages: pdf.pages, pdf: pdf.data)
-                            try saved.save()
+                            try saved.save(to: storageURL)
                             return saved
                         }.value
                         program = saved; message = "Opgeslagen. Start een nieuwe AI-analyse om dit programma te gebruiken."
                     } catch { message = error.localizedDescription }
                 }
             }
+        }
+    }
+
+    private var chooseProgram: some View {
+        Button(UIStrings.text(program == nil ? "Voeg PDF toe…" : "Vervang PDF…")) { choosing = true }
+            .disabled(busy)
+    }
+
+    @ViewBuilder
+    private var removeProgram: some View {
+        if program != nil {
+            Button(UIStrings.text("Verwijder"), role: .destructive) {
+                do {
+                    try FileManager.default.removeItem(at: storageURL)
+                    program = nil
+                    message = "Verwijderd. Analyseer je document opnieuw."
+                } catch { message = error.localizedDescription }
+            }
+            .disabled(busy)
         }
     }
 }

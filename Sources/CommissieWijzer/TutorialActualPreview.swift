@@ -11,8 +11,6 @@ import PDFKit
     @StateObject private var workspace = TutorialDemoData.makeWorkspace()
     @StateObject private var pdfControls = PDFControls()
     @StateObject private var selectionSummary = SelectionSummary()
-    @State private var compareProgram = false
-    @State private var demoProvider = "apple"
     @State private var query = ""
     @State private var rememberedTargetFrames: [String: CGRect] = [:]
     @State private var rememberedStep = -1
@@ -22,8 +20,8 @@ import PDFKit
     private var targetNames: [String] {
         switch step {
         case 0: ["import"]
-        case 1: ["providerMenu", "providerChatGPTOption"]
-        case 2: ["mode", "modeCompareOption"]
+        case 1: ["providerChange", "providerMenu", "providerChatGPTOption"]
+        case 2: ["purpose", "purposeCommittee", "manageCommittees"]
         case 3: [] // Automatic analysis has no user action to point at.
         case 4: ["summary"]
         case 5: ["category-decisions", "amounts"]
@@ -33,6 +31,7 @@ import PDFKit
         case 9: ["table"]
         case 10: ["ask"]
         case 11: ["exportAction", "exportNext"]
+        case 12: ["recentWorkspaces", "recentEntry"]
         default: []
         }
     }
@@ -47,7 +46,7 @@ import PDFKit
             }
             Divider()
             scene.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .clipped().id(step).transition(.opacity)
+                .clipped().id(step).transition(reduceMotion ? .identity : .opacity)
         }
         .padding(12)
         .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 22))
@@ -78,18 +77,6 @@ import PDFKit
                                     .position(x: bounds.midX, y: bounds.midY)
                                     .opacity(motion.opacity)
                             }
-                            #if os(macOS)
-                            if step == 0 && phase == 0 {
-                                Label("Commissiestuk.pdf", systemImage: "doc.fill")
-                                    .font(.caption.weight(.medium))
-                                    .padding(.horizontal, 10).padding(.vertical, 7)
-                                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 8))
-                                    .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(AppTheme.border) }
-                                    .shadow(color: .black.opacity(0.15), radius: 5, y: 2)
-                                    .position(x: motion.position.x - 65, y: motion.position.y - 24)
-                                    .opacity(motion.opacity)
-                            }
-                            #endif
                             TutorialDemoPointer(clickProgress: motion.clickProgress)
                                 .position(motion.position)
                                 .opacity(motion.opacity)
@@ -104,6 +91,7 @@ import PDFKit
                 }
             }
         }
+        .transaction { if reduceMotion { $0.disablesAnimations = true } }
         .task(id: playbackKey) {
             syncDemo()
             if step == 8 && phase == 1 && !reduceMotion {
@@ -120,85 +108,147 @@ import PDFKit
     @ViewBuilder private var scene: some View {
         switch step {
         case 0:
-            if phase < 3 {
-                PDFImportCard(busy: phase >= 1, targeted: phase == 0, addPDF: {})
-                    .allowsHitTesting(false)
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                            Label(UIStrings.text("PDF ingelezen"), systemImage: "checkmark.circle.fill")
-                            .font(.callout.weight(.semibold)).foregroundStyle(AppTheme.accent)
-                        Spacer()
-                        Text("Commissiestuk.pdf · \(document.pages.count) PDF-pagina’s")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 10) {
-                        ProgressView().controlSize(.small)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(UIStrings.text("Analyse start automatisch"))
-                                .font(.callout.weight(.medium))
-                            Text(UIStrings.text("De gekozen AI-provider verwerkt het document."))
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    pdfPane.frame(height: 194)
-                }
-                .padding(12)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
-                .allowsHitTesting(false)
-            }
+            if phase < 2 { welcomeDemo }
+            else { analysisStatusDemo }
         case 1:
-            providerSettingsDemo
+            if phase == 0 { welcomeDemo }
+            else { providerSettingsDemo }
         case 2:
-            modeSettingsDemo
+            if phase < 3 { welcomeDemo }
+            else { committeeSettingsDemo }
         case 3:
             analysisStatusDemo
         case 4:
-            summaryDemo
+            workbenchDemo(tab: "Documentoverzicht", symbol: "doc.text") { summaryDemo }
         case 5:
-            highlightsDemo
+            workbenchDemo(tab: phase < 3 ? "Documentoverzicht" : "Documentpunten", symbol: "list.bullet") {
+                if phase < 3 { highlightsDemo }
+                else { findingsDemo }
+            }
         case 6:
-            if phase < 2 {
-                ScrollView {
-                    tutorialInsightCard(showAsk: false)
-                }.allowsHitTesting(false)
-            } else { pdfPane.allowsHitTesting(false) }
+            workbenchDemo(tab: "Documentpunten", symbol: "list.bullet", showPDF: phase >= 2) {
+                tutorialInsightCard(showAsk: false)
+            }
         case 7:
-            if phase < 3 {
-                ZStack(alignment: .top) {
-                    pdfPane
-                    if phase >= 2 {
-                        PDFSelectionActionButton(disabled: false, waitingForAnalysis: false, action: {})
-                            .padding(.top, 165)
-                    }
-                }.allowsHitTesting(false)
-            } else { SelectionSummaryCard(session: selectionSummary).allowsHitTesting(false) }
+            workbenchDemo(tab: "Documentoverzicht", symbol: "doc.text", showPDF: phase < 3) {
+                if phase < 3 { summaryDemo }
+                else { SelectionSummaryCard(session: selectionSummary) }
+            }
         case 8:
-            if phase < 3 {
-                ScrollView {
-                    UnifiedSearchView(query: $query, records: searchRecords, indexing: false, open: { _ in })
-                }.allowsHitTesting(false)
-            } else { pdfPane.allowsHitTesting(false) }
+            workbenchDemo(tab: "Zoeken", symbol: "magnifyingglass", showPDF: phase >= 3) {
+                if phase == 3 { searchSourceDemo }
+                else { UnifiedSearchView(query: $query, records: searchRecords, indexing: false, open: { _ in }) }
+            }
         case 9:
             if phase < 3 {
-                ScrollView {
+                workbenchDemo(tab: "Tabellen", symbol: "tablecells") {
                     TableExplanationView(tables: workspace.tables, showPage: { _ in },
-                                         tutorialExpanded: phase >= 2, tutorialTableExpanded: phase >= 2)
-                }.allowsHitTesting(false)
+                                         tutorialExpanded: true, tutorialTableExpanded: phase >= 2)
+                }
             } else {
                 tutorialGlossary
             }
         case 10:
             if phase < 2 {
-                ScrollView {
-                    tutorialInsightCard(showAsk: true)
-                }.allowsHitTesting(false)
+                workbenchDemo(tab: "Documentpunten", symbol: "list.bullet") { tutorialInsightCard(showAsk: true) }
             } else {
                 tutorialChatTranscript
             }
-        default:
+        case 11:
             exportWizardDemo
+        case 12:
+            if phase < 2 { savedWorkDemo }
+            else if phase == 2 { cloudSettingsDemo }
+            else { cloudLibraryDemo }
+        default:
+            EmptyView()
         }
+    }
+
+    private func workbenchDemo<Content: View>(tab: String, symbol: String, showPDF: Bool = false,
+                                              @ViewBuilder content: () -> Content) -> some View {
+        let cardContent = content()
+        return GeometryReader { geometry in
+            if usesWideWorkbench(width: geometry.size.width) {
+                HStack(spacing: 10) {
+                    workspaceCard(tab: tab, symbol: symbol, showsHeading: true) { cardContent }
+                        .frame(maxWidth: .infinity)
+                    pdfCard(showsHeading: true)
+                        .frame(width: (geometry.size.width - 10) * pdfWidthFraction)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 6) { demoPaneSwitcher(showPDF: showPDF) }
+                        VStack(spacing: 4) { demoPaneSwitcher(showPDF: showPDF) }
+                    }
+                    if showPDF { pdfCard(showsHeading: false) }
+                    else { workspaceCard(tab: tab, symbol: symbol, showsHeading: false) { cardContent } }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var pdfWidthFraction: CGFloat {
+        guard step == 7 else { return 0.43 }
+        return phase < 3 ? 0.54 : 0.32
+    }
+
+    private func usesWideWorkbench(width: CGFloat) -> Bool {
+        #if os(iOS)
+        width >= 470
+        #else
+        true
+        #endif
+    }
+
+    private func workspaceCard<Content: View>(tab: String, symbol: String, showsHeading: Bool,
+                                              @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if showsHeading {
+                paneTitle("Analyse en werkveld", symbol: "rectangle.split.2x1")
+            }
+            Label(UIStrings.text(tab), systemImage: symbol)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.accent)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .background(AppTheme.accent.opacity(0.12), in: Capsule())
+            ScrollView {
+                content().frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .readingSurface()
+    }
+
+    private func pdfCard(showsHeading: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if showsHeading {
+                paneTitle("Originele pdf", symbol: "doc.text")
+            }
+            pdfPane
+            if step == 7 && phase == 2 {
+                PDFSelectionActionButton(disabled: false, waitingForAnalysis: false, action: {}, addChosen: {})
+            }
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .readingSurface()
+    }
+
+    private func paneTitle(_ title: String, symbol: String) -> some View {
+        Label(UIStrings.text(title), systemImage: symbol)
+            .font(.caption.weight(.semibold))
+            .lineLimit(2)
+    }
+
+    @ViewBuilder private func demoPaneSwitcher(showPDF: Bool) -> some View {
+        paneTitle("Werkveld", symbol: "rectangle.split.2x1")
+            .padding(7).background(!showPDF ? AppTheme.accent.opacity(0.14) : AppTheme.surface, in: Capsule())
+        paneTitle("Originele pdf", symbol: "doc.text")
+            .padding(7).background(showPDF ? AppTheme.accent.opacity(0.14) : AppTheme.surface, in: Capsule())
     }
 
     private var pdfPane: some View {
@@ -234,82 +284,273 @@ import PDFKit
                 }
             }
         }
-        .padding(18)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private var providerSettingsDemo: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label(UIStrings.text("AI-provider"), systemImage: "sparkles").font(.title2.bold())
-            FocusMenuPicker(UIStrings.text("Analyse uitvoeren met"), selection: $demoProvider,
-                            selectedTitle: UIStrings.text(demoProvider == "chatgpt" ? "ChatGPT · online" : "Apple Intelligence · lokaal")) {
-                Text(UIStrings.text("Apple Intelligence · lokaal")).tag("apple")
-                Text(UIStrings.text("ChatGPT · online")).tag("chatgpt")
-            }
-            .tutorialTarget("providerMenu")
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: demoProvider)
-            if phase == 1 {
-                VStack(spacing: 1) {
-                    menuItem(UIStrings.text("Apple Intelligence · lokaal"), selected: demoProvider == "apple", target: nil)
-                    menuItem(UIStrings.text("ChatGPT · online"), selected: false, target: "providerChatGPTOption")
-                }
-                .frame(maxWidth: 310, alignment: .leading)
-                .padding(5)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 9))
-                .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)) }
-                .shadow(color: .black.opacity(0.13), radius: 8, x: 0, y: 4)
-                .padding(.leading, 8)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-            if phase >= 2 {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label(UIStrings.text("ChatGPT gekozen"), systemImage: "checkmark.circle.fill")
-                        .font(.callout.weight(.semibold)).foregroundStyle(AppTheme.accent)
-                    Text(UIStrings.text("Documentinhoud wordt voor AI-verwerking naar OpenAI verstuurd."))
-                        .font(.callout).fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(AppTheme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+    private var welcomeDemo: some View {
+        ViewThatFits(in: .vertical) {
+            welcomeColumn.fixedSize(horizontal: false, vertical: true)
+            ScrollView { welcomeColumn }
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .allowsHitTesting(false)
     }
 
-    private var modeSettingsDemo: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ProcessingModePicker(compareProgram: $compareProgram)
-                .tutorialTarget("mode")
-            if phase == 1 {
-                VStack(spacing: 1) {
-                    menuItem(UIStrings.text("Neutrale samenvatting"), selected: !compareProgram, target: nil)
-                    menuItem(UIStrings.text("Vergelijk met partijprogramma"), selected: false, target: "modeCompareOption")
+    private var welcomeColumn: some View {
+        VStack(spacing: 7) {
+            VStack(spacing: 2) {
+                HStack(spacing: 5) {
+                    demoBrandIcon
+                    Text("CommissieWijzer").font(.headline)
                 }
-                .frame(maxWidth: 310, alignment: .leading)
-                .padding(5)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 9))
-                .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(.primary.opacity(0.12)) }
-                .shadow(color: .black.opacity(0.13), radius: 8, x: 0, y: 4)
-                .padding(.leading, 8)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                Text(UIStrings.text("Jouw stukken. Jouw inzichten. Jouw koers."))
+                    .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
-            if phase >= 2 {
-                GroupBox(UIStrings.text("Eigen partijprogramma")) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.badge.plus").foregroundStyle(AppTheme.accent)
-                        Text(UIStrings.text("Voeg je programma toe via Instellingen."))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(8)
+            VStack(alignment: .leading, spacing: 5) {
+                demoWelcomePicker("Analysevorm", value: "Neutrale samenvatting")
+                demoWelcomePicker("Voorbereiden voor", value: step == 2 && phase >= 2 ? "Leefomgeving" : "Raad")
+                    .tutorialTarget("purpose")
+                if step == 2 && phase == 1 {
+                    menuItem(UIStrings.text("Raad"), selected: true, target: nil)
+                    menuItem(UIStrings.text("Leefomgeving"), selected: false, target: "purposeCommittee")
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                Button(UIStrings.text("Commissies beheren"), systemImage: "slider.horizontal.3") {}
+                    .buttonStyle(FocusQuietActionStyle())
+                    .tutorialTarget("manageCommittees")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .readingSurface()
+            VStack(spacing: 3) {
+                Image(systemName: "doc.badge.plus").foregroundStyle(.secondary)
+                Text(UIStrings.text(phase == 1 && step == 0 ? "Pdf inladen…" : "Voeg een pdf toe"))
+                    .font(.callout.weight(.semibold))
+                #if os(macOS)
+                Text(UIStrings.text("Sleep je pdf hierheen")).font(.caption2).foregroundStyle(.secondary)
+                #endif
+                Button(UIStrings.text("Pdf toevoegen…"), systemImage: "plus") {}
+                    .buttonStyle(FocusPrimaryButtonStyle())
+                    .tutorialTarget("import")
+            }
+            .padding(.horizontal, 20).padding(.vertical, 7)
+            .frame(maxWidth: .infinity).readingSurface()
+            HStack {
+                Label(UIStrings.text("Apple Intelligence · Lokaal"), systemImage: "sparkles")
+                    .font(.caption)
+                Spacer(minLength: 4)
+                Button(UIStrings.text("Wijzigen")) {}
+                    .buttonStyle(FocusQuietActionStyle())
+                    .tutorialTarget("providerChange")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 3).readingSurface()
+            workspaceButtons
+        }
+        .frame(maxWidth: 440)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func demoWelcomePicker(_ title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(UIStrings.text(title))
+                .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Menu {} label: {
+                HStack {
+                    Text(UIStrings.text(value))
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.down").font(.caption2)
+                }
+                .font(.caption)
+            }
+            .menuIndicator(.hidden).focusMenu()
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder private var demoBrandIcon: some View {
+        #if os(macOS)
+        if let url = Bundle.main.url(forResource: "CWBrand", withExtension: "png"),
+           let icon = NSImage(contentsOf: url) {
+            Image(nsImage: icon).resizable().scaledToFit().frame(width: 22, height: 22)
+        }
+        #else
+        Image("CWBrand").resizable().scaledToFit().frame(width: 22, height: 22)
+        #endif
+    }
+
+    private var workspaceButtons: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { workspaceActionLabels }
+            VStack(spacing: 5) { workspaceActionLabels }
+        }
+        .buttonStyle(FocusSecondaryButtonStyle())
+        .controlSize(.small)
+    }
+
+    @ViewBuilder private var workspaceActionLabels: some View {
+        Button {} label: {
+            Label(UIStrings.text("Werkdocument openen…"), systemImage: "folder")
+                .frame(maxWidth: .infinity)
+        }
+        Button {} label: {
+            Label(UIStrings.text("iCloud-bibliotheek"), systemImage: "icloud")
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var providerSettingsDemo: some View {
+        settingsDemo(.ai) {
+            SettingsCard(UIStrings.text("AI-provider"), systemImage: "sparkles") {
+                SettingsMenuPicker(UIStrings.text("Analyse uitvoeren met"),
+                                   selection: .constant(phase == 3 ? "chatgpt" : "apple"),
+                                   selectedTitle: UIStrings.text(phase == 3 ? "ChatGPT · online" : "Apple Intelligence · lokaal")) {
+                    Text(UIStrings.text("Apple Intelligence · lokaal")).tag("apple")
+                    Text(UIStrings.text("ChatGPT · online")).tag("chatgpt")
+                }
+                .tutorialTarget("providerMenu")
+                if phase == 2 {
+                    VStack(spacing: 1) {
+                        menuItem(UIStrings.text("Apple Intelligence · lokaal"), selected: true, target: nil)
+                        menuItem(UIStrings.text("ChatGPT · online"), selected: false, target: "providerChatGPTOption")
+                    }
+                    .padding(4)
+                    .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 9))
+                }
+            }
+            if phase == 3 {
+                SettingsCard("ChatGPT", systemImage: "network") {
+                    Label(UIStrings.text("Verbonden met ChatGPT"), systemImage: "checkmark.circle")
+                        .font(.caption)
+                    DisclosureGroup(isExpanded: .constant(false)) {
+                        EmptyView()
+                    } label: {
+                        Text(UIStrings.text("Geavanceerde modelinstellingen")).font(.caption.weight(.semibold))
+                    }
+                    .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+                }
             }
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var committeeSettingsDemo: some View {
+        settingsDemo(.preparation) {
+            SettingsCard(UIStrings.text("Commissies"), systemImage: "person.3") {
+                Label(UIStrings.text("Leefomgeving"), systemImage: "list.bullet")
+                    .font(.callout.weight(.semibold))
+                Text(UIStrings.text("Onderwerpen") + " · " + UIStrings.text("Mobiliteit"))
+                    .font(.caption).foregroundStyle(.secondary)
+                Button(UIStrings.text("Commissies beheren"), systemImage: "slider.horizontal.3") {}
+                    .buttonStyle(FocusSecondaryButtonStyle())
+            }
+            SettingsCard(UIStrings.text("Eigen partijprogramma"), systemImage: "text.book.closed") {
+                Text(UIStrings.text("Voor programmavergelijking kun je in Instellingen een partijprogramma toevoegen."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var cloudSettingsDemo: some View {
+        settingsDemo(.storage) {
+            SettingsCard(UIStrings.text("Persoonlijke iCloud-synchronisatie"), systemImage: "icloud") {
+                Toggle(UIStrings.text("Synchroniseer gekozen dossiers via iCloud"), isOn: .constant(false))
+                    .font(.caption)
+                Toggle(UIStrings.text("Synchroniseer ook mijn commissielijst"), isOn: .constant(false))
+                    .font(.caption).disabled(true)
+            }
+        }
+    }
+
+    private func settingsDemo<Content: View>(_ section: SettingsSection, @ViewBuilder content: () -> Content) -> some View {
+        let detail = content()
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(UIStrings.text("Instellingen")).font(.headline)
+                Spacer()
+                Button(UIStrings.text("Gereed")) {}
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                    .controlSize(.small)
+            }
+            .padding(9).background(AppTheme.surface)
+            Divider()
+            GeometryReader { geometry in
+                if geometry.size.width >= 400 {
+                    HStack(spacing: 0) {
+                        VStack(spacing: 3) {
+                            ForEach(SettingsSection.allCases) { item in
+                                Button {} label: {
+                                    Label(UIStrings.text(item.title), systemImage: item.symbol)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                }
+                                .buttonStyle(SettingsNavigationRowStyle(isSelected: item == section))
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: 153)
+                        Divider()
+                        settingsDetail { detail }
+                    }
+                } else {
+                    settingsDetail(section: section) { detail }
+                }
+            }
+            Divider()
+            Text(UIStrings.text("Keuzes worden automatisch bewaard."))
+                .font(.caption2).foregroundStyle(.secondary)
+                .padding(9).frame(maxWidth: .infinity, alignment: .leading)
+                .background(AppTheme.surface)
+        }
+        .readingSurface()
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius))
+        .allowsHitTesting(false)
+    }
+
+    private func settingsDetail<Content: View>(section: SettingsSection? = nil,
+                                               @ViewBuilder content: () -> Content) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                if let section {
+                    Label(UIStrings.text(section.title), systemImage: "chevron.backward")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                content()
+            }
+            .padding(8)
+        }
+    }
+
+    private var savedWorkDemo: some View {
+        VStack(spacing: 10) {
+            workspaceButtons
+            RecentWorkspacesList(
+                entries: [.init(path: "/Commissiestuk.spdfwork", displayName: "Commissiestuk.spdfwork",
+                                lastUsed: .distantPast, bookmarkData: nil)],
+                open: { _ in }, statusMessage: { _ in nil }, isInitiallyExpanded: phase >= 1
+            )
+            .id(phase >= 1)
+            .tutorialTarget(phase == 0 ? "recentWorkspaces" : "recentEntry")
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+    }
+
+    private var cloudLibraryDemo: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(UIStrings.text("iCloud-bibliotheek"), systemImage: "icloud")
+                .font(.title3.weight(.semibold))
+            Text(UIStrings.text("Kies een dossier om de beschikbare versie te openen. Openen start geen nieuwe analyse."))
+                .font(.callout).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Commissiestuk.spdfwork", systemImage: "doc.text").font(.headline)
+                Text(UIStrings.text("lokaal beschikbaar")).font(.caption).foregroundStyle(.secondary)
+                Button(UIStrings.text("Open versie")) {}
+                    .buttonStyle(FocusSecondaryButtonStyle())
+            }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading).readingSurface()
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
         .allowsHitTesting(false)
     }
 
@@ -328,49 +569,107 @@ import PDFKit
     }
 
     private var analysisStatusDemo: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: phase >= 3 ? "checkmark.circle.fill" : "sparkles")
-                    .foregroundStyle(AppTheme.accent)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(UIStrings.text(phase >= 3 ? "Analyse voltooid" : phase == 0 ? "PDF ingelezen" : "Document analyseren…"))
-                        .font(.callout.weight(.semibold))
-                    Text(UIStrings.text(phase >= 3 ? "De beschikbare resultaten staan in Overzicht." : "De gekozen AI-provider verwerkt het document."))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            ProgressView(value: phase == 0 ? 0.08 : phase == 1 ? 0.28 : phase == 2 ? 0.68 : 1)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: phase)
-            if phase == 2 { Text("68% · Nog ongeveer 2 min").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
-            if phase >= 3 {
-                Text(workspace.documentSummary?.digest.overview ?? "")
-                    .font(.body).lineSpacing(4)
-                    .padding(14).background(AppTheme.background, in: RoundedRectangle(cornerRadius: 14))
-            }
+        let isImport = step == 0 && phase == 2
+        let (title, illustration, fraction): (String, ProcessingPresentation.Illustration, Double) = switch (step, phase) {
+        case (0, 2): ("Document lezen", .document, 0.08)
+        case (0, _): ("Punten samenstellen", .points, 0.14)
+        case (_, 0): ("Commissievoorbereiding", .committee, 0.19)
+        case (_, 1): ("Punten samenstellen", .points, 0.28)
+        case (_, 2): ("Vergelijken met partijprogramma…", .partyComparison, 0.40)
+        case (_, 3): ("Samenvatting samenstellen", .summary, 0.68)
+        default: ("Kernselectie samenstellen", .highlights, 0.90)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+        return VStack(spacing: 6) {
+            ProcessingStageIllustration(illustration: illustration, scanning: true, completed: false,
+                                        reduceMotion: reduceMotion)
+                .frame(width: 190, height: 236)
+                .scaleEffect(0.37)
+                .frame(width: 71, height: 88)
+            Text("Commissiestuk.pdf").font(.callout.weight(.semibold))
+            Text(UIStrings.text(title)).font(.caption).foregroundStyle(.secondary)
+            VStack(spacing: 4) {
+                HStack(spacing: 8) {
+                    processingStages(step == 0 ? [.document, .points] : [.document, .committee, .points], illustration)
+                }
+                HStack(spacing: 8) { processingStages([.summary, .highlights], illustration) }
+            }
+            ProgressView(value: fraction).tint(.secondary)
+            HStack {
+                Text(fraction, format: .percent)
+                Spacer()
+                Text(UIStrings.text("Nog ongeveer 2 min"))
+            }.font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+            if !isImport {
+                Button {} label: {
+                    Text(UIStrings.text("Open document en resultaten")).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(FocusPrimaryButtonStyle()).controlSize(.small)
+            }
+            Button {} label: {
+                Text(UIStrings.text(isImport ? "Annuleer import" : "Stop en terug naar importeren"))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(FocusSecondaryButtonStyle()).controlSize(.small)
+            DisclosureGroup(UIStrings.text("Details"), isExpanded: .constant(false)) { EmptyView() }
+                .font(.caption2)
+        }
+        .padding(8)
+        .frame(maxWidth: 430)
+        .frame(maxWidth: .infinity, alignment: .top)
         .allowsHitTesting(false)
     }
 
+    private func processingStages(_ stages: [ProcessingPresentation.Stage],
+                                  _ illustration: ProcessingPresentation.Illustration) -> some View {
+        let orderedStages = ProcessingPresentation.Stage.allCases
+        let activeStage: ProcessingPresentation.Stage = switch illustration {
+        case .document: .document
+        case .committee: .committee
+        case .points, .partyComparison: .points
+        case .summary: .summary
+        case .highlights: .highlights
+        }
+        return ForEach(stages, id: \.self) { stage in
+            let ready = (orderedStages.firstIndex(of: stage) ?? 0) < (orderedStages.firstIndex(of: activeStage) ?? 0)
+            Label(UIStrings.text(stage.rawValue),
+                  systemImage: ready ? "checkmark.circle.fill" : stage == activeStage ? "circle.dashed" : "circle")
+                .font(.caption2)
+                .foregroundStyle(stage == activeStage ? Color.primary : Color.secondary)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
     private var summaryDemo: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 7) {
             Label(UIStrings.text("Documentbreed overzicht"), systemImage: "doc.text")
-                .font(.title3.bold())
+                .font(.callout.weight(.semibold))
             Text(workspace.documentSummary?.digest.overview ?? "")
-                .font(.body).lineSpacing(4)
+                .font(.caption).foregroundStyle(.secondary)
             Button {} label: {
                 Label(UIStrings.text(phase >= 2 ? "Sluit uitgebreide samenvatting" : "Uitgebreide samenvatting"), systemImage: "text.alignleft")
-            }.buttonStyle(FocusQuietActionStyle()).tutorialTarget("summary")
+            }.buttonStyle(FocusQuietActionStyle()).controlSize(.small).tutorialTarget("summary")
             if phase >= 2, let section = workspace.documentSummary?.pageSections.first(where: { $0.page == 4 }) {
                 SummaryPageSectionView(section: section, showPage: { _ in })
+                    .font(.caption)
                     .transition(.opacity)
             }
-            Spacer(minLength: 0)
-        }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
-            .allowsHitTesting(false)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var searchSourceDemo: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("fietspad", systemImage: "magnifyingglass").font(.callout.weight(.medium))
+            Divider()
+            Label(UIStrings.text("PDF-pagina 4"), systemImage: "doc.text.magnifyingglass")
+                .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.accent)
+            Text(TutorialDemoData.quote).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var highlightsDemo: some View {
@@ -394,6 +693,25 @@ import PDFKit
             Spacer(minLength: 0)
         }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var findingsDemo: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(UIStrings.text("Alineapunten")).font(.headline)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 5) { findingsChoices }
+                VStack(alignment: .leading, spacing: 5) { findingsChoices }
+            }
+            tutorialInsightCard(showAsk: false)
+        }
+        .padding(7)
+    }
+
+    @ViewBuilder private var findingsChoices: some View {
+        Text(UIStrings.text("Belangrijkste"))
+            .font(.caption.weight(.semibold)).padding(5)
+            .background(AppTheme.accent.opacity(0.14), in: Capsule())
+        Text(UIStrings.text("Alle punten")).font(.caption).padding(5)
     }
 
     private var tutorialChatTranscript: some View {
@@ -539,8 +857,6 @@ import PDFKit
         workspace.status = step == 0 ? "6 pagina’s" : step == 3 && phase < 2 ? "Klaar om te analyseren" : step == 3 && phase == 2 ? "Document analyseren…" : "Verwerking afgerond"
         workspace.progress.fraction = step == 3 && phase == 2 ? 0.43 : 0
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
-            compareProgram = step == 2 && phase >= 2
-            demoProvider = step == 1 && phase >= 2 ? "chatgpt" : "apple"
             query = step == 8 && phase >= 1 ? (phase == 1 ? "fiet" : "fietspad") : ""
         }
         workspace.page = (step == 0 || (step == 6 && phase < 2)) ? 1 : 4
@@ -639,10 +955,12 @@ enum TutorialPointerMotion {
     private static func plan(_ step: Int) -> [Stop] {
         switch step {
         case 0: [Stop(anchor: "import", start: 0, click: 1.00)]
-        case 1: [Stop(anchor: "providerMenu", start: 0, click: 1.00),
-                 Stop(anchor: "providerChatGPTOption", start: 1.15, click: 2.17)]
-        case 2: [Stop(anchor: "mode", start: 0, click: 1.00),
-                 Stop(anchor: "modeCompareOption", start: 1.15, click: 2.17)]
+        case 1: [Stop(anchor: "providerChange", start: 0, click: 1.00),
+                 Stop(anchor: "providerMenu", start: 1.15, click: 2.17),
+                 Stop(anchor: "providerChatGPTOption", start: 2.30, click: 3.40)]
+        case 2: [Stop(anchor: "purpose", start: 0, click: 1.00),
+                 Stop(anchor: "purposeCommittee", start: 1.15, click: 2.17),
+                 Stop(anchor: "manageCommittees", start: 2.30, click: 3.40)]
         case 4: [Stop(anchor: "summary", start: 0, click: 2.17)]
         case 5: [Stop(anchor: "category-decisions", start: 0, click: nil),
                  Stop(anchor: "amounts", start: 1.15, click: 2.17)]
@@ -654,6 +972,8 @@ enum TutorialPointerMotion {
         case 11: [Stop(anchor: "exportAction", start: 0, click: 1.00),
                   Stop(anchor: "exportNext", start: 1.15, click: 2.17),
                   Stop(anchor: "exportNext", start: 2.30, click: 3.40)]
+        case 12: [Stop(anchor: "recentWorkspaces", start: 0, click: 1.00),
+                  Stop(anchor: "recentEntry", start: 1.15, click: 2.17)]
         default: []
         }
     }

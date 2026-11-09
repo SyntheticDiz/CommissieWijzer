@@ -85,6 +85,7 @@ struct WorkspaceArchive: Codable, Sendable {
     var savedChatThreads: [SavedChatThread]? = nil
     var savedChartAnalyses: [SavedChartAnalysis]? = nil
     var savedSelectionSummaries: [SavedSelectionSummary]? = nil
+    var meetingQuestions: [MeetingQuestion]? = nil
 
     func validate() throws {
         guard formatVersion == 1, !pages.isEmpty, pdf.count <= 100_000_000,
@@ -96,6 +97,7 @@ struct WorkspaceArchive: Codable, Sendable {
               highlightPages.allSatisfy({ $0 > 0 && $0 <= pages.count }),
               insights.allSatisfy({ Self.validInsight($0, pageCount: pages.count) }),
               Self.validChosenPassages(chosenPassages ?? [], pageCount: pages.count),
+              MeetingQuestion.areValid(meetingQuestions ?? [], pageCount: pages.count),
               highlights.allSatisfy({ Self.validHighlight($0, pageCount: pages.count) }),
               tables.allSatisfy({ table in
                   let rectangular = table.rows.allSatisfy { $0.count == table.headers.count }

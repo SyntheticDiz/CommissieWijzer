@@ -21,6 +21,7 @@ struct FocusEditor: View {
     var body: some View {
         editorContent
             .padding(24).platformSheetSize(width: 570)
+            .background(AppTheme.background)
             .onAppear { topics = initial }
             .buttonStyle(FocusSecondaryButtonStyle())
     }

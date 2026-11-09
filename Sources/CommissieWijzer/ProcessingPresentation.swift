@@ -16,6 +16,28 @@ struct ProcessingPresentation {
         case highlights = "Kernselectie"
     }
 
+    enum Illustration: Equatable {
+        case document, committee, points, summary, highlights, partyComparison
+
+        static func select(activeStage: Stage?, status: String, busy: Bool,
+                           comparingPartyProgram: Bool = false) -> Illustration {
+            guard busy, let activeStage else { return .document }
+            let value = status.lowercased()
+            let comparisonStatus = value.hasPrefix("vergelijken met partijprogramma") ||
+                value.hasPrefix("programmapassages vergelijken") ||
+                value.hasPrefix("ai-analyse:") || value.hasPrefix("samenhang controleren") ||
+                value.hasPrefix("bronnen controleren")
+            if activeStage == .points && comparingPartyProgram && comparisonStatus { return .partyComparison }
+            switch activeStage {
+            case .document: return .document
+            case .committee: return .committee
+            case .points: return .points
+            case .summary: return .summary
+            case .highlights: return .highlights
+            }
+        }
+    }
+
     let primaryStatus: String
     let activeStage: Stage?
     let stageStates: [Stage: ProcessingStageState]

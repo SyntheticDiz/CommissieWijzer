@@ -166,6 +166,7 @@ extension Notification.Name {
 @main
 struct CommissieWijzerApp: App {
     @NSApplicationDelegateAdaptor(CommissieWijzerAppDelegate.self) private var appDelegate
+    @State private var accentPalette = AccentPalette.shared
     init() {
         ForkSetup.migrate()
         AppleAISettings.migrate()
@@ -173,7 +174,7 @@ struct CommissieWijzerApp: App {
     }
     var body: some Scene {
         WindowGroup("CommissieWijzer") {
-            SimpleView().frame(minWidth: 900, minHeight: 620).tint(AppTheme.accent)
+            SimpleView().frame(minWidth: 900, minHeight: 620).environment(accentPalette).tint(AppTheme.accent)
                 .buttonStyle(FocusSecondaryButtonStyle())
                 .disclosureGroupStyle(FullRowDisclosureGroupStyle())
                 .onAppear {
@@ -198,6 +199,7 @@ struct CommissieWijzerApp: App {
 #else
 @main
 struct CommissieWijzerApp: App {
+    @State private var accentPalette = AccentPalette.shared
     init() {
         ForkSetup.migrate()
         AppleAISettings.migrate()
@@ -209,6 +211,7 @@ struct CommissieWijzerApp: App {
             NavigationStack {
                 SimpleView()
             }
+                .environment(accentPalette)
                 .appPresentationContextHost()
                 .tint(AppTheme.accent)
                 .buttonStyle(FocusSecondaryButtonStyle())

@@ -132,8 +132,7 @@ struct CommitteeManagerView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border.opacity(0.7), lineWidth: 1))
+        .readingSurface()
     }
 
     private func savedProfileRow(_ purpose: MeetingPurpose) -> some View {
@@ -157,8 +156,7 @@ struct CommitteeManagerView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.border.opacity(0.7), lineWidth: 1))
+        .readingSurface()
     }
 
     private var importableSavedPurposes: [MeetingPurpose] {

@@ -37,6 +37,9 @@ final class IPadLayoutTests: XCTestCase {
                 SimpleView(workspace: workspace)
             }
             .appPresentationContextHost()
+            .tint(AppTheme.accent)
+            .buttonStyle(FocusSecondaryButtonStyle())
+            .disclosureGroupStyle(FullRowDisclosureGroupStyle())
             .preferredColorScheme(.dark))
             controller.overrideUserInterfaceStyle = .dark
             // Exercise resizable iPad windows directly, independent of the
@@ -98,6 +101,9 @@ final class IPadLayoutTests: XCTestCase {
                 SimpleView(workspace: workspace)
             }
             .appPresentationContextHost()
+            .tint(AppTheme.accent)
+            .buttonStyle(FocusSecondaryButtonStyle())
+            .disclosureGroupStyle(FullRowDisclosureGroupStyle())
             .preferredColorScheme(.dark))
             controller.overrideUserInterfaceStyle = .dark
             let container = UIViewController()
@@ -163,7 +169,11 @@ final class IPadLayoutTests: XCTestCase {
                 let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow })
                 let originalController = window.rootViewController
                 defer { window.rootViewController = originalController }
-                let controller = UIHostingController(rootView: view.preferredColorScheme(.dark))
+                let controller = UIHostingController(rootView: view
+                    .tint(AppTheme.accent)
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                    .disclosureGroupStyle(FullRowDisclosureGroupStyle())
+                    .preferredColorScheme(.dark))
                 controller.overrideUserInterfaceStyle = .dark
                 let container = UIViewController()
                 window.rootViewController = container
@@ -280,6 +290,9 @@ final class IPadLayoutTests: XCTestCase {
                 let originalController = window.rootViewController
                 defer { window.rootViewController = originalController }
                 let controller = UIHostingController(rootView: view.environment(\.dynamicTypeSize, dynamicType)
+                    .tint(AppTheme.accent)
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                    .disclosureGroupStyle(FullRowDisclosureGroupStyle())
                     .preferredColorScheme(.dark))
                 controller.overrideUserInterfaceStyle = .dark
                 controller.traitOverrides.accessibilityContrast = highContrast ? .high : .normal

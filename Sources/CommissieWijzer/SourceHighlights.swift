@@ -64,6 +64,7 @@ struct SourceHighlightsView: View {
     var tutorialSelected: SourceHighlights.Kind? = nil
     @State private var selected = SourceHighlights.Kind.decisions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var showAll = false
     @State private var evidencePresentation: EvidencePresentation?
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
@@ -113,7 +114,7 @@ struct SourceHighlightsView: View {
                 Text(UIStrings.text("De kernselectie is onvolledig. Bekijk de verwerkingsstatus bovenaan.")).font(.caption).foregroundStyle(.orange)
             }
         }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 22))
+            .readingSurface()
             .onChange(of: selected) { _, _ in showAll = false }
             .onAppear { if let tutorialSelected { selected = tutorialSelected } }
             .onChange(of: tutorialSelected) { _, value in if let value { selected = value } }
@@ -140,8 +141,14 @@ struct SourceHighlightsView: View {
                     .minimumScaleFactor(0.8)
                     .padding(.horizontal, 12).padding(.vertical, 10)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-                    .background(selected == kind ? Color.accentColor.opacity(0.10) : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(selected == kind ? Color.accentColor.opacity(0.6) : .clear) }
+                    .background(selected == kind ? AppTheme.selection : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay {
+                        if selected == kind {
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(contrast == .increased ? Color.primary : AppTheme.accent, lineWidth: contrast == .increased ? 2 : 1)
+                                .allowsHitTesting(false).accessibilityHidden(true)
+                        }
+                    }
             }.buttonStyle(.plain)
                 .accessibilityAddTraits(selected == kind ? .isSelected : [])
                 .accessibilityValue(UIStrings.text(selected == kind ? "Geselecteerd" : "Niet geselecteerd"))

@@ -1,0 +1,55 @@
+name: Publish source release 1.3.0
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-1.3.0.yml]
+permissions:
+  contents: write
+concurrency:
+  group: release-1.3.0
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Publish the verified source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64, json, os, urllib.request, urllib.error
+          api = os.environ['GITHUB_API_URL'] + '/repos/' + os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['GITHUB_SHA']
+          tag = 'v1.3.0'
+          def request(path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(api + path, data=data, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json'})
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  if error.code == 404 and payload is None:
+                      return None
+                  raise
+          existing = request('/git/ref/tags/' + tag)
+          if existing and existing['object']['sha'] != sha:
+              raise SystemExit('Release tag already points to a different commit; refusing to change it.')
+          release = request('/releases/tags/' + tag)
+          if release:
+              if not existing or release['draft']:
+                  raise SystemExit('Unexpected existing release state; manual review required.')
+              print('Release already published: ' + release['html_url'])
+          else:
+              notes = request('/contents/RELEASE_NOTES_1.3.0.md?ref=' + sha)
+              body = base64.b64decode(notes['content']).decode('utf-8')
+              release = request('/releases', {
+                  'tag_name': tag, 'target_commitish': sha,
+                  'name': 'CommissieWijzer 1.3.0 – vragenlijst, broncontrole en accentkleuren',
+                  'body': body, 'draft': False, 'prerelease': False,
+                  'make_latest': 'true'})
+              print('Published: ' + release['html_url'])

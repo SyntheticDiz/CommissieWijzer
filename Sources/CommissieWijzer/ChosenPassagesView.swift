@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChosenPassagesView: View {
     @ObservedObject var workspace: SimpleWorkspace
+    var draftQuestion: ((ChosenPassage) -> Void)? = nil
     var showSource: (Int, String) -> Void
 
     var body: some View {
@@ -22,7 +23,7 @@ struct ChosenPassagesView: View {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(workspace.chosenPassages.enumerated()), id: \.element.id) { index, passage in
                         ChosenPassageCard(passage: passage, index: index, count: workspace.chosenPassages.count,
-                                          workspace: workspace, showSource: showSource)
+                                          workspace: workspace, draftQuestion: draftQuestion, showSource: showSource)
                     }
                 }
             }
@@ -38,6 +39,7 @@ private struct ChosenPassageCard: View {
     let index: Int
     let count: Int
     @ObservedObject var workspace: SimpleWorkspace
+    var draftQuestion: ((ChosenPassage) -> Void)?
     var showSource: (Int, String) -> Void
     @State private var editing = false
     @State private var confirmingDelete = false
@@ -110,6 +112,11 @@ private struct ChosenPassageCard: View {
             }
             .buttonStyle(FocusSecondaryButtonStyle())
             sourceActions
+            if let draftQuestion {
+                Button(UIStrings.text("Vraag opstellen"), systemImage: "questionmark.bubble") { draftQuestion(passage) }
+                    .buttonStyle(FocusQuietActionStyle())
+                    .disabled(!workspace.canEditMeetingQuestions)
+            }
         }
         .padding(12)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 10))

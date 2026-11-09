@@ -30,7 +30,17 @@ struct ProcessingSplashView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            ProcessingDocumentIllustration(scanning: workspace.busy, completed: completed)
+            ProcessingStageIllustration(
+                illustration: ProcessingPresentation.Illustration.select(
+                    activeStage: presentation.activeStage,
+                    status: workspace.status,
+                    busy: workspace.busy,
+                    comparingPartyProgram: workspace.comparingPartyProgram
+                ),
+                scanning: workspace.busy,
+                completed: completed,
+                reduceMotion: reduceMotion
+            )
                 .frame(width: 190, height: 236)
                 .accessibilityHidden(true)
             VStack(spacing: 8) {
@@ -57,16 +67,16 @@ struct ProcessingSplashView: View {
                 if let count = progressCount {
                     Text(UIStrings.text(count)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 }
-                busyActions.controlSize(.large)
+                busyActions
             } else if completed {
                 // Reserve the action's space so completion does not move the illustration.
-                Button(UIStrings.text("Stop analyse")) {}.controlSize(.large).hidden().accessibilityHidden(true)
+                busyActions.hidden().accessibilityHidden(true)
             } else if let message = workspace.processingMessage {
                 ScrollView {
                     Text(message.components(separatedBy: "\n").map { UIStrings.text($0) }.joined(separator: "\n")).font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
                 }.frame(maxHeight: 140)
-                errorActions.controlSize(.large)
+                errorActions
             }
             details
         }
@@ -110,80 +120,25 @@ struct ProcessingSplashView: View {
         }
     }
 
-    @ViewBuilder private var busyActions: some View {
-        #if os(macOS)
-        HStack(spacing: 12) {
-            Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
-                .buttonStyle(FocusSecondaryButtonStyle())
-            if workspace.canSwitchChatGPTModel {
-                Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
-                    .buttonStyle(FocusSecondaryButtonStyle())
-            }
-            if workspace.processingDocumentReady {
-                Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
-                    .buttonStyle(FocusPrimaryButtonStyle())
-            }
-        }
-        #else
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
-                    .buttonStyle(FocusSecondaryButtonStyle())
-                if workspace.canSwitchChatGPTModel {
-                    Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
-                        .buttonStyle(FocusSecondaryButtonStyle())
-                }
-                if workspace.processingDocumentReady {
-                    Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
-                        .buttonStyle(FocusPrimaryButtonStyle())
-                }
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                Button(UIStrings.text(workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import")) { onReturnToImport() }
-                    .buttonStyle(FocusSecondaryButtonStyle())
-                if workspace.canSwitchChatGPTModel {
-                    Button(UIStrings.text("Wissel AI-model…")) { workspace.presentChatGPTModelSwitch() }
-                        .buttonStyle(FocusSecondaryButtonStyle())
-                }
-                if workspace.processingDocumentReady {
-                    Button(UIStrings.text("Open document en resultaten")) { workspace.showInterimResults() }
-                        .buttonStyle(FocusPrimaryButtonStyle())
-                }
-            }
-        }
-        #endif
+    private var busyActions: some View {
+        let openResults: (() -> Void)? = workspace.processingDocumentReady ? { workspace.showInterimResults() } : nil
+        let switchModel: (() -> Void)? = workspace.canSwitchChatGPTModel ? { workspace.presentChatGPTModelSwitch() } : nil
+        return ProcessingActions(
+            returnTitle: workspace.processingDocumentReady ? "Stop en terug naar importeren" : "Annuleer import",
+            onReturnToImport: onReturnToImport,
+            onOpenResults: openResults,
+            onSwitchModel: switchModel
+        )
     }
 
-    @ViewBuilder private var errorActions: some View {
-        #if os(macOS)
-        HStack(spacing: 12) {
-            Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
-                .buttonStyle(FocusSecondaryButtonStyle())
-            if !workspace.showsWelcome && workspace.document != nil {
-                Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
-                    .buttonStyle(FocusPrimaryButtonStyle())
-            }
-        }
-        #else
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
-                    .buttonStyle(FocusSecondaryButtonStyle())
-                if !workspace.showsWelcome && workspace.document != nil {
-                    Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
-                        .buttonStyle(FocusPrimaryButtonStyle())
-                }
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                Button(UIStrings.text("Terug naar importeren")) { onReturnToImport() }
-                    .buttonStyle(FocusSecondaryButtonStyle())
-                if !workspace.showsWelcome && workspace.document != nil {
-                    Button(UIStrings.text("Open document en resultaten")) { workspace.showProcessedResults() }
-                        .buttonStyle(FocusPrimaryButtonStyle())
-                }
-            }
-        }
-        #endif
+    private var errorActions: some View {
+        let canOpenResults = !workspace.showsWelcome && workspace.document != nil
+        let openResults: (() -> Void)? = canOpenResults ? { workspace.showProcessedResults() } : nil
+        return ProcessingActions(
+            returnTitle: "Terug naar importeren",
+            onReturnToImport: onReturnToImport,
+            onOpenResults: openResults
+        )
     }
 
     private func stageItem(_ stage: ProcessingPresentation.Stage) -> some View {
@@ -249,10 +204,227 @@ struct ProcessingSplashView: View {
     }
 }
 
+struct ProcessingActions: View {
+    let returnTitle: String
+    let onReturnToImport: () -> Void
+    let onOpenResults: (() -> Void)?
+    let onSwitchModel: (() -> Void)?
+    private let spacing: CGFloat = 12
+
+    init(returnTitle: String, onReturnToImport: @escaping () -> Void,
+         onOpenResults: (() -> Void)? = nil, onSwitchModel: (() -> Void)? = nil) {
+        self.returnTitle = returnTitle
+        self.onReturnToImport = onReturnToImport
+        self.onOpenResults = onOpenResults
+        self.onSwitchModel = onSwitchModel
+    }
+
+    var body: some View {
+        VStack(spacing: spacing) {
+            if let onOpenResults {
+                Button(action: onOpenResults) {
+                    actionLabel("Open document en resultaten")
+                }
+                .buttonStyle(FocusPrimaryButtonStyle())
+            }
+            if let onSwitchModel {
+                ViewThatFits(in: .horizontal) {
+                    EqualWidthActionRow(spacing: spacing) {
+                        secondaryActions(onSwitchModel: onSwitchModel)
+                    }
+                    VStack(spacing: spacing) {
+                        secondaryActions(onSwitchModel: onSwitchModel)
+                    }
+                }
+            } else {
+                returnButton
+            }
+        }
+        .controlSize(.large)
+    }
+
+    @ViewBuilder private func secondaryActions(onSwitchModel: @escaping () -> Void) -> some View {
+        returnButton
+        Button(action: onSwitchModel) {
+            actionLabel("Wissel AI-model…")
+        }
+        .buttonStyle(FocusSecondaryButtonStyle())
+    }
+
+    private var returnButton: some View {
+        Button(action: onReturnToImport) {
+            actionLabel(returnTitle)
+        }
+        .buttonStyle(FocusSecondaryButtonStyle())
+    }
+
+    private func actionLabel(_ title: String) -> some View {
+        Text(UIStrings.text(title))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+private struct EqualWidthActionRow: Layout {
+    let spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        // Both buttons need enough room for the longer label before they can share a row.
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let idealWidth = 2 * (sizes.map(\.width).max() ?? 0) + spacing
+        let offeredWidth = proposal.width ?? idealWidth
+        return CGSize(width: offeredWidth.isFinite ? max(offeredWidth, idealWidth) : idealWidth,
+                      height: sizes.map(\.height).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let width = (bounds.width - spacing) / 2
+        for (index, subview) in subviews.enumerated() {
+            let x = bounds.minX + CGFloat(index) * (width + spacing)
+            subview.place(at: CGPoint(x: x, y: bounds.midY), anchor: .leading,
+                          proposal: ProposedViewSize(width: width, height: bounds.height))
+        }
+    }
+}
+
+struct ProcessingStageIllustration: View {
+    let illustration: ProcessingPresentation.Illustration
+    let scanning: Bool
+    let completed: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack {
+            ProcessingDocumentIllustration(scanning: scanning && illustration == .document,
+                                           completed: completed, reduceMotion: reduceMotion)
+                .opacity(illustration == .document ? 1 : 0)
+            ProcessingPhaseIllustration(illustration: illustration, active: scanning, reduceMotion: reduceMotion)
+                .id(illustration)
+                .transition(.opacity)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(.secondary.opacity(0.12), lineWidth: 1))
+                .opacity(illustration == .document ? 0 : 1)
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: illustration)
+    }
+}
+
+private struct ProcessingPhaseIllustration: View {
+    let illustration: ProcessingPresentation.Illustration
+    let active: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !active || reduceMotion)) { timeline in
+            Canvas { context, size in
+                let phase = active && !reduceMotion
+                    ? timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 6) / 6
+                    : 0.5
+                draw(illustration, phase: phase, in: &context, size: size)
+            }
+        }
+    }
+
+    private func draw(_ kind: ProcessingPresentation.Illustration, phase: Double,
+                      in context: inout GraphicsContext, size: CGSize) {
+        let color = Color.secondary
+        func rounded(_ rect: CGRect, radius: CGFloat = 3, opacity: Double = 0.28) {
+            context.fill(Path(roundedRect: rect, cornerRadius: radius), with: .color(color.opacity(opacity)))
+        }
+        func stroke(_ rect: CGRect, radius: CGFloat = 8, opacity: Double = 0.27) {
+            context.stroke(Path(roundedRect: rect, cornerRadius: radius), with: .color(color.opacity(opacity)), lineWidth: 1.3)
+        }
+        func bar(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ opacity: Double = 0.25) {
+            rounded(CGRect(x: x, y: y, width: w, height: 4), radius: 2, opacity: opacity)
+        }
+        func beat(_ index: Int, count: Int, offset: Double = 0) -> Double {
+            let local = (phase * Double(count) - Double(index) + offset).truncatingRemainder(dividingBy: Double(count))
+            return 0.18 + 0.55 * (0.5 + 0.5 * cos(2 * .pi * local / Double(count)))
+        }
+        func ease(_ value: Double) -> Double { value * value * (3 - 2 * value) }
+
+        switch kind {
+        case .committee:
+            let centers = [CGPoint(x: 56, y: 75), CGPoint(x: 134, y: 75), CGPoint(x: 95, y: 156)]
+            let boxes = centers.map { CGRect(x: $0.x - 20, y: $0.y - 14.5, width: 40, height: 29) }
+            var links = Path()
+            for (a, b) in [(0, 1), (0, 2), (1, 2)] {
+                links.move(to: centers[a]); links.addLine(to: centers[b])
+            }
+            context.stroke(links, with: .color(color.opacity(0.22)), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+            boxes.enumerated().forEach { index, rect in
+                let emphasis = 0.22 + (0.5 - 0.5 * cos(2 * .pi * (phase - Double(index) * 0.18))) * 0.25
+                stroke(rect, radius: 6, opacity: emphasis)
+                bar(rect.minX + 9, rect.minY + 7, 22, 0.22 + emphasis * 0.26)
+                bar(rect.minX + 9, rect.minY + 18, 15, 0.20)
+            }
+            let travel = phase * 3
+            let leg = Int(travel) % centers.count
+            let t = travel - floor(travel)
+            let eased = ease(t)
+            let a = centers[leg]
+            let b = centers[(leg + 1) % centers.count]
+            let dot = CGPoint(x: a.x + (b.x - a.x) * eased, y: a.y + (b.y - a.y) * eased)
+            context.fill(Path(ellipseIn: CGRect(x: dot.x - 1.5, y: dot.y - 1.5, width: 3, height: 3)), with: .color(color.opacity(0.48 * sin(.pi * t))))
+        case .points:
+            for row in 0..<5 {
+                let y = 56 + CGFloat(row) * 28
+                let opacity = active && !reduceMotion ? 0.20 + 0.25 * (0.5 - 0.5 * cos(2 * .pi * (phase - Double(row) * 0.12))) : 0.30
+                context.fill(Path(ellipseIn: CGRect(x: 33, y: y + 2, width: 4, height: 4)), with: .color(color.opacity(opacity)))
+                bar(44, y, 94, 0.18 + opacity * 0.7)
+                bar(44, y + 9, 63, 0.15 + opacity * 0.5)
+            }
+        case .summary:
+            let blend: Double = active && !reduceMotion ? ease(0.5 - 0.5 * cos(2 * .pi * phase)) : 1
+            for row in 0..<7 {
+                let sourceY = 48 + CGFloat(row) * 17
+                let targetY = 75 + CGFloat(row / 3) * 24
+                let y = sourceY + (targetY - sourceY) * blend
+                let opacity = 0.28 * (1 - blend)
+                bar(33, y, row % 3 == 2 ? 108 : 124, opacity)
+            }
+            for row in 0..<3 {
+                let y = 75 + CGFloat(row) * 24
+                bar(39, y, 112 - CGFloat(row) * 14, 0.48 * blend)
+                bar(39, y + 8, 72 - CGFloat(row) * 9, 0.35 * blend)
+            }
+        case .highlights:
+            for row in 0..<5 {
+                let y = 46 + CGFloat(row) * 28
+                let chosen = row == 1 || row == 3
+                let emphasis = active && !reduceMotion ? 0.5 - 0.5 * cos(2 * .pi * (phase - Double(row) * 0.12)) : 0.5
+                if chosen {
+                    let band = CGRect(x: 24, y: y - 5, width: 142, height: 19)
+                    context.fill(Path(roundedRect: band, cornerRadius: 4), with: .color(color.opacity(0.035 + 0.045 * emphasis)))
+                }
+                bar(34, y, chosen ? 95 : 110, chosen ? 0.30 + 0.17 * emphasis : 0.20)
+                bar(34, y + 8, chosen ? 66 : 78, 0.18)
+            }
+        case .partyComparison:
+            let left = CGRect(x: 22, y: 67, width: 63, height: 94)
+            let right = CGRect(x: 105, y: 67, width: 63, height: 94)
+            stroke(left, radius: 8); stroke(right, radius: 8)
+            for row in 0..<4 {
+                let match = row == 1 || row == 3
+                let pulse = active && !reduceMotion ? 0.5 + 0.5 * sin(phase * 2 * .pi) : 0.5
+                let op = match ? 0.30 + 0.18 * (row == 1 ? pulse : 1 - pulse) : 0.20
+                bar(31, 84 + CGFloat(row) * 16, row == 2 ? 36 : 44, op)
+                bar(114, 84 + CGFloat(row) * 16, row == 1 ? 36 : 44, op)
+                let y = 88 + CGFloat(row) * 16
+                var connector = Path(); connector.move(to: CGPoint(x: 80, y: y)); connector.addLine(to: CGPoint(x: 110, y: y))
+                context.stroke(connector, with: .color(color.opacity(op * 0.65)), style: StrokeStyle(lineWidth: 1, lineCap: .round))
+            }
+        case .document:
+            break
+        }
+    }
+}
+
 private struct ProcessingDocumentIllustration: View {
     let scanning: Bool
     let completed: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let reduceMotion: Bool
     @State private var unfolded = false
     @State private var started = Date()
 

@@ -35,7 +35,7 @@ for kind in ['Debug','Release']:
  opts={'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'26.0','CLANG_ENABLE_MODULES':'YES','SWIFT_VERSION':'5.0','ONLY_ACTIVE_ARCH':'YES' if kind=='Debug' else 'NO','SWIFT_STRICT_CONCURRENCY':'targeted','SWIFT_ACTIVE_COMPILATION_CONDITIONS':'$(inherited) DEBUG' if kind=='Debug' else '$(inherited)','SWIFT_OPTIMIZATION_LEVEL':'-Onone' if kind=='Debug' else '-O','DEBUG_INFORMATION_FORMAT':'dwarf' if kind=='Debug' else 'dwarf-with-dsym'}
  settings=' '.join(f'{k} = {q(v)};' for k,v in opts.items())
  projectconfigs.append(obj('proj'+kind,f'isa = XCBuildConfiguration; name = {kind}; buildSettings = {{ {settings} }};'))
- opts={'PRODUCT_NAME':'CommissieWijzer','PRODUCT_BUNDLE_IDENTIFIER':'nl.commissiewijzer.app','INFOPLIST_FILE':'Info.plist','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','TARGETED_DEVICE_FAMILY':'2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD':'NO','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'1.2.0','CURRENT_PROJECT_VERSION':'8','CW_CLOUDKIT_ENABLED':'NO','CW_CLOUDKIT_ENVIRONMENT':'Disabled','SWIFT_EMIT_LOC_STRINGS':'YES','ENABLE_PREVIEWS':'YES','ENABLE_TESTABILITY':'YES','PRODUCT_MODULE_NAME':'CommissieWijzer','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks'}
+ opts={'PRODUCT_NAME':'CommissieWijzer','PRODUCT_BUNDLE_IDENTIFIER':'nl.commissiewijzer.app','INFOPLIST_FILE':'Info.plist','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','TARGETED_DEVICE_FAMILY':'2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD':'NO','CODE_SIGN_STYLE':'Automatic','MARKETING_VERSION':'1.3.0','CURRENT_PROJECT_VERSION':'10','CW_CLOUDKIT_ENABLED':'NO','CW_CLOUDKIT_ENVIRONMENT':'Disabled','SWIFT_EMIT_LOC_STRINGS':'YES','ENABLE_PREVIEWS':'YES','ENABLE_TESTABILITY':'YES','PRODUCT_MODULE_NAME':'CommissieWijzer','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks'}
  settings=' '.join(f'{k} = {q(v)};' for k,v in opts.items())
  targetconfigs.append(obj('target'+kind,f'isa = XCBuildConfiguration; name = {kind}; buildSettings = {{ {settings} }};'))
 pcl=obj('projectconfig',f'isa = XCConfigurationList; buildConfigurations = ({",".join(projectconfigs)}); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
@@ -112,6 +112,8 @@ swift_env.setdefault('SWIFT_MODULECACHE_PATH',str(module_cache))
 subprocess.run(['swift',str(root/'scripts/prepare-ipad-icon.swift'),str(root/'Assets/CommissieWijzer.png'),str(root/'iPadOS/Assets.xcassets/AppIcon.appiconset/AppIcon.png')],check=True,env=swift_env)
 (root/'iPadOS/Assets.xcassets/CWBrand.imageset').mkdir(exist_ok=True)
 import shutil
-shutil.copyfile(root/'iPadOS/Assets.xcassets/AppIcon.appiconset/AppIcon.png',root/'iPadOS/Assets.xcassets/CWBrand.imageset/CWBrand.png')
+# The in-app logo keeps transparent corners. Only the Store icon needs an
+# opaque canvas; reusing it here adds a visible square behind the welcome logo.
+shutil.copyfile(root/'Assets/CommissieWijzer.png',root/'iPadOS/Assets.xcassets/CWBrand.imageset/CWBrand.png')
 (root/'iPadOS/Assets.xcassets/CWBrand.imageset/Contents.json').write_text(json.dumps({'images':[{'filename':'CWBrand.png','idiom':'universal'}],'info':{'author':'xcode','version':1}},indent=2)+'\n')
 print(f'Generated target with {len(sourceids)} shared Swift files')

@@ -263,8 +263,8 @@ struct UnifiedSearchView: View {
                     Text(UIStrings.text("Zoekhulp voorbereiden…")).font(.caption).foregroundStyle(.secondary)
                 }
             }
-        }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 22))
+        }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+            .readingSurface()
             .onChange(of: query) { _, _ in limitsByKind = [:]; selectedKind = nil }
             .onChange(of: includeWordForms) { _, _ in limitsByKind = [:] }
             .onChange(of: focusRequest) { _, _ in searchFocused = true }

@@ -3,6 +3,14 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
+BUILD_CACHE_ROOT="$PROJECT_DIR/.build/release-cache"
+export TMPDIR="$BUILD_CACHE_ROOT/tmp"
+export CLANG_MODULE_CACHE_PATH="$BUILD_CACHE_ROOT/modules"
+export SWIFT_MODULECACHE_PATH="$BUILD_CACHE_ROOT/modules"
+export XDG_CACHE_HOME="$BUILD_CACHE_ROOT/xdg"
+export PYTHONDONTWRITEBYTECODE=1
+mkdir -p "$TMPDIR" "$CLANG_MODULE_CACHE_PATH" "$XDG_CACHE_HOME" "$BUILD_CACHE_ROOT/swiftpm" "$BUILD_CACHE_ROOT/config" "$BUILD_CACHE_ROOT/security"
+SWIFT_COMMON_ARGS=(--cache-path "$BUILD_CACHE_ROOT/swiftpm" --config-path "$BUILD_CACHE_ROOT/config" --security-path "$BUILD_CACHE_ROOT/security")
 MODE="${1:-preview}"
 if [[ "$MODE" != preview && "$MODE" != development && "$MODE" != local-production && "$MODE" != store ]]; then
     echo 'Usage: ./build-app.sh [preview|development|local-production|store]' >&2
@@ -22,7 +30,7 @@ if [[ ( "$MODE" == development || "$MODE" == local-production ) && "$CW_ENABLE_I
     exit 2
 fi
 if [[ "$MODE" == store && "$CW_ENABLE_ICLOUD" != 1 ]]; then
-    echo 'A 1.2.0 Mac Store build must include CloudKit. Set CW_ENABLE_ICLOUD=1 and provide a Production-authorized profile.' >&2
+    echo 'A 1.3.0 Mac Store build must include CloudKit. Set CW_ENABLE_ICLOUD=1 and provide a Production-authorized profile.' >&2
     exit 2
 fi
 
@@ -119,10 +127,10 @@ fi
 
 # Release artifacts use a stable compiler path and omit debug symbols so the
 # author's workspace path is not embedded in the shipped executable.
-swift build -c release "${ARCH_ARGS[@]}" \
+swift build -c release "${ARCH_ARGS[@]}" "${SWIFT_COMMON_ARGS[@]}" \
     -Xswiftc -file-prefix-map -Xswiftc "$PROJECT_DIR=/CommissieWijzer" \
     -Xcc "-ffile-prefix-map=$PROJECT_DIR=/CommissieWijzer"
-BIN_DIR="$(swift build -c release "${ARCH_ARGS[@]}" --show-bin-path)"
+BIN_DIR="$(swift build -c release "${ARCH_ARGS[@]}" "${SWIFT_COMMON_ARGS[@]}" --show-bin-path)"
 # Recreate only the generated bundle; never modify a downloaded provisioning profile.
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
@@ -142,8 +150,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
     <key>CFBundleDisplayName</key><string>CommissieWijzer</string>
     <key>CFBundleIconFile</key><string>CommissieWijzer</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.2.0</string>
-    <key>CFBundleVersion</key><string>8</string>
+    <key>CFBundleShortVersionString</key><string>1.3.0</string>
+    <key>CFBundleVersion</key><string>10</string>
     <key>CWCloudKitEnabled</key><false/>
     <key>CWCloudKitEnvironment</key><string>Disabled</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
@@ -163,6 +171,7 @@ PLIST
 
 cp -X AppStore/PrivacyInfo.xcprivacy "$APP_DIR/Contents/Resources/PrivacyInfo.xcprivacy"
 cp -X AppStore/Privacy.md "$APP_DIR/Contents/Resources/Privacy.md"
+cp -X Assets/CommissieWijzer.png "$APP_DIR/Contents/Resources/CWBrand.png"
 
 LICENSE_FILES=("$PROJECT_DIR"/ThirdPartyLicenses/*.txt)
 test -f "${LICENSE_FILES[0]}"
@@ -247,7 +256,7 @@ if [[ "$MODE" == store || "$MODE" == development || "$MODE" == local-production 
 fi
 python3 scripts/audit-release.py "$APP_DIR" "${AUDIT_ARGS[@]}"
 if [[ "$MODE" == store ]]; then
-    PKG="$PROJECT_DIR/dist/CommissieWijzer-1.2.0.pkg"
+    PKG="$PROJECT_DIR/dist/CommissieWijzer-1.3.0.pkg"
     productbuild --component "$APP_DIR" /Applications --sign "$COMMISSIEWIJZER_INSTALLER_SIGN_IDENTITY" "$PKG"
     pkgutil --check-signature "$PKG"
     printf 'Store package created; App Store Connect listing, screenshots, and final submission review are separate steps.\n'

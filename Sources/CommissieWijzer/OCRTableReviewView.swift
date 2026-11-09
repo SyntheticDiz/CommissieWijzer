@@ -91,6 +91,7 @@ struct OCRTableReviewView: View {
         }
         .padding(18)
         .platformReadingFrame(minWidth: 420, idealWidth: 1000, minHeight: 360, idealHeight: 850)
+        .background(AppTheme.background)
         .onAppear { selectFirstUncertain() }
         .buttonStyle(FocusSecondaryButtonStyle())
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())
@@ -144,12 +145,14 @@ struct OCRTableReviewView: View {
     }
 
     private func cell(_ text: String, row: Int, column: Int) -> some View {
-        Button { selectedRow = row; selectedColumn = column; refreshImage() } label: {
+        let selected = selectedRow == row && selectedColumn == column
+        return Button { selectedRow = row; selectedColumn = column; refreshImage() } label: {
             Text(text.isEmpty ? UIStrings.text("[leeg]") : text).font(row < 0 ? .caption.bold() : .caption)
                 .frame(width: column == 0 ? 220 : 140, alignment: .leading).frame(minHeight: 35).padding(6)
-                .background(selectedRow == row && selectedColumn == column ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                .background(selected ? AppTheme.selection : Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityLabel((row < 0 ? UIStrings.text("Kolomkop") : UIStrings.text("Rij \(row + 1)")) +
                             ", " + UIStrings.text("kolom") + " \(column + 1): " +
                             (text.isEmpty ? UIStrings.text("leeg") : text))

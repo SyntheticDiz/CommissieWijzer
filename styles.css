@@ -80,6 +80,11 @@ p { color: var(--ink-soft); }
 .feature-list li::marker { color: var(--blue-strong); font-size: .85em; }
 .feature-list strong { color: #e5ebf2; font-weight: 650; }
 .intro-features-note { max-width: 850px; margin: 17px auto 0; color: var(--muted); font-size: .73rem; text-align: center; }
+.release-features { max-width: 850px; margin: 24px auto 0; padding-top: 15px; border-top: 1px solid var(--line); }
+.release-features p { margin: 0 0 10px; color: #aeb8c3; font-size: .78rem; line-height: 1.7; }
+.release-features strong { color: #e5ebf2; font-weight: 650; }
+.release-features a { color: var(--blue-strong); text-underline-offset: 3px; }
+.release-features p:last-child { margin-bottom: 0; }
 .hero h1 { max-width: 880px; }
 .hero-lede { max-width: 620px; margin: 0 auto 28px; color: #b4bcc6; font-size: clamp(1.02rem, 1.7vw, 1.18rem); line-height: 1.72; }
 .hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 11px; }

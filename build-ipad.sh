@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")"
+PROJECT_DIR="$(pwd -P)"
+BUILD_CACHE_ROOT="$PROJECT_DIR/.build/ipad-release-cache"
+export TMPDIR="$BUILD_CACHE_ROOT/tmp"
+export CLANG_MODULE_CACHE_PATH="$BUILD_CACHE_ROOT/modules"
+export SWIFT_MODULECACHE_PATH="$BUILD_CACHE_ROOT/modules"
+export XDG_CACHE_HOME="$BUILD_CACHE_ROOT/xdg"
+export PYTHONDONTWRITEBYTECODE=1
+mkdir -p "$TMPDIR" "$CLANG_MODULE_CACHE_PATH" "$XDG_CACHE_HOME"
 python3 scripts/generate-ipad-project.py
 mode="${1:-simulator}"
 derived_data="${CW_IPAD_DERIVED_DATA:-.build/ipad}"
@@ -14,7 +22,7 @@ if [[ "$CW_ENABLE_ICLOUD" == 1 && "$mode" != archive ]]; then
   exit 2
 fi
 if [[ "$mode" == archive && "$CW_ENABLE_ICLOUD" != 1 ]]; then
-  echo 'A 1.2.0 iPad distribution archive must include CloudKit. Set CW_ENABLE_ICLOUD=1 and provide a matching profile.' >&2
+  echo 'A 1.3.0 iPad distribution archive must include CloudKit. Set CW_ENABLE_ICLOUD=1 and provide a matching profile.' >&2
   exit 2
 fi
 cloud_entitlements=()
@@ -92,7 +100,7 @@ case "$mode" in
     fi
     xcodebuild -project iPadOS/CommissieWijzer.xcodeproj -scheme CommissieWijzer-iPad \
       -configuration Release -destination 'generic/platform=iOS' \
-      -archivePath "$archive_path" DEVELOPMENT_TEAM="$CW_DEVELOPMENT_TEAM" \
+      -archivePath "$archive_path" -derivedDataPath "$derived_data" DEVELOPMENT_TEAM="$CW_DEVELOPMENT_TEAM" \
       "OTHER_SWIFT_FLAGS=$swift_prefix_flags" \
       "OTHER_CFLAGS=$clang_prefix_flags" \
       "OTHER_CPLUSPLUSFLAGS=$clang_prefix_flags" \

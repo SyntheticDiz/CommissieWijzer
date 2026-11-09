@@ -58,6 +58,7 @@ struct ChartAreaView: View {
         }
         .padding(20)
         .platformReadingFrame(minWidth: 340, idealWidth: 520, minHeight: 360, idealHeight: 500)
+        .background(AppTheme.background)
         .buttonStyle(FocusSecondaryButtonStyle())
     }
 

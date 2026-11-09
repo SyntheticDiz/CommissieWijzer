@@ -204,6 +204,7 @@ struct DocumentChatView: View {
     @State private var draft = ""
     var body: some View {
         sizedConversation
+            .background(embedded ? Color.clear : AppTheme.background)
             .task {
                 if !initialQuestion.isEmpty && session.messages.isEmpty {
                     session.send(initialQuestion, document: document, pages: pages, focus: focus, model: model, passage: passage)
@@ -317,7 +318,8 @@ struct DocumentChatView: View {
                 citationView(item.element, message: message)
             }
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(message.isUser ? Color.accentColor.opacity(0.08) : Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 16)).id(message.id)
+            .background(message.isUser ? AppTheme.selection : AppTheme.surface, in: RoundedRectangle(cornerRadius: AppTheme.cardRadius))
+            .id(message.id)
     }
     @ViewBuilder private func citationView(_ citation: ChatCitation, message: ChatMessage) -> some View {
         if let source = message.sources.first(where: { $0.id == citation.sourceID }) {

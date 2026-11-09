@@ -19,7 +19,7 @@ struct GlassActionStyle: ViewModifier {
     }
 }
 
-/// Deliberate calls to action use the single red brand color.
+/// Deliberate calls to action use the cyan treatment from PDF import.
 struct FocusPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -104,7 +104,7 @@ private struct FocusButtonLabel: View {
         if isDestructive && role != .primary { return .red }
         switch role {
         case .primary:
-            return .white
+            return AppTheme.primaryActionText
         case .secondary, .quiet, .toolbar:
             return Color.primary.opacity(configuration.isPressed ? 0.68 : 0.9)
         }
@@ -116,7 +116,8 @@ private struct FocusButtonLabel: View {
         }
         switch role {
         case .primary:
-            return configuration.isPressed ? AppTheme.brandPressed : AppTheme.brand
+            if configuration.isPressed { return AppTheme.primaryActionPressed }
+            return isHovered ? AppTheme.primaryActionHover : AppTheme.primaryAction
         case .secondary:
             if isDestructive && (configuration.isPressed || isHovered) {
                 return Color.red.opacity(contrast == .increased ? 0.2 : 0.1)
@@ -139,7 +140,7 @@ private struct FocusButtonLabel: View {
         switch controlSize {
         case .mini: return max(4, base - 5)
         case .small: return max(5, base - 3)
-        case .large: return base + 2
+        case .large: return role == .primary ? 18 : base + 2
         default: return base
         }
     }
@@ -166,10 +167,14 @@ private struct FocusButtonLabel: View {
             .background(background, in: shape)
             .overlay {
                 if isFocused && enabled {
-                    shape.strokeBorder(AppTheme.focusRing, lineWidth: contrast == .increased ? 3 : 2)
+                    shape.strokeBorder(role == .primary ? AppTheme.primaryActionText : AppTheme.focusRing,
+                                       lineWidth: contrast == .increased ? 3 : 2)
                         .allowsHitTesting(false).accessibilityHidden(true)
                 } else if contrast == .increased && role == .secondary {
                     shape.strokeBorder(Color.primary.opacity(0.68), lineWidth: 1.5)
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                } else if contrast == .increased && role == .primary && enabled {
+                    shape.strokeBorder(AppTheme.primaryActionText, lineWidth: 1.5)
                         .allowsHitTesting(false).accessibilityHidden(true)
                 }
             }
@@ -262,7 +267,7 @@ extension View {
 }
 
 /// Existing quiet actions retain one shared implementation for focus, disabled,
-/// hover and pressed states. Source actions no longer consume the red accent color.
+/// hover and pressed states.
 struct QuietActionStyle: ButtonStyle {
     var sourceAction = false
     @Environment(\.isEnabled) private var isEnabled

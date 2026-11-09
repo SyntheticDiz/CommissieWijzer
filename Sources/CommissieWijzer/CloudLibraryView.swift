@@ -19,10 +19,11 @@ struct CloudLibraryView: View {
                 Spacer()
                 Button { Task { await cloud.refresh() } } label: {
                     Image(systemName: "arrow.clockwise")
-                        .frame(width: 44, height: 44)
+                        .frame(width: 20, height: 30)
                 }
-                    .accessibilityLabel(UIStrings.text("Ververs"))
-                    .disabled(!cloud.enabled || cloud.busy)
+                .buttonStyle(FocusSecondaryButtonStyle())
+                .accessibilityLabel(UIStrings.text("Ververs"))
+                .disabled(!cloud.enabled || cloud.busy)
             }
             Text(UIStrings.text("Kies een dossier om de beschikbare versie te openen. Openen start geen nieuwe analyse."))
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -38,51 +39,59 @@ struct CloudLibraryView: View {
                 LazyVStack(alignment: .leading, spacing: 16) {
                 ForEach(cloud.dossiers) { dossier in
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(dossier.title).font(.headline).lineLimit(2)
-                            Spacer()
-                            if dossier.isConflict { Label(UIStrings.text("Conflict"), systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
+                        Text(dossier.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                        if dossier.isConflict {
+                            Label(UIStrings.text("Conflict"), systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption.weight(.semibold)).foregroundStyle(.orange)
                         }
-                        HStack(spacing: 8) {
-                            Text(dossier.hasLocalChanges ? UIStrings.text("Wacht op synchronisatie") : "\(UIStrings.text("Bijgewerkt")) \(dossier.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
-                            if dossier.isDownloaded { Text("· \(UIStrings.text("lokaal beschikbaar"))") }
-                        }.font(.caption).foregroundStyle(.secondary)
-                        HStack {
-                            Button(UIStrings.text("Open versie"), systemImage: "doc.text.magnifyingglass") {
-                                opening = dossier.id
-                                Task {
-                                    do { let checkout = try await cloud.checkout(id: dossier.id); open(dossier, checkout); dismiss() }
-                                    catch { localError = error.localizedDescription }
-                                    opening = nil
-                                }
-                            }.disabled(opening != nil || cloud.busy)
-                        }.buttonStyle(.bordered)
-                    }.padding(.vertical, 5)
-                    Divider()
+                        Text(dossier.hasLocalChanges ? UIStrings.text("Wacht op synchronisatie") : "\(UIStrings.text("Bijgewerkt")) \(dossier.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                        if dossier.isDownloaded {
+                            Text(UIStrings.text("lokaal beschikbaar")).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Button(UIStrings.text("Open versie"), systemImage: "doc.text.magnifyingglass") {
+                            opening = dossier.id
+                            Task {
+                                do { let checkout = try await cloud.checkout(id: dossier.id); open(dossier, checkout); dismiss() }
+                                catch { localError = error.localizedDescription }
+                                opening = nil
+                            }
+                        }
+                        .buttonStyle(FocusSecondaryButtonStyle())
+                        .disabled(opening != nil || cloud.busy)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .readingSurface()
                 }
             if cloud.committeeSyncEnabled, !cloud.committeeVersions.isEmpty {
                 Divider()
                 Text(UIStrings.text("Bewaarde commissielijsten")).font(.headline)
                 ForEach(cloud.committeeVersions) { version in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("\(version.committees.count) \(UIStrings.text("commissies"))")
-                            Text(version.modifiedAt.formatted(date: .abbreviated, time: .shortened) + (version.isConflict ? " · \(UIStrings.text("Conflict"))" : ""))
-                                .font(.caption).foregroundStyle(version.isConflict ? .orange : .secondary)
-                        }
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("\(version.committees.count) \(UIStrings.text("commissies"))").font(.headline)
+                        Text(version.modifiedAt.formatted(date: .abbreviated, time: .shortened) + (version.isConflict ? " · \(UIStrings.text("Conflict"))" : ""))
+                            .font(.caption).foregroundStyle(version.isConflict ? .orange : .secondary)
                         Button(UIStrings.text("Toepassen")) { committeeVersion = version }
+                            .buttonStyle(FocusSecondaryButtonStyle())
                     }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .readingSurface()
                 }
             }
                 }
             }
             VStack(alignment: .leading, spacing: 12) {
                 if !cloud.status.isEmpty { Text(UIStrings.text(cloud.status)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-                HStack { Spacer(); Button(UIStrings.text("Gereed")) { dismiss() }.keyboardShortcut(.defaultAction) }
+                Button(UIStrings.text("Gereed")) { dismiss() }
+                    .buttonStyle(FocusSecondaryButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }.padding(24).frame(maxWidth: .infinity)
         }.frame(minHeight: 360)
+            .background(AppTheme.background)
             .task { await cloud.loadLocalLibrary() }
             .alert(UIStrings.text("Commissielijst toepassen?"), isPresented: Binding(
                 get: { committeeVersion != nil }, set: { if !$0 { committeeVersion = nil } }

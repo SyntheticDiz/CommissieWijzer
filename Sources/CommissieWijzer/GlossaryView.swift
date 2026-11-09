@@ -147,6 +147,7 @@ struct GlossaryView: View {
             }
             Text(UIStrings.text("Wikipedia ontvangt de afkorting. Bij ChatGPT worden ook een kort documentfragment en de gevonden bronintroducties naar OpenAI verstuurd; bij Apple Intelligence blijft die AI-verwerking lokaal. Zoek online blijft een aparte browserzoekopdracht.")).font(.caption).foregroundStyle(.secondary)
         }.padding(24).platformSheetSize(width: 700, height: 650)
+        .background(AppTheme.background)
         .task(id: documentKey) {
             if !initialSearch.isEmpty { search = initialSearch }
             loading = true
@@ -178,6 +179,7 @@ struct GlossaryView: View {
                         .keyboardShortcut(.defaultAction)
                 }
             }.padding(24).platformSheetSize(width: 520)
+                .background(AppTheme.background)
                 .buttonStyle(FocusSecondaryButtonStyle())
         .disclosureGroupStyle(FullRowDisclosureGroupStyle())
         }

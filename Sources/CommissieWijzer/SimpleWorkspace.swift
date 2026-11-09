@@ -867,6 +867,38 @@ final class SimpleWorkspace: ObservableObject {
         guard let task = committeeReviewTask else { return }
         task.cancel()
     }
+    @Published private(set) var meetingQuestions: [MeetingQuestion] = []
+    var canEditMeetingQuestions: Bool {
+        document != nil && !showsWelcome && !processingPresented && !exporting
+    }
+    @discardableResult
+    func saveMeetingQuestion(_ question: MeetingQuestion, expectedDocumentID: UUID) -> Bool {
+        guard canEditMeetingQuestions, documentID == expectedDocumentID, let document else { return false }
+        var question = question
+        question.question = question.question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard MeetingQuestion.areValid([question], pageCount: document.pages.count) else { return false }
+        if let index = meetingQuestions.firstIndex(where: { $0.id == question.id }) {
+            guard meetingQuestions[index].source == question.source else { return false }
+            guard meetingQuestions[index] != question else { return true }
+            meetingQuestions[index] = question
+        } else {
+            meetingQuestions.append(question)
+        }
+        markDirty()
+        return true
+    }
+    func setMeetingQuestionStatus(_ status: MeetingQuestionStatus, id: UUID, expectedDocumentID: UUID) {
+        guard var question = meetingQuestions.first(where: { $0.id == id }) else { return }
+        question.status = status
+        saveMeetingQuestion(question, expectedDocumentID: expectedDocumentID)
+    }
+    func removeMeetingQuestion(id: UUID, expectedDocumentID: UUID) {
+        guard canEditMeetingQuestions, documentID == expectedDocumentID,
+              let index = meetingQuestions.firstIndex(where: { $0.id == id }) else { return }
+        meetingQuestions.remove(at: index)
+        markDirty()
+    }
+
     private var selectionDocumentKey = ""
     var workStorageKey: String { selectionDocumentKey }
     private func persistChosenPassages() {
@@ -1028,6 +1060,7 @@ final class SimpleWorkspace: ObservableObject {
     @Published private(set) var analysisPhase: ChatGPTAnalysisPhase?
     @Published private(set) var isSwitchingChatGPTModel = false
     @Published private(set) var analysisModel: String?
+    var comparingPartyProgram: Bool { analysisPhase == .points && lastJob?.compare == true }
     var canStartAnalysis: Bool {
         canStartBaseAnalysis && !committeeReviewBusy
     }
@@ -1495,6 +1528,7 @@ final class SimpleWorkspace: ObservableObject {
         document = nil
         documentSummary = nil
         insights = []; tables = []; keyPoints = []; passageQuestions = [:]; chosenPassages = []
+        meetingQuestions = []
         savedChatThreads = []; savedChartAnalyses = []; savedSelectionSummaries = []
         meetingPurpose = .raad
         committeeCatalog = []
@@ -1585,6 +1619,7 @@ final class SimpleWorkspace: ObservableObject {
                 committeeReviewCompleted = 0; committeeReviewTotal = 0
                 selectionDocumentKey = LocalCache.key(loaded.pages)
                 chosenPassages = loadChosenPassages(pageCount: loaded.pages.count)
+                meetingQuestions = []
                 passageQuestions = SavedWork.read([String: [PassageQuestion]].self, key: "questions-" + selectionDocumentKey) ?? [:]
                 starred = SavedSelection.read(documentKey: selectionDocumentKey)
                 selectionMetadata = SavedWork.read(SavedSelectionMetadata.self, key: "selection-metadata-" + selectionDocumentKey) ?? .init()
@@ -2208,7 +2243,8 @@ final class SimpleWorkspace: ObservableObject {
             selectionMetadata: selectionMetadata, viewState: viewState, analysisCompletedPages: analysisCompletedPages,
             chosenPassages: chosenPassages, meetingPurpose: meetingPurpose,
             committeeCatalog: retainedCommitteeCatalog(), committeeReviews: reviews,
-            savedChatThreads: savedChatThreads, savedChartAnalyses: savedChartAnalyses, savedSelectionSummaries: savedSelectionSummaries)
+            savedChatThreads: savedChatThreads, savedChartAnalyses: savedChartAnalyses, savedSelectionSummaries: savedSelectionSummaries,
+            meetingQuestions: meetingQuestions.isEmpty ? nil : meetingQuestions)
     }
     func restore(_ saved: WorkspaceArchive, persist: Bool = true) throws {
         try restore(saved, persist: persist, prevalidated: false)
@@ -2278,6 +2314,7 @@ final class SimpleWorkspace: ObservableObject {
         selectionDocumentKey = "snapshot-" + (saved.snapshotID ?? UUID()).uuidString
         starred = saved.starred; annotations = saved.annotations; passageQuestions = saved.questions
         chosenPassages = saved.chosenPassages ?? []
+        meetingQuestions = saved.meetingQuestions ?? []
         savedChatThreads = (saved.savedChatThreads ?? []).filter { SavedChatThread.validate($0, pageCount: saved.pages.count) }
         savedChartAnalyses = (saved.savedChartAnalyses ?? []).filter { SavedChartAnalysis.validate($0, pageCount: saved.pages.count) }
         savedSelectionSummaries = (saved.savedSelectionSummaries ?? []).filter { SavedSelectionSummary.validate($0, pageCount: saved.pages.count) }

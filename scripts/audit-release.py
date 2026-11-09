@@ -12,8 +12,8 @@ from pathlib import Path
 BUNDLE_ID = "nl.commissiewijzer.app"
 ICLOUD_CONTAINER_ID = "iCloud.nl.commissiewijzer.app"
 ICLOUD_ENVIRONMENTS = {"Development", "Production"}
-VERSION = "1.2.0"
-BUILD = "8"
+VERSION = "1.3.0"
+BUILD = "10"
 MINIMUM_SYSTEM = "14.0"
 
 

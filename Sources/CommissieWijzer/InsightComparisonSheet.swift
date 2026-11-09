@@ -14,6 +14,7 @@ struct InsightComparisonSheet: View {
     var body: some View {
         responsiveContent
             .padding(22).platformReadingFrame(minWidth: 720, minHeight: 500)
+            .background(AppTheme.background)
             .onAppear {
                 if firstID.isEmpty { firstID = points.first?.id ?? "" }
                 if secondID.isEmpty { secondID = points.dropFirst().first?.id ?? firstID }
@@ -115,6 +116,6 @@ struct InsightComparisonSheet: View {
             }
         }
         .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .readingSurface()
     }
 }

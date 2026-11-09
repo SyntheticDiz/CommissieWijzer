@@ -40,7 +40,7 @@ struct SourceQuoteView: View {
         for segment in paragraph.segments {
             var part = AttributedString(segment.text)
             if segment.isEvidence {
-                part.backgroundColor = Color.accentColor.opacity(0.16)
+                part.backgroundColor = AppTheme.accent.opacity(0.16)
             }
             result.append(part)
         }

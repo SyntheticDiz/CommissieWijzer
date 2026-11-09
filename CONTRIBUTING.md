@@ -1,13 +1,14 @@
 # Contributing to CommissieWijzer
 
-CommissieWijzer is a macOS PDF reading and preparation app. Contributions to this source
+CommissieWijzer is a macOS and iPadOS PDF reading and preparation app. Contributions to this source
 tree are welcome under the MIT license. By submitting a contribution, you
 agree that it may be distributed under that license.
 
 ## Build
 
-Requirements: macOS 14 or later and a Swift toolchain compatible with
-`Package.swift`.
+Requirements: macOS 14 or later for the Swift package and Mac app. iPad builds
+also require Xcode and the iPadOS SDK; see `README.md` for platform-specific
+build modes and signing requirements.
 
 Build the Swift package locally:
 
@@ -15,9 +16,11 @@ Build the Swift package locally:
 swift build -c release
 ```
 
-The repository's `build-app.sh` additionally creates an app bundle and app
-icon from `Assets/CommissieWijzer.png` using Apple's `sips`, `iconutil`, and `codesign`
-tools. Preview mode is locally signed. Store mode requires the publisher’s external certificates and a matching provisioning profile.
+The repository's `build-app.sh` creates the Mac app bundle and icon using
+Apple's `sips`, `iconutil`, and `codesign` tools. `build-ipad.sh` builds the
+iPad app from the generated Xcode project. Preview and simulator/device builds
+are available locally; iCloud-enabled and Store builds require matching
+publisher signing assets. See `README.md` for the exact commands.
 
 ## Changes
 

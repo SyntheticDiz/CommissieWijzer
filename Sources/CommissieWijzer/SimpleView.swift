@@ -55,7 +55,7 @@ private struct PaneToolsHeightPreferenceKey: PreferenceKey {
 struct SimpleView: View {
     @AppStorage("uiLanguage") private var uiLanguage = "nl"
     @StateObject private var workspace: SimpleWorkspace
-    @ObservedObject private var cloudSync = CloudSyncController.shared
+    @ObservedObject private var cloudSync: CloudSyncController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 #if os(iOS)
@@ -67,7 +67,8 @@ struct SimpleView: View {
     @StateObject private var closeBridge = WorkspaceWindowCloseBridge()
     #endif
     @ObservedObject private var chatGPTAccount = ChatGPTAccount.shared
-    @ObservedObject private var recentDocuments = RecentWorkspaceDocuments.shared
+    @ObservedObject private var recentDocuments: RecentWorkspaceDocuments
+    private let recentInitiallyExpanded: Bool
     @ObservedObject private var committeeLibrary = CommitteeLibrary.shared
     @AppStorage("showPDFPane") private var showPDFPane = true
     @AppStorage("compareProgram") private var compareProgram = false
@@ -81,6 +82,8 @@ struct SimpleView: View {
 
     @State private var section: WorkbenchSection = .overview
     @State private var savedViewState = WorkspaceViewState()
+    @State private var showingQuestionList = false
+    @State private var meetingQuestionEditor: MeetingQuestionEditorRequest?
     @State private var showingAnalysisOverview = false
     @State private var pendingScrollID: String?
     @State private var pendingCommitteePassageID: String?
@@ -108,6 +111,7 @@ struct SimpleView: View {
     @State private var pendingTableID: String?
     @State private var showingExport = false
     @State private var showingSettings = false
+    @State private var initialSettingsSection: SettingsSection?
     @State private var showingCloudLibrary = false
     @State private var pendingCloudCheckout: (CloudDossier, CloudCheckout)?
     @State private var showingCloudUploadConfirmation = false
@@ -144,8 +148,12 @@ struct SimpleView: View {
     @State private var paneHeaderHeight: CGFloat = 84
     @State private var paneToolsHeight: CGFloat = 56
 
-    @MainActor init(workspace: SimpleWorkspace? = nil) {
+    @MainActor init(workspace: SimpleWorkspace? = nil, cloudSync: CloudSyncController? = nil,
+                    recentDocuments: RecentWorkspaceDocuments? = nil, recentInitiallyExpanded: Bool = false) {
         _workspace = StateObject(wrappedValue: workspace ?? SimpleWorkspace())
+        _cloudSync = ObservedObject(wrappedValue: cloudSync ?? .shared)
+        _recentDocuments = ObservedObject(wrappedValue: recentDocuments ?? .shared)
+        self.recentInitiallyExpanded = recentInitiallyExpanded
     }
     private var viewState: WorkspaceViewState {
         WorkspaceViewState(section: section.rawValue, pointsMode: pointsMode.rawValue, openGroups: openGroups,
@@ -184,24 +192,27 @@ struct SimpleView: View {
         ZStack {
             if workspace.processingPresented {
                 ProcessingSplashView(workspace: workspace, onReturnToImport: { requestWorkspaceAction(.returnToImport) }).transition(.opacity)
+            } else if workspace.showsWelcome {
+                welcome.transition(.opacity)
             } else {
-            VStack(spacing: 0) {
-            if workspace.showsWelcome {
-                HStack {
-                    Spacer(minLength: 0)
-                    ProcessingModePicker(compareProgram: $compareProgram, disabled: workspace.busy)
-                        .fixedSize(horizontal: true, vertical: false)
-                    Spacer(minLength: 0)
+                ZStack {
+                    // Preserve the workbench and its in-progress local edits while
+                    // the quiet view is in front of it.
+                    VStack(spacing: 0) {
+                        if compareProgram && workspace.programIdentity == "none" { missingPartyProgramNote }
+                        workbench
+                    }
+                    .opacity(showingQuestionList ? 0 : 1)
+                    .allowsHitTesting(!showingQuestionList)
+                    .accessibilityHidden(showingQuestionList)
+                    if showingQuestionList, let document = workspace.document {
+                        MeetingPreparationView(workspace: workspace, documentID: workspace.documentID,
+                            pdf: document.data, close: { showingQuestionList = false },
+                            draftQuestion: beginMeetingQuestion, editQuestion: editMeetingQuestion)
+                            .id(workspace.documentID)
+                    }
                 }
-                .padding(.horizontal, 24).padding(.top, 12)
-            }
-            if compareProgram && workspace.programIdentity == "none" {
-                Text(UIStrings.text("Voor programmavergelijking kun je in Instellingen een partijprogramma toevoegen."))
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if workspace.showsWelcome { welcome }
-            else { workbench }
-            }.transition(.opacity)
+                .transition(.opacity)
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: workspace.processingPresented)
@@ -236,7 +247,7 @@ struct SimpleView: View {
         .sheet(isPresented: $showingGlossary, onDismiss: { Task { await refreshSearchBase() } }) {
             if let document = workspace.document { GlossaryView(document: document, initialSearch: glossarySearch) { showPDFPage($0) } }
         }
-        .sheet(isPresented: $showingSettings, onDismiss: handleSettingsDismiss) { AppSettingsView() }
+        .sheet(isPresented: $showingSettings, onDismiss: handleSettingsDismiss) { AppSettingsView(initialSection: initialSettingsSection) }
         .sheet(isPresented: $showingCloudLibrary, onDismiss: {
             if let (_, checkout) = pendingCloudCheckout {
                 pendingCloudCheckout = nil
@@ -272,6 +283,13 @@ struct SimpleView: View {
             let expectedDocumentID = workspace.documentID
             ChartAnalysisView(selected: selected, initialExplanation: selectedChartExplanation) { explanation in
                 workspace.rememberChart(selected, explanation: explanation, expectedDocumentID: expectedDocumentID)
+            }
+        }
+        .sheet(item: $meetingQuestionEditor) { request in
+            if let document = workspace.document, request.documentID == workspace.documentID {
+                MeetingQuestionEditor(request: request, pdf: document.data) { question in
+                    workspace.saveMeetingQuestion(question, expectedDocumentID: request.documentID)
+                }
             }
         }
         .sheet(isPresented: $showingSavedExtras) {
@@ -328,6 +346,7 @@ struct SimpleView: View {
     private var stateObservedContent: some View {
         presentedContent
         .onChange(of: workspace.documentID) { _, _ in
+            showingQuestionList = false; meetingQuestionEditor = nil
             committeeShowAll = [:]; committeeOpenCategories = [:]; openTableIDs = []; lastTableID = nil; pendingTableID = nil; pendingCommitteePassageID = nil
             showingAnalysisOverview = false; search = ""; pointPageFilter = ""; reviewFilter = 0; searchBase = []; section = .overview; pointsMode = .featured; openGroups = []; showingCoverage = false; chatPresentation = nil; pdfControls.resetHighlight()
             selectionSummary.close(); selectingChart = false; chartDragStart = nil; chartDragEnd = nil; selectedChart = nil
@@ -453,9 +472,7 @@ struct SimpleView: View {
         HStack(spacing: 8) {
             FocusMenuPicker(UIStrings.text("Voorbereiden voor"), selection: $importPurpose,
                             selectedTitle: purposePickerTitle(importPurpose, options: importPurposeOptions)) {
-            ForEach(importPurposeOptions, id: \.self) { purpose in
-                Text(purposePickerTitle(purpose, options: importPurposeOptions)).tag(purpose)
-            }
+                importPurposeChoices
             }.frame(maxWidth: 340)
             Button(UIStrings.text("Beheer commissies"), systemImage: "slider.horizontal.3") {
                 showingCommitteeManager = true
@@ -466,6 +483,12 @@ struct SimpleView: View {
             .help(UIStrings.text("Commissies toevoegen, aanpassen of verwijderen"))
         }
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var importPurposeChoices: some View {
+        ForEach(importPurposeOptions, id: \.self) { purpose in
+            Text(purposePickerTitle(purpose, options: importPurposeOptions)).tag(purpose)
+        }
     }
 
     private var importPurposeOptions: [MeetingPurpose] {
@@ -497,42 +520,241 @@ struct SimpleView: View {
 
     private var welcome: some View {
         GeometryReader { geometry in
-        ScrollView {
-        VStack(spacing: 20) {
-            appIconView
-            Text(UIStrings.text("Welkom bij CommissieWijzer")).font(.system(size: 30, weight: .semibold))
-            Text(UIStrings.text("Van commissiestuk naar overzicht.")).font(.title3).foregroundStyle(.secondary)
-            Text(UIStrings.text(AIConfiguration.label(AIConfiguration.selectedModel)))
-                .font(.caption).foregroundStyle(.secondary)
-            if aiProvider == "chatgpt" { Text(UIStrings.text("Bij analyse wordt de documentinhoud naar OpenAI verstuurd.")).font(.caption).foregroundStyle(.secondary) }
-            if let reason = appleUnavailable {
-                Label(UIStrings.text(reason), systemImage: "info.circle").font(.callout)
-                Text(UIStrings.text("Je kunt de PDF openen, lezen en lokaal doorzoeken.")).font(.caption).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(spacing: 12) {
+                    welcomeHeading.padding(.bottom, 6)
+                    welcomeAnalysisOptions
+                    welcomeImport
+                    welcomeProvider
+                    welcomeWorkspaceActions
+                    if !recentDocuments.entries.isEmpty { recentWorkspaces }
+                    if workspace.busy {
+                        Text(UIStrings.text("Verwerking stoppen…")).font(.callout).foregroundStyle(.secondary)
+                    }
+                    if workspace.document != nil {
+                        Button(UIStrings.text("Terug naar huidige pdf")) { workspace.showsWelcome = false }
+                            .buttonStyle(FocusQuietActionStyle())
+                            .disabled(workspace.busy)
+                    }
+                }
+                .frame(maxWidth: 520)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .top)
             }
-            importPurposePicker
-            PDFImportCard(busy: workspace.busy, targeted: targeted,
-                          addPDF: { requestWorkspaceAction(.choosePDF) })
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: targeted)
-                .dropDestination(for: URL.self) { urls, _ in pendingImportPurpose = importPurpose; requestWorkspaceAction(.importPDF(urls)); return true } isTargeted: { targeted = $0 }
-            Button(UIStrings.text("Werkdocument openen…"), systemImage: "folder") { requestWorkspaceAction(.openWorkspace) }
-                .buttonStyle(QuietActionStyle()).disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting)
-            Button(UIStrings.text("iCloud-bibliotheek"), systemImage: "icloud") { showingCloudLibrary = true }
-                .buttonStyle(QuietActionStyle())
-            if !recentDocuments.entries.isEmpty { recentWorkspaces }
-            if workspace.busy { Text(UIStrings.text("Verwerking stoppen…")).font(.callout).foregroundStyle(.secondary) }
-            if workspace.document != nil {
-                Button(UIStrings.text("Terug naar huidige pdf")) { workspace.showsWelcome = false }.disabled(workspace.busy)
-            }
-        }.frame(maxWidth: 540).padding(32).frame(maxWidth: .infinity).frame(minHeight: geometry.size.height)
         }
+        .accessibilityIdentifier("welcome-screen")
+    }
+
+    private var welcomeHeading: some View {
+        let title = Text("CommissieWijzer")
+            .font(.largeTitle.weight(.semibold))
+            .accessibilityAddTraits(.isHeader)
+        return VStack(spacing: 5) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    appIconView
+                    title.fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(spacing: 4) {
+                    appIconView
+                    title
+                }
+            }
+            Text(UIStrings.text("Jouw stukken. Jouw inzichten. Jouw koers."))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .multilineTextAlignment(.center)
+    }
+
+    private var welcomeAnalysisOptions: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            welcomePicker("Analysevorm", selection: $compareProgram,
+                          selectedTitle: UIStrings.text(compareProgram ? "Vergelijk met partijprogramma" : "Neutrale samenvatting")) {
+                Text(UIStrings.text("Neutrale samenvatting")).tag(false)
+                Text(UIStrings.text("Vergelijk met partijprogramma")).tag(true)
+            }
+            welcomePicker("Voorbereiden voor", selection: $importPurpose,
+                          selectedTitle: purposePickerTitle(importPurpose, options: importPurposeOptions)) {
+                importPurposeChoices
+            }
+            Button(UIStrings.text("Commissies beheren"), systemImage: "slider.horizontal.3") {
+                showingCommitteeManager = true
+            }
+            .buttonStyle(FocusQuietActionStyle())
+            .controlSize(.small)
+            .help(UIStrings.text("Commissies toevoegen, aanpassen of verwijderen"))
+            if compareProgram && workspace.programIdentity == "none" { missingPartyProgramNote }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .readingSurface()
+    }
+
+    private func welcomePicker<Value: Hashable, Choices: View>(
+        _ title: String, selection: Binding<Value>, selectedTitle: String, @ViewBuilder choices: () -> Choices
+    ) -> some View {
+        let fieldLabel = UIStrings.text(title)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(fieldLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Menu {
+                Picker(fieldLabel, selection: selection) { choices() }.pickerStyle(.menu)
+            } label: {
+                HStack(spacing: 8) {
+                    Text(selectedTitle)
+                        .font(.callout)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
+            }
+            .menuIndicator(.hidden)
+            .focusMenu()
+            .disabled(workspace.busy)
+            .accessibilityLabel(fieldLabel)
+            .accessibilityValue(selectedTitle)
+            .help(selectedTitle)
+        }
+    }
+
+    private var missingPartyProgramNote: some View {
+        Text(UIStrings.text("Voor programmavergelijking kun je in Instellingen een partijprogramma toevoegen."))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private var welcomeImport: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "doc.badge.plus")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(UIStrings.text(workspace.busy ? "Pdf inladen…" : "Voeg een pdf toe"))
+                .font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+            Text(UIStrings.text("Sleep je pdf hierheen"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            if workspace.busy {
+                ProgressView().controlSize(.small)
+            } else {
+                Button {
+                    requestWorkspaceAction(.choosePDF)
+                } label: {
+                    Label(UIStrings.text("Pdf toevoegen…"), systemImage: "plus")
+                }
+                .buttonStyle(FocusPrimaryButtonStyle())
+                .controlSize(.large)
+                .disabled(workspace.committeeReviewBusy || workspace.exporting)
+                .accessibilityIdentifier("welcome-import-pdf")
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity)
+        .readingSurface()
+        .overlay {
+            if targeted {
+                RoundedRectangle(cornerRadius: AppTheme.cardRadius)
+                    .strokeBorder(AppTheme.focusRing, style: StrokeStyle(lineWidth: 2, dash: [7, 5]))
+                    .allowsHitTesting(false)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius))
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: targeted)
+        .dropDestination(for: URL.self) { urls, _ in
+            pendingImportPurpose = importPurpose
+            requestWorkspaceAction(.importPDF(urls))
+            return true
+        } isTargeted: { targeted = $0 }
+    }
+
+    private var welcomeProvider: some View {
+        let isChatGPT = aiProvider == "chatgpt"
+        let provider = Label(UIStrings.text(isChatGPT ? "ChatGPT · Online" : "Apple Intelligence · Lokaal"),
+                             systemImage: isChatGPT ? "network" : "sparkles")
+            .font(.callout.weight(.medium))
+        let change = Button(UIStrings.text("Wijzigen")) { initialSettingsSection = .ai; showingSettings = true }
+            .buttonStyle(FocusQuietActionStyle())
+            .controlSize(.small)
+            .accessibilityHint(UIStrings.text("Instellingen"))
+        return VStack(alignment: .leading, spacing: 4) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    provider.fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    change.fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    provider
+                    change
+                }
+            }
+            if isChatGPT {
+                Text(UIStrings.text("Bij analyse wordt de documentinhoud naar OpenAI verstuurd."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let reason = appleUnavailable {
+                Label(UIStrings.text(reason), systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text(UIStrings.text("Je kunt de PDF openen, lezen en lokaal doorzoeken."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .readingSurface()
+    }
+
+    private var welcomeWorkspaceActions: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) { welcomeWorkspaceButtons(inline: true) }
+            VStack(spacing: 8) { welcomeWorkspaceButtons(inline: false) }
+        }
+        .buttonStyle(FocusSecondaryButtonStyle())
+        .controlSize(.large)
+    }
+
+    @ViewBuilder private func welcomeWorkspaceButtons(inline: Bool) -> some View {
+        Button {
+            requestWorkspaceAction(.openWorkspace)
+        } label: {
+            Label(UIStrings.text("Werkdocument openen…"), systemImage: "folder")
+                .fixedSize(horizontal: inline, vertical: false)
+                .frame(maxWidth: .infinity)
+        }
+        .disabled(workspace.busy || workspace.committeeReviewBusy || workspace.exporting)
+        Button {
+            showingCloudLibrary = true
+        } label: {
+            Label(UIStrings.text("iCloud-bibliotheek"), systemImage: "icloud")
+                .fixedSize(horizontal: inline, vertical: false)
+                .frame(maxWidth: .infinity)
         }
     }
 
     @ViewBuilder private var appIconView: some View {
         #if os(macOS)
-        Image(nsImage: NSApplication.shared.applicationIconImage).resizable().scaledToFit().frame(width: 64, height: 64)
+        let icon = Bundle.main.url(forResource: "CWBrand", withExtension: "png")
+            .flatMap { NSImage(contentsOf: $0) }
+            ?? NSApplication.shared.applicationIconImage
+            ?? NSImage(size: NSSize(width: 46, height: 46))
+        Image(nsImage: icon).resizable().interpolation(.high).scaledToFit()
+            .frame(width: 46, height: 46).accessibilityHidden(true)
         #else
-        Image("CWBrand").resizable().scaledToFit().frame(width: 64, height: 64)
+        Image("CWBrand").resizable().interpolation(.high).scaledToFit()
+            .frame(width: 46, height: 46).accessibilityHidden(true)
         #endif
     }
 
@@ -549,10 +771,24 @@ struct SimpleView: View {
                              disabled: workspace.busy || workspace.committeeReviewBusy || workspace.exporting,
                              open: { requestWorkspaceAction(.openRecentWorkspace($0)) },
                              removeFromList: { try? recentDocuments.remove($0) },
-                             relocate: { requestWorkspaceAction(.relocateRecentWorkspace($0)) })
+                             relocate: { requestWorkspaceAction(.relocateRecentWorkspace($0)) },
+                             statusMessage: { recentDocuments.statusMessage(for: $0) },
+                             isInitiallyExpanded: recentInitiallyExpanded)
     }
 
     @ToolbarContentBuilder private var mainToolbar: some ToolbarContent {
+        if showingQuestionList && !workspace.processingPresented && !workspace.showsWelcome {
+            ToolbarItem(placement: .primaryAction) {
+                Button(UIStrings.text("Werkdocument bewaren…"), systemImage: "square.and.arrow.down") { saveWorkspace() }
+                    .buttonStyle(FocusToolbarActionStyle())
+                    .disabled(!workspace.canStartAnalysis || workspace.document == nil)
+            }
+        } else {
+            workbenchToolbar
+        }
+    }
+
+    @ToolbarContentBuilder private var workbenchToolbar: some ToolbarContent {
         #if os(iOS)
         ToolbarItemGroup(placement: .primaryAction) {
             if !workspace.processingPresented {
@@ -566,11 +802,13 @@ struct SimpleView: View {
                         .help(UIStrings.text("Kies welke onderdelen je wilt exporteren"))
                         .buttonStyle(FocusToolbarActionStyle())
                 } else {
-                    Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { showingSettings = true }
+                    Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { initialSettingsSection = nil; showingSettings = true }
                         .buttonStyle(FocusToolbarActionStyle())
                 }
                 Menu {
                     if !workspace.showsWelcome {
+                        questionListAction
+                        Divider()
                         Button(UIStrings.text("Analyseopties"), systemImage: "slider.horizontal.3") {
                             chatPresentation = nil; section = .overview; showingAnalysisOptions.toggle()
                             if showingAnalysisOptions { pendingScrollID = "summary-root" }
@@ -586,7 +824,7 @@ struct SimpleView: View {
                     }
                     Button(UIStrings.text("Rondleiding"), systemImage: "questionmark.circle") { showingTutorial = true }
                     if !workspace.showsWelcome {
-                        Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { showingSettings = true }
+                        Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { initialSettingsSection = nil; showingSettings = true }
                     }
                 } label: {
                     Label(UIStrings.text("Meer"), systemImage: "ellipsis.circle")
@@ -635,6 +873,8 @@ struct SimpleView: View {
                 .focusToolbarMenu()
             Menu {
                 if !workspace.showsWelcome {
+                    questionListAction
+                    Divider()
                     Button(UIStrings.text("Vergelijk punten"), systemImage: "rectangle.split.2x1") { showingComparison = true }
                         .disabled(workspace.busy || workspace.organizedInsights.count < 2)
                 }
@@ -645,12 +885,29 @@ struct SimpleView: View {
             }
             .accessibilityLabel(UIStrings.text("Hulpmiddelen"))
             .focusToolbarMenu()
-            Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { showingSettings = true }
+            Button(UIStrings.text("Instellingen"), systemImage: "gearshape") { initialSettingsSection = nil; showingSettings = true }
                 .keyboardShortcut(",", modifiers: .command)
                 .buttonStyle(FocusToolbarActionStyle())
             }
         }
         #endif
+    }
+
+    private var questionListAction: some View {
+        Button(UIStrings.text("Vragenlijst"), systemImage: "questionmark.bubble") { showingQuestionList = true }
+            .disabled(!workspace.canEditMeetingQuestions)
+    }
+
+    private func beginMeetingQuestion(_ source: MeetingQuestionSource, suggestions: [PassageQuestion] = []) {
+        guard workspace.canEditMeetingQuestions, let document = workspace.document,
+              source.isValid(pageCount: document.pages.count) else { return }
+        meetingQuestionEditor = MeetingQuestionEditorRequest(documentID: workspace.documentID,
+            draft: MeetingQuestion(source: source), editingExisting: false, suggestions: suggestions)
+    }
+
+    private func editMeetingQuestion(_ question: MeetingQuestion) {
+        guard workspace.canEditMeetingQuestions else { return }
+        meetingQuestionEditor = MeetingQuestionEditorRequest(documentID: workspace.documentID, draft: question, editingExisting: true)
     }
 
     @ViewBuilder private func workbenchControls(compact: Bool) -> some View {
@@ -727,19 +984,26 @@ struct SimpleView: View {
             .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 2)
             if showingAnalysisOptions && compareProgram { Button(UIStrings.text("Focus aanpassen"), systemImage: "slider.horizontal.3") { showingFocus = true }.disabled(workspace.busy).padding(.horizontal, 24) }
             if let document = workspace.document {
-                WorkspaceStatusBanner(workspace: workspace, showingAnalysisOverview: $showingAnalysisOverview,
-                    showPage: { showPDFPage($0) },
-                    showSource: { page, quote in
-                        showPDFPane = true
-                        pdfControls.pin(.init(id: "committee-status-\(page)-\(quote.hashValue)", page: page, quote: quote))
-                    },
-                    showTable: { openTable($0) }).padding(.horizontal, 24)
                 GeometryReader { layout in
                 #if os(iOS)
                 let narrow = layout.size.width < 1_000
                 #else
                 let narrow = false
                 #endif
+                let statusBanner = WorkspaceStatusBanner(workspace: workspace, showingAnalysisOverview: $showingAnalysisOverview,
+                    showPage: { showPDFPage($0) },
+                    showSource: { page, quote in
+                        showPDFPane = true
+                        pdfControls.pin(.init(id: "committee-status-\(page)-\(quote.hashValue)", page: page, quote: quote))
+                    },
+                    showTable: { id in
+                        if narrow { showPDFPane = false }
+                        openTable(id)
+                    },
+                    showPoint: { point in
+                        if narrow { showPDFPane = false }
+                        openPoint(point)
+                    })
                 let paneWidth = max(0, layout.size.width - 48)
                 let dividerWidth: CGFloat = showPDFPane && !narrow ? 14 : 0
                 let splitAvailableWidth = max(0, paneWidth - dividerWidth)
@@ -748,7 +1012,9 @@ struct SimpleView: View {
                 #else
                 let showsPaneHeadings = true
                 #endif
-                VStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 12) {
+                    statusBanner.padding(.horizontal, 24)
+                    VStack(spacing: 6) {
                     #if os(iOS)
                     if narrow {
                         ViewThatFits(in: .horizontal) {
@@ -823,7 +1089,9 @@ struct SimpleView: View {
                             }
                             if section == .points || section == .selection {
                             if section == .selection {
-                                ChosenPassagesView(workspace: workspace) { page, quote in
+                                questionListAction.buttonStyle(FocusSecondaryButtonStyle())
+                                ChosenPassagesView(workspace: workspace,
+                                                   draftQuestion: { beginMeetingQuestion(.init(passage: $0)) }) { page, quote in
                                     showPDFPane = true
                                     if quote.isEmpty { pdfControls.resetHighlight(); workspace.showPage(page) }
                                     else { pdfControls.pin(.init(id: "chosen-\(page)-\(quote.hashValue)", page: page, quote: quote)) }
@@ -1085,7 +1353,9 @@ struct SimpleView: View {
                                                              action: { startSelectionSummary(selection) },
                                                              addChosen: { _ = workspace.addChosenPassage(selection) },
                                                              addDisabled: workspace.exporting || (workspace.busy && workspace.processingPresented && !workspace.processingDocumentReady) || workspace.document == nil,
-                                                             alreadyAdded: workspace.chosenPassages.contains { $0.text == selection.text && $0.pages == selection.pages })
+                                                             alreadyAdded: workspace.chosenPassages.contains { $0.text == selection.text && $0.pages == selection.pages },
+                                                             draftQuestion: { beginMeetingQuestion(.init(selection: selection)) },
+                                                             draftDisabled: !workspace.canEditMeetingQuestions)
                                     .frame(width: actionWidth, alignment: .leading)
                                     .position(x: min(max(actionWidth / 2 + 8, anchor.x), max(actionWidth / 2 + 8, geometry.size.width - actionWidth / 2 - 8)),
                                               y: min(max(20, anchor.y + 30), max(20, geometry.size.height - 48)))
@@ -1162,6 +1432,7 @@ struct SimpleView: View {
                 .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 24)
                 .onPreferenceChange(PaneHeaderHeightPreferenceKey.self) { paneHeaderHeight = max(84, $0) }
                 .onPreferenceChange(PaneToolsHeightPreferenceKey.self) { paneToolsHeight = max(56, $0) }
+                    }
                 }
                 }
             }
@@ -1457,6 +1728,11 @@ struct SimpleView: View {
                 Spacer(minLength: 0)
             }
             insightCard(point)
+            Button(UIStrings.text("Vraag opstellen"), systemImage: "questionmark.bubble") {
+                beginMeetingQuestion(.init(point: point), suggestions: workspace.passageQuestions[SimpleWorkspace.selectionKey(point)] ?? [])
+            }
+            .buttonStyle(FocusQuietActionStyle())
+            .disabled(!workspace.canEditMeetingQuestions)
         }
         .padding(12).background(AppTheme.background, in: RoundedRectangle(cornerRadius: 18))
     }
@@ -1834,7 +2110,7 @@ struct SimpleView: View {
     private var isWorkspaceFileModalPresented: Bool {
         workspace.showsChatGPTModelSwitch || showingFocus || showingLayout || showingGlossary ||
         showingSettings || showingTutorial || showingChartArea || selectedChart != nil ||
-        showingSavedExtras || showingExport || showingComparison || showingImportPurpose || importing ||
+        showingSavedExtras || showingExport || showingComparison || showingImportPurpose || importing || meetingQuestionEditor != nil ||
         pendingActionDialogPresented || showingCloudLibrary || showingCloudUploadConfirmation || workspace.error != nil
     }
 

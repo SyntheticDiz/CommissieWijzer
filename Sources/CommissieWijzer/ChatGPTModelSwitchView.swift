@@ -15,6 +15,7 @@ struct ChatGPTModelSwitchView: View {
         responsiveContent
             .padding(24)
             .platformReadingFrame(minWidth: 460, minHeight: 430)
+            .background(AppTheme.background)
             .task {
                 if account.isSignedIn && account.models.isEmpty { await account.refreshModels() }
                 choice = Self.makeChoice(workspace.activeModel, catalog: account.models)

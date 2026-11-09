@@ -111,8 +111,9 @@ struct LayoutCorrectionView: View {
                         Image(nsImage: image).resizable().frame(width: displaySize.width, height: displaySize.height)
                         ZStack(alignment: .topLeading) {
                             if let region {
-                                Rectangle().fill(Color.accentColor.opacity(0.12))
-                                    .overlay(Rectangle().stroke(Color.accentColor, lineWidth: 2))
+                                Rectangle().fill(AppTheme.accent.opacity(0.12))
+                                    .overlay(Rectangle().stroke(.white, lineWidth: 4))
+                                    .overlay(Rectangle().stroke(AppTheme.primaryActionText, lineWidth: 2))
                                     .frame(width: region.width * displaySize.width, height: region.height * displaySize.height)
                                     .offset(x: region.minX * displaySize.width, y: (1 - region.maxY) * displaySize.height)
                                     .allowsHitTesting(false)

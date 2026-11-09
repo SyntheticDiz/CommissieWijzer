@@ -139,7 +139,7 @@ struct PassageReaderView: View {
         #else
         .frame(maxWidth: .infinity)
         #endif
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(AppTheme.background)
         .onChange(of: matches.count) { _, count in
             if count == 0 { activeMatch = -1 }
             else if activeMatch >= 0 { activeMatch = min(activeMatch, count - 1) }
@@ -333,7 +333,7 @@ struct PassageReaderView: View {
                                 Text(cueLabel(cue.kind)).font(.caption.bold()).foregroundStyle(.tint)
                                 Text(cue.text).font(.callout).multilineTextAlignment(.leading).foregroundStyle(.primary)
                             }.frame(maxWidth: .infinity, alignment: .leading).padding(9)
-                                .background(activeCue == cue.id ? Color.accentColor.opacity(0.13) : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
+                                .background(activeCue == cue.id ? AppTheme.selection : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
                         }.buttonStyle(.plain)
                     }
                 }
@@ -552,7 +552,7 @@ struct PassageSourceAidPanel: View {
                                     Text(anchor.text).font(.callout).multilineTextAlignment(.leading).foregroundStyle(.primary)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading).padding(8)
-                                .background(selectedAnchorID == anchor.id ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 7))
+                                .background(selectedAnchorID == anchor.id ? AppTheme.selection : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 7))
                             }.buttonStyle(.plain)
                         }
                     }
